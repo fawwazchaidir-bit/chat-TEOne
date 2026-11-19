@@ -145,40 +145,60 @@ describe("@tahap-1 secret scan (CI)", () => {
 
 describe("@tahap-1 penjaga regresi jumlah test", () => {
   const vitestJson = (statuses: string[], tag = "@tahap-1") => JSON.stringify({ testResults: [{ assertionResults: statuses.map((s, i) => ({ ancestorTitles: [`${tag} suite`], title: `t${i}`, status: s })) }] });
-  const mk = (v: string, baseline: number, pw?: object) => {
-    const files: Record<string, string> = { ".test-results/vitest.json": v, "tests/baseline-counts.json": JSON.stringify({ "@tahap-1": { min: baseline } }) };
+  const spec = (title: string, status: string) => ({ title, ok: status !== "failed", tests: [{ status, expectedStatus: status === "skipped" ? "skipped" : "passed", results: [{ status }] }] });
+  const pwJson = (specs: object[]) => ({ suites: [{ title: "g1.spec.ts", specs: [], suites: [{ title: "@tahap-1 G1", specs }] }] });
+  const mk = (v: string, baseline: { vitest: number; playwright: number }, pw?: object) => {
+    const files: Record<string, string> = { ".test-results/vitest.json": v, "tests/baseline-counts.json": JSON.stringify({ "@tahap-1": baseline }) };
     if (pw) files[".test-results/playwright.json"] = JSON.stringify(pw);
     return tmp(files);
   };
-  const report = (cwd: string) => {
-    const r = spawnSync(process.execPath, [path.join(root, "scripts/test-tag-report.mjs")], { cwd, encoding: "utf8" });
+  const report = (cwd: string, ...args: string[]) => {
+    const r = spawnSync(process.execPath, [path.join(root, "scripts/test-tag-report.mjs"), ...args], { cwd, encoding: "utf8" });
     return { code: r.status, out: r.stdout + r.stderr };
   };
 
-  it("lulus bila jumlah ≥ baseline dan tidak ada yang dilewati", () => {
-    const r = report(mk(vitestJson(["passed", "passed", "passed"]), 3));
+  it("lulus bila jumlah Vitest ≥ baseline dan tidak ada yang dilewati", () => {
+    const r = report(mk(vitestJson(["passed", "passed", "passed"]), { vitest: 3, playwright: 0 }));
     expect(r.code, r.out).toBe(0);
     expect(r.out).toContain("| @tahap-1 | 3 |");
   });
-  it("GAGAL bila jumlah test turun di bawah baseline (test dihapus/dilemahkan)", () => {
-    const r = report(mk(vitestJson(["passed", "passed"]), 3));
+  it("GAGAL bila jumlah Vitest turun di bawah baseline (test dihapus/dilemahkan)", () => {
+    const r = report(mk(vitestJson(["passed", "passed"]), { vitest: 3, playwright: 0 }));
     expect(r.code).toBe(1);
-    expect(r.out).toContain("REGRESI JUMLAH TEST");
+    expect(r.out).toContain("REGRESI JUMLAH TEST VITEST");
   });
   it("GAGAL bila ada test dilewati/todo atau gagal", () => {
-    expect(report(mk(vitestJson(["passed", "skipped"]), 1)).code).toBe(1);
-    expect(report(mk(vitestJson(["passed", "todo"]), 1)).out).toContain("DILEWATI");
-    expect(report(mk(vitestJson(["passed", "failed"]), 1)).out).toContain("GAGAL");
+    const b = { vitest: 1, playwright: 0 };
+    expect(report(mk(vitestJson(["passed", "skipped"]), b)).code).toBe(1);
+    expect(report(mk(vitestJson(["passed", "todo"]), b)).out).toContain("DILEWATI");
+    expect(report(mk(vitestJson(["passed", "failed"]), b)).out).toContain("GAGAL");
+  });
+  it("REGRESI CI run #1: langkah SETELAH Vitest tetapi SEBELUM E2E tidak boleh gagal hanya karena hitungan E2E belum ada", () => {
+    // Baseline gabungan lama membandingkan 119 < 122 dan menggagalkan CI. Kini baseline dipisah per jenis.
+    const r = report(mk(vitestJson(["passed", "passed", "passed"]), { vitest: 3, playwright: 3 }));
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).toContain("hasil tidak tersedia");
+  });
+  it("--require-e2e: GAGAL bila hasil E2E tidak ada (E2E tidak boleh diam-diam hilang dari CI)", () => {
+    const r = report(mk(vitestJson(["passed"]), { vitest: 1, playwright: 3 }), "--require-e2e");
+    expect(r.code).toBe(1);
+    expect(r.out).toContain("--require-e2e");
   });
   it("Playwright: placeholder resmi 'BELUM TERSEDIA' boleh dilewati dan tidak dihitung; skip lain GAGAL", () => {
-    const spec = (title: string, status: string) => ({ title, ok: status !== "failed", tests: [{ status, expectedStatus: status === "skipped" ? "skipped" : "passed", results: [{ status }] }] });
-    const pw = (specs: object[]) => ({ suites: [{ title: "g1.spec.ts", specs: [], suites: [{ title: "@tahap-1 G1", specs }] }] });
-    const okRun = report(mk(vitestJson(["passed"]), 2, pw([spec("login", "passed"), spec("G2 — x [BELUM TERSEDIA — Tahap 2]", "skipped")])));
-    expect(okRun.code, okRun.out).toBe(0);
-    expect(okRun.out).toMatch(/1 placeholder resmi/);
-    expect(okRun.out).toContain("| @tahap-1 | 1 | 1 | 2 |");
-    const bad = report(mk(vitestJson(["passed"]), 1, pw([spec("fitur sungguhan", "skipped")])));
+    const ok = report(mk(vitestJson(["passed"]), { vitest: 1, playwright: 1 }, pwJson([spec("login", "passed"), spec("G2 — x [BELUM TERSEDIA — Tahap 2]", "skipped")])), "--require-e2e");
+    expect(ok.code, ok.out).toBe(0);
+    expect(ok.out).toMatch(/1 placeholder resmi/);
+    expect(ok.out).toContain("| @tahap-1 | 1 | 1 | 2 |");
+    const bad = report(mk(vitestJson(["passed"]), { vitest: 1, playwright: 0 }, pwJson([spec("fitur sungguhan", "skipped")])), "--require-e2e");
     expect(bad.code).toBe(1);
     expect(bad.out).toContain("E2E DILEWATI tanpa penanda resmi");
+  });
+  it("GAGAL bila jumlah E2E turun di bawah baseline atau E2E gagal", () => {
+    const low = report(mk(vitestJson(["passed"]), { vitest: 1, playwright: 2 }, pwJson([spec("login", "passed")])), "--require-e2e");
+    expect(low.code).toBe(1);
+    expect(low.out).toContain("REGRESI JUMLAH TEST E2E");
+    const failed = report(mk(vitestJson(["passed"]), { vitest: 1, playwright: 1 }, pwJson([spec("login", "failed")])), "--require-e2e");
+    expect(failed.code).toBe(1);
+    expect(failed.out).toContain("E2E GAGAL");
   });
 });

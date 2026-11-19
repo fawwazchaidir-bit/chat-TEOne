@@ -101,6 +101,27 @@ describe("@tahap-1 arsitektur & kontrol statis", () => {
     expect(mod.default.poweredByHeader).toBe(false);
   });
 
+  it("gitleaks: aturan bawaan dipakai; allowlist HANYA untuk aturan generic-api-key di tests/ (tidak boleh melebar)", () => {
+    const toml = readFileSync(path.join(root, ".gitleaks.toml"), "utf8").replace(/^\s*#.*$/gm, "");
+    expect(toml).toMatch(/useDefault\s*=\s*true/);
+    expect((toml.match(/\[\[rules\]\]/g) ?? []).length).toBe(1); // hanya satu aturan yang diubah
+    expect(toml).toMatch(/id\s*=\s*"generic-api-key"/);
+    expect((toml.match(/\[\[rules\.allowlists\]\]/g) ?? []).length).toBe(1);
+    expect(toml).not.toMatch(/\[\[?allowlists?\]\]/); // tidak ada allowlist global (akan mengecualikan SEMUA aturan)
+    expect(toml).not.toMatch(/\b(regexes|stopwords|commits)\s*=/); // hanya path
+    expect([...toml.matchAll(/paths\s*=\s*\[([^\]]*)\]/g)].map((m) => m[1]!.trim())).toEqual(["'''^tests/'''"]);
+  });
+
+  it("CI: gitleaks memakai biner ber-pin checksum (bukan action berbasis rentang commit yang gagal pada root commit)", () => {
+    const ci = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
+    expect(ci).toMatch(/GITLEAKS_SHA256:\s*"[0-9a-f]{64}"/);
+    expect(ci).toContain("sha256sum --check --strict");
+    expect(ci).toContain("gitleaks detect --source .");
+    expect(ci).not.toMatch(/uses:\s*gitleaks\/gitleaks-action/);
+    expect(ci).toMatch(/fetch-depth:\s*0/); // riwayat penuh agar seluruh commit dipindai
+    expect(ci).toContain("test-tag-report.mjs --require-e2e"); // E2E tidak boleh diam-diam hilang
+  });
+
   it(".env tidak ter-commit dan .gitignore mencakupnya", () => {
     expect(readFileSync(path.join(root, ".gitignore"), "utf8")).toMatch(/^\.env$/m);
     let tracked = "";

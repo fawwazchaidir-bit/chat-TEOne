@@ -9,7 +9,7 @@ Fondasi TE One dibangun sebagai **kode yang berjalan dan teruji**: akun & sesi a
 konkurensi), audit log append-only, feature flag default mati, registri kill switch fail-closed, backup terenkripsi dengan drill restore nyata, serta fondasi regresi (CI, tag `@tahap-N`,
 baseline jumlah test, guard nomor operasional, secret scan). UI Bahasa Indonesia dengan penanda lingkungan, **CONTOH**, dan **Belum tersedia**.
 
-**Hasil uji lokal (PostgreSQL 16 & Chromium sungguhan):** 119 test Vitest + 3 E2E lulus (122 test `@tahap-1`), 0 gagal, 0 dilewati (selain 7 placeholder G2–G8 yang sengaja ditandai BELUM TERSEDIA).
+**Hasil uji lokal (PostgreSQL 16 & Chromium sungguhan):** 124 test Vitest + 3 E2E lulus (127 test `@tahap-1`), 0 gagal, 0 dilewati (selain 7 placeholder G2–G8 yang sengaja ditandai BELUM TERSEDIA). **Run CI pertama di GitHub** (lihat §4.4) membuktikan 119/119 test Vitest lulus di runner terpisah, dan menemukan 2 kegagalan pada *perkakas CI* (bukan aplikasi) yang sudah diperbaiki.
 **Belum terbukti:** staging/HTTPS/cookie `Secure`, run CI di GitHub, build image Docker, salinan backup di lokasi terpisah, D-12 (RPO/RTO). Lihat bagian 4 dan 9.
 Tidak ada koneksi Meta/WhatsApp, inbox, AI, label, pipeline, follow-up. **Nomor Admisi/Hotline dan Halo AI tidak disentuh** (bagian 11).
 
@@ -54,10 +54,10 @@ Tidak ada koneksi Meta/WhatsApp, inbox, AI, label, pipeline, follow-up. **Nomor 
 | `node scripts/secret-scan.mjs` | lulus (159 berkas) |
 | `npm audit --omit=dev` | 0 temuan (dev: 4 *moderate* — T1-F07) |
 | `npm run build` | sukses; 15 halaman + 33 route API |
-| `npx vitest run` (DB uji dibuat ulang **dari kosong** tiap eksekusi → migrasi teruji) | **9 berkas, 119 test, 0 gagal, 0 dilewati/todo** (eksekusi akhir). Stabilitas: suite (saat 117 test) dijalankan 3× berturut-turut, semuanya lulus; 2 test per-IP ditambahkan sesudahnya |
+| `npx vitest run` (DB uji dibuat ulang **dari kosong** tiap eksekusi → migrasi teruji) | **9 berkas, 124 test, 0 gagal, 0 dilewati/todo** (eksekusi akhir). Stabilitas: suite (saat 117 test) dijalankan 3× berturut-turut, semuanya lulus; test ditambah sesudahnya (per-IP, penjaga baseline, gitleaks) |
 | `npx playwright test` (server produksi hasil build) | **3 lulus**, 7 dilewati = placeholder G2–G8 |
-| Rincian per berkas Vitest | audit 8 · auth 24 · authorization 22 · channels 14 · controls 14 · health 1 · architecture 10 · guards 15 · permission-engine 11 (= 119) |
-| `node scripts/test-tag-report.mjs` | `@tahap-1`: 119 + 3 = **122** (baseline 122), tidak ada masalah |
+| Rincian per berkas Vitest | audit 8 · auth 24 · authorization 22 · channels 14 · controls 14 · health 1 · architecture 12 · guards 18 · permission-engine 11 (= 124) |
+| `node scripts/test-tag-report.mjs` | `@tahap-1`: 124 + 3 = **127** (baseline per jenis: Vitest 124 / E2E 3), tidak ada masalah |
 | `bash scripts/backup-restore-drill.sh` | semua verifikasi lulus; backup 0,15 dtk, restore 0,28 dtk, 9,6 KB (data kecil) — `docs/backup-restore.md` |
 | Standalone `node server.js` (layout stage runtime Dockerfile) | `/login` 200, `/api/health` `{"status":"ok"}`, aset CSS 200 |
 
@@ -70,6 +70,18 @@ Jam `Date` palsu (kode TOTP dipakai berulang tanpa melanggar proteksi replay); k
 
 ### 4.3 BELUM DAPAT DIUJI
 Staging (HTTPS, cookie `__Host-`/`Secure`, firewall, port DB tertutup) · run GitHub Actions (gitleaks, `playwright install`, job backup-restore) · build image Docker · salinan backup di lokasi terpisah/jadwal · restore drill di server · kill switch pada otomatisasi nyata (<1 menit, G8) · beban/performa (D-13) · Golden E2E G2–G8.
+
+### 4.4 Run CI pertama di GitHub (run #1, commit `42b911c`) — temuan perkakas
+| Job | Hasil | Catatan |
+|---|---|---|
+| Drill backup & restore | **Lulus** | pertama kali di runner (PostgreSQL 16, Ubuntu 24.04) |
+| Lint · Typecheck · Guard · Secret scan (lokal) | Lulus | |
+| Build · Test regresi | **Vitest 119/119 lulus** di runner (PostgreSQL 16.16 Debian, berbeda dari sandbox) | migrasi dari DB kosong, trigger, dan konkurensi teruji di luar mesin pembangun |
+| Langkah gitleaks | **Gagal — bukan karena rahasia** | `gitleaks-action` pada event push menghitung rentang `<commit-pertama>^..HEAD`; commit pertama repo adalah *root commit* (tanpa induk) → git "unknown revision" → ~0 byte dipindai. **Perbaikan:** biner gitleaks 8.24.3 ber-pin checksum resmi memindai seluruh riwayat |
+| Penjaga baseline (setelah Vitest, sebelum E2E) | **Gagal — kesalahan desain** | baseline gabungan (122) dibandingkan dengan hitungan tanpa E2E (119). **Perbaikan:** baseline dipisah per jenis; E2E diwajibkan hanya di langkah akhir lewat `--require-e2e`; ada test regresi untuk skenario ini |
+| E2E / `playwright install` | **Dilewati** (langkah sebelumnya gagal) | belum terbukti di runner |
+
+**Efek samping yang berharga:** setelah gitleaks benar-benar memindai riwayat, ia menemukan 6 kecocokan aturan `generic-api-key` — semuanya **kata sandi sintetis akun uji di `tests/`** (diperiksa satu per satu; tidak ada token/kunci nyata). Ditangani dengan allowlist **sempit** (`.gitleaks.toml`: hanya aturan itu, hanya `tests/`); kontrol memastikan token spesifik di `tests/` dan rahasia generik di `src/`/`docs/` **tetap tertangkap**. Percobaan pertama allowlist (`[[allowlists]]`+`targetRules`) ternyata **tidak didukung** pada versi 8.24.3 dan baru ketahuan karena kontrol dijalankan.
 
 ## 5. CCP Tahap 1 (GATE-CHECKLIST bagian C — Gate 1) — pemetaan bukti
 Kolom hasil adalah **evaluasi pembangun**, bukan keputusan; verifikasi ulang oleh auditor.
@@ -84,12 +96,12 @@ Kolom hasil adalah **evaluasi pembangun**, bukan keputusan; verifikasi ulang ole
 | 1.6 Batas channel aman terhadap permintaan bersamaan | 0 kelebihan pada ≥ 20 paralel | `channels.test.ts`: **24** permintaan API paralel → tepat 5; **30** INSERT langsung ke DB → tepat sisa slot; unarchive paralel → 1 | Terpenuhi (lokal) |
 | 1.7 Backup & restore nyata | Restore berhasil; data terbaca; waktu tercatat | `docs/backup-restore.md` §2 (8 verifikasi lulus; 0,15/0,28 dtk) | **Sebagian**: lokal, data kecil; server/salinan terpisah belum (T1-F01, T1-F09) |
 | 1.8 Status channel jujur | Tidak ada status "terhubung" | CHECK DB (4 nilai ditolak), API mengabaikan `status`, test arsitektur (UI tanpa "Hubungkan WhatsApp"/"Terhubung"), E2E, `docs/reports/bukti/tahap-1-channel-status-jujur.png` (data CONTOH) | Terpenuhi (lokal) |
-| 1.9 Fondasi regresi aktif | CI menjalankan semua test, secret scan, guard; feature flag & registri kill switch berfungsi | `ci.yml`; `guards.test.ts` (15 test membuktikan guard/pemindai/baseline **menangkap** pelanggaran); `controls.test.ts` (flag & kill switch) | **Sebagian**: berfungsi lokal; workflow belum pernah berjalan di GitHub (T1-F02) |
+| 1.9 Fondasi regresi aktif | CI menjalankan semua test, secret scan, guard; feature flag & registri kill switch berfungsi | `ci.yml`; `guards.test.ts` (18 test membuktikan guard/pemindai/penjaga baseline **menangkap** pelanggaran) + `architecture.test.ts` (lebar allowlist gitleaks, pin checksum); `controls.test.ts` (flag & kill switch) | **Sebagian**: berfungsi lokal; workflow **pernah berjalan** di GitHub (run #1: 119/119 Vitest & drill backup lulus; 2 kegagalan perkakas ditemukan & diperbaiki) tetapi **belum ada run hijau penuh** pada commit akhir termasuk E2E (T1-F02) |
 
 Pemeriksaan lain Tahap 1 §14: tersedia & lulus — login benar/salah, pengguna nonaktif + sesi lama, logout, pembatasan login, TOTP wajib, kode pemulihan sekali pakai, cakupan channel, penolakan menang atas peran, perubahan izin langsung berlaku, non-Super Admin tak bisa menjadi Super Admin, data contoh, batas (batas+1 ditolak), arsip & penggunaan ulang slot, migrasi DB kosong, audit dihasilkan, pengguna tanpa izin tak melihat audit, backup–restore, feature flag mati = fitur tidak aktif, kill switch contoh. "Aplikasi dapat dijalankan ulang mengikuti README": README + `docs/pengembangan.md` diikuti saat menyiapkan DB E2E/drill dari nol lewat skrip yang sama.
 
 ## 6. Regresi tahap-tahap sebelumnya
-Tidak ada tahap sebelumnya. **Jumlah test sebelum: 0 → sesudah: 122** (`@tahap-1`: 119 Vitest + 3 E2E). Ini menjadi **baseline** (`tests/baseline-counts.json`, hanya boleh naik). Tag `@tahap-1` dipasang pada setiap `describe`.
+Tidak ada tahap sebelumnya. **Jumlah test sebelum: 0 → sesudah: 127** (`@tahap-1`: 124 Vitest + 3 E2E). Ini menjadi **baseline per jenis** (`tests/baseline-counts.json` = `{"@tahap-1":{"vitest":124,"playwright":3}}`, hanya boleh naik). Tag `@tahap-1` dipasang pada setiap `describe`.
 
 ## 7. Perubahan database dan migrasi
 Migrasi maju-saja, diuji pada database kosong (setiap eksekusi test) dan lewat restore:

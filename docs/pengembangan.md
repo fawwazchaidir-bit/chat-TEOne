@@ -35,7 +35,7 @@ Pemulihan akun lewat server (kehilangan 2FA/sandi Super Admin): `npm run admin:r
 |---|---|
 | `npm test` | Vitest. `tests/global-setup.ts` membuat ulang database `teone_test` **dari kosong** (menguji migrasi) lewat `TEST_ADMIN_DATABASE_URL` (default `postgres://postgres:postgres@localhost:5432/postgres`) | <!-- secret-scan:allow — kredensial DB uji sekali pakai (lokal/CI), bukan rahasia -->
 | `npm run e2e` | Playwright; membangun DB `teone_e2e`, menjalankan `next start` pada :3100. Butuh `npm run build` dulu. Bila Chromium bawaan tidak cocok: `PW_CHROMIUM_PATH=/path/chrome npm run e2e` |
-| `npm run test:report` | Vitest JSON + ringkasan per tag + **penjaga baseline** (`tests/baseline-counts.json`) |
+| `npm run test:report` | Vitest JSON + ringkasan per tag + penjaga baseline **Vitest** (`tests/baseline-counts.json`). Setelah `npm run e2e`, jalankan `node scripts/test-tag-report.mjs --require-e2e` untuk menegakkan juga baseline E2E (seperti langkah akhir CI) |
 | `bash scripts/backup-restore-drill.sh` | Drill backup/restore |
 
 **Konvensi:** setiap `describe` memuat tag **`@tahap-N`** (tahap pembuat). Test tidak boleh dihapus/di-skip/dilemahkan tanpa ADR; `test-tag-report` gagal bila jumlah turun, ada skip/todo, atau E2E dilewati tanpa penanda resmi `[BELUM TERSEDIA — Tahap N]`. Baseline hanya boleh **naik**.

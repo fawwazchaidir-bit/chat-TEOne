@@ -1,0 +1,15 @@
+# Konfigurasi gitleaks TE One. Memakai seluruh aturan bawaan + SATU allowlist sempit pada SATU aturan.
+title = "TE One — gitleaks"
+
+[extend]
+useDefault = true
+
+# Kata sandi SINTETIS untuk akun uji di database sekali pakai (mis. PASSWORD = "Sandi-Uji-…") memicu aturan generik.
+# Allowlist ini SENGAJA sempit: melekat HANYA pada aturan `generic-api-key` dan HANYA untuk path `tests/`.
+# Aturan token/kunci spesifik (AWS, GitHub, Slack, kunci privat, JWT, dst.) TETAP berlaku di tests/.
+# Lebar allowlist dijaga oleh tests/unit/architecture.test.ts — jangan diperluas tanpa tinjauan.
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "Sandi sintetis akun uji di tests/ (bukan kredensial nyata)"
+paths = ['''^tests/''']

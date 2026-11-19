@@ -1,1 +1,1 @@
-{ "@tahap-1": { "min": 122 } }
+{ "@tahap-1": { "vitest": 124, "playwright": 3 } }

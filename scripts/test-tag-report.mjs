@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 /**
  * Laporan jumlah test per tag @tahap-N dan penjaga regresi (AGENTS.md §10.2, GATE-CHECKLIST B1).
- * Membaca .test-results/vitest.json (+ playwright.json bila ada) dan membandingkan dengan tests/baseline-counts.json.
- * GAGAL bila: jumlah test suatu tag < baseline; ada test vitest yang skipped/todo/pending; ada test Playwright yang
- * di-skip padahal bukan placeholder resmi "[BELUM TERSEDIA …]"; ada test gagal.
+ * Membaca .test-results/vitest.json (+ playwright.json bila ada) dan membandingkan dengan tests/baseline-counts.json
+ * yang dipisah per jenis: { "@tahap-N": { "vitest": n, "playwright": m } }.
+ * GAGAL bila: jumlah Vitest suatu tag < baseline; jumlah Playwright < baseline (hanya jika hasil E2E ada, atau WAJIB bila
+ * `--require-e2e`); ada test vitest yang skipped/todo/pending; ada test Playwright yang di-skip padahal bukan placeholder
+ * resmi "[BELUM TERSEDIA …]"; ada test gagal. Langkah awal CI (setelah vitest) tanpa flag; langkah AKHIR (setelah E2E) dengan
+ * `--require-e2e` agar E2E tidak bisa diam-diam dihilangkan dari CI.
  * Menulis ringkasan ke .test-results/tag-report.md.
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -12,6 +15,7 @@ const read = (p) => (existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : null)
 const vitest = read(".test-results/vitest.json");
 const pw = read(".test-results/playwright.json");
 const baseline = read("tests/baseline-counts.json") ?? {};
+const requireE2e = process.argv.includes("--require-e2e");
 const problems = [];
 const counts = {}; // tag -> {vitest, playwright}
 const tagOf = (s) => (s.match(/@tahap-\d+/g) ?? ["(tanpa-tag)"]);
@@ -47,19 +51,22 @@ if (pw) walkSuites(pw.suites, [], (spec, parents) => {
   else pPass++;
 });
 
-for (const [tag, { min }] of Object.entries(baseline)) {
-  const now = (counts[tag]?.vitest ?? 0) + (counts[tag]?.playwright ?? 0);
-  if (now < min) problems.push(`REGRESI JUMLAH TEST: ${tag} = ${now}, baseline minimal ${min} (test dihapus/dilemahkan?)`);
+if (requireE2e && !pw) problems.push("Hasil E2E (.test-results/playwright.json) tidak ditemukan padahal --require-e2e — E2E tidak berjalan?");
+for (const [tag, b] of Object.entries(baseline)) {
+  const v = counts[tag]?.vitest ?? 0;
+  const e = counts[tag]?.playwright ?? 0;
+  if (vitest && v < (b.vitest ?? 0)) problems.push(`REGRESI JUMLAH TEST VITEST: ${tag} = ${v}, baseline minimal ${b.vitest} (test dihapus/dilemahkan?)`);
+  if (pw && e < (b.playwright ?? 0)) problems.push(`REGRESI JUMLAH TEST E2E: ${tag} = ${e}, baseline minimal ${b.playwright} (test dihapus/dilemahkan/dilewati?)`);
 }
 
 const rows = Object.entries(counts).sort().map(([tag, c]) => {
-  const b = baseline[tag]?.min;
-  return `| ${tag} | ${c.vitest} | ${c.playwright} | ${c.vitest + c.playwright} | ${b ?? "—"} |`;
+  const b = baseline[tag];
+  return `| ${tag} | ${c.vitest} | ${c.playwright} | ${c.vitest + c.playwright} | ${b ? `${b.vitest ?? 0} / ${b.playwright ?? 0}` : "—"} |`;
 });
 const md = [
   "# Ringkasan test per tag",
   "",
-  "| Tag | Vitest (integrasi/unit) | Playwright (E2E) | Total | Baseline minimal |",
+  "| Tag | Vitest (integrasi/unit) | Playwright (E2E) | Total | Baseline minimal (Vitest / E2E) |",
   "|---|---|---|---|---|",
   ...rows,
   "",

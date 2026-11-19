@@ -33,10 +33,18 @@ jobs:
           OPERATIONAL_NUMBER_HASHES: ${{ secrets.OPERATIONAL_NUMBER_HASHES }}
       - name: Secret scan (lokal)
         run: npm run scan:secrets
-      - name: Secret scan (gitleaks, seluruh riwayat)
-        uses: gitleaks/gitleaks-action@v2
+      - name: Secret scan (gitleaks, seluruh riwayat git)
+        # Biner di-pin dengan checksum resmi rilis. Tidak memakai gitleaks-action: pada event push ia menghitung rentang
+        # "<commit-pertama>^..HEAD", yang gagal untuk repository yang riwayatnya diawali root commit (terjadi pada run #1).
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: "8.24.3"
+          GITLEAKS_SHA256: "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c"
+        run: |
+          curl -sSfL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tgz" | sha256sum --check --strict
+          tar -xzf gitleaks.tgz gitleaks
+          ./gitleaks detect --source . --redact --no-banner --exit-code 2 --verbose
+          rm -f gitleaks gitleaks.tgz
       - name: Audit dependensi produksi
         run: npm audit --omit=dev --audit-level=high
 
@@ -69,7 +77,7 @@ jobs:
         run: npm run e2e
       - name: Ringkasan test per tag + penjaga baseline (jumlah test tidak boleh turun)
         if: always()
-        run: node scripts/test-tag-report.mjs
+        run: node scripts/test-tag-report.mjs --require-e2e
       - name: Unggah laporan
         if: always()
         uses: actions/upload-artifact@v4
