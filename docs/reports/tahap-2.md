@@ -13,7 +13,7 @@ Konektor resmi Meta WhatsApp Cloud API dibangun sebagai kode yang berjalan dan t
 
 ## 2. Repository, branch, commit, tag
 - Repository: `https://github.com/fawwazchaidir-bit/chat-TEOne`. Branch kerja: `claude/lucid-carson-blf4x0` (ketentuan sesi; AGENTS.md §2 menyebut `tahap-2-<ringkas>` — sama seperti T1-F05, pemilik memutuskan cara landing).
-- Commit awal: `021492a` (akhir Tahap 1; CI hijau). Commit akhir Tahap 2: **lihat `git log 021492a..HEAD`** (hash dicatat di §8 setelah push).
+- Commit awal: `021492a` (akhir Tahap 1; CI hijau). Commit kode Tahap 2: `918138d` (di-push); commit berikutnya hanya dokumentasi (pencatatan hasil CI). Daftar lengkap: `git log 021492a..HEAD`.
 - Tag diusulkan: `tahap-2-diterima` — **belum dibuat**; hanya setelah Gate 1 **dan** Gate 2 diputuskan. Tidak ada PR dibuat; tidak ada merge ke `main`; tanpa force push.
 - Berkas baru dari pemilik: `docs/prompts/tahap-2.md` (prompt Tahap 2). `docs/jalur-0.md` dan `tahap-3…9.md` masih tidak ada (T1-F04).
 
@@ -105,7 +105,7 @@ Temuan selama pengujian yang **diperbaiki di kode**: pesan galat driver DB memua
 | Lingkungan | Kondisi |
 |---|---|
 | Development (lokal/sandbox) | Semua pengujian §4.1 dijalankan; Meta = mock lokal |
-| CI GitHub Actions | Konfigurasi diperbarui (nama langkah E2E; baseline `@tahap-2` di `tests/baseline-counts.json`; tidak butuh rahasia Meta — nilai uji sintetis di `tests/test-env.ts` dan `tests/e2e/env.ts`). **Hasil run pada commit akhir: dicatat setelah push (lihat bagian bawah laporan)** |
+| CI GitHub Actions | Konfigurasi diperbarui (nama langkah E2E; baseline `@tahap-2` di `tests/baseline-counts.json`; tidak butuh rahasia Meta — nilai uji sintetis di `tests/test-env.ts` dan `tests/e2e/env.ts`). **Hasil nyata di GitHub: run [#44442821597](https://github.com/fawwazchaidir-bit/chat-TEOne/actions/runs/44442821597) pada `918138d` — hijau penuh** (Lint·Typecheck·Guard·Secret scan termasuk gitleaks; Build·Test regresi·E2E; Drill backup & restore). Ini bukti CI untuk **kode simulasi**, bukan bukti Meta nyata. Run harus diulang pada commit yang diaudit |
 | Staging | **Belum ada** (J0-03). Compose `worker`, volume media, UID tetap: dibuat, **belum diuji** |
 | Production | Tidak ada; tidak ada konektor Meta nyata terpasang |
 
