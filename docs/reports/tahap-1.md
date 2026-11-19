@@ -9,8 +9,8 @@ Fondasi TE One dibangun sebagai **kode yang berjalan dan teruji**: akun & sesi a
 konkurensi), audit log append-only, feature flag default mati, registri kill switch fail-closed, backup terenkripsi dengan drill restore nyata, serta fondasi regresi (CI, tag `@tahap-N`,
 baseline jumlah test, guard nomor operasional, secret scan). UI Bahasa Indonesia dengan penanda lingkungan, **CONTOH**, dan **Belum tersedia**.
 
-**Hasil uji lokal (PostgreSQL 16 & Chromium sungguhan):** 124 test Vitest + 3 E2E lulus (127 test `@tahap-1`), 0 gagal, 0 dilewati (selain 7 placeholder G2–G8 yang sengaja ditandai BELUM TERSEDIA). **Run CI pertama di GitHub** (lihat §4.4) membuktikan 119/119 test Vitest lulus di runner terpisah, dan menemukan 2 kegagalan pada *perkakas CI* (bukan aplikasi) yang sudah diperbaiki.
-**Belum terbukti:** staging/HTTPS/cookie `Secure`, run CI di GitHub, build image Docker, salinan backup di lokasi terpisah, D-12 (RPO/RTO). Lihat bagian 4 dan 9.
+**Hasil uji lokal (PostgreSQL 16 & Chromium sungguhan):** 124 test Vitest + 3 E2E lulus (127 test `@tahap-1`), 0 gagal, 0 dilewati (selain 7 placeholder G2–G8 yang sengaja ditandai BELUM TERSEDIA). **CI di GitHub (§4.4):** run #1 menemukan 2 kegagalan pada *perkakas CI* (bukan aplikasi); setelah diperbaiki, **run #2 (commit `08bb3a8`) hijau penuh** — lint, typecheck, guard, secret scan + gitleaks atas seluruh riwayat, `npm audit`, build, 124 test Vitest, E2E G1 dengan Chromium sungguhan, dan drill backup/restore.
+**Belum terbukti:** staging/HTTPS/cookie `Secure`, build image Docker, salinan backup di lokasi terpisah, D-12 (RPO/RTO). Lihat bagian 4 dan 9.
 Tidak ada koneksi Meta/WhatsApp, inbox, AI, label, pipeline, follow-up. **Nomor Admisi/Hotline dan Halo AI tidak disentuh** (bagian 11).
 
 ## 2. Repository, branch, commit, tag
@@ -36,7 +36,7 @@ Tidak ada koneksi Meta/WhatsApp, inbox, AI, label, pipeline, follow-up. **Nomor 
 | Feature flag default mati, fail-closed | **Terbukti nyata (lokal)** |
 | Registri kill switch (chat/channel/fitur/global), fail-closed, tidak melepas sendiri | **Terbukti simulasi** (fungsi contoh; belum ada otomatisasi nyata) |
 | Backup terenkripsi + restore ke DB terpisah | **Terbukti nyata (lokal, data kecil)**; salinan terpisah/jadwal = Belum dibuat |
-| CI (lint, typecheck, build, test, secret scan, guard) | **Dibuat, belum diuji di GitHub**; semua langkahnya lulus lokal |
+| CI (lint, typecheck, build, test, secret scan, guard) | **Terbukti nyata** — GitHub Actions run #2 hijau penuh pada `08bb3a8` (harus diulang pada commit yang diaudit) |
 | Docker `runtime`/`tools`, Compose & Caddy staging | **Dibuat, belum diuji** (paket standalone terverifikasi lokal; build image gagal karena jaringan sandbox) |
 | Golden E2E **G1** | **Terbukti nyata (lokal)** |
 | Golden E2E **G2–G8** | **Belum dibuat** — placeholder bertanda BELUM TERSEDIA (bukan bukti) |
@@ -69,7 +69,7 @@ Guard juga diuji terhadap pelanggaran sintetis; pengujian itu **menemukan celah 
 Jam `Date` palsu (kode TOTP dipakai berulang tanpa melanggar proteksi replay); kill switch diuji pada **fungsi contoh** `guardedAutomation`; kegagalan baca database disimulasikan dengan `REVOKE SELECT` sementara (uji fail-closed flag & kill switch); pelanggaran guard/secret-scan sintetis dibangun saat runtime.
 
 ### 4.3 BELUM DAPAT DIUJI
-Staging (HTTPS, cookie `__Host-`/`Secure`, firewall, port DB tertutup) · run GitHub Actions (gitleaks, `playwright install`, job backup-restore) · build image Docker · salinan backup di lokasi terpisah/jadwal · restore drill di server · kill switch pada otomatisasi nyata (<1 menit, G8) · beban/performa (D-13) · Golden E2E G2–G8.
+Staging (HTTPS, cookie `__Host-`/`Secure`, firewall, port DB tertutup) · build image Docker · salinan backup di lokasi terpisah/jadwal · restore drill di server · kill switch pada otomatisasi nyata (<1 menit, G8) · beban/performa (D-13) · Golden E2E G2–G8.
 
 ### 4.4 Run CI pertama di GitHub (run #1, commit `42b911c`) — temuan perkakas
 | Job | Hasil | Catatan |
@@ -83,6 +83,20 @@ Staging (HTTPS, cookie `__Host-`/`Secure`, firewall, port DB tertutup) · run Gi
 
 **Efek samping yang berharga:** setelah gitleaks benar-benar memindai riwayat, ia menemukan 6 kecocokan aturan `generic-api-key` — semuanya **kata sandi sintetis akun uji di `tests/`** (diperiksa satu per satu; tidak ada token/kunci nyata). Ditangani dengan allowlist **sempit** (`.gitleaks.toml`: hanya aturan itu, hanya `tests/`); kontrol memastikan token spesifik di `tests/` dan rahasia generik di `src/`/`docs/` **tetap tertangkap**. Percobaan pertama allowlist (`[[allowlists]]`+`targetRules`) ternyata **tidak didukung** pada versi 8.24.3 dan baru ketahuan karena kontrol dijalankan.
 
+**Run #2 (commit `08bb3a8`, setelah perbaikan) — hijau penuh, dibaca dari log runner:**
+| Job / langkah | Bukti dari log |
+|---|---|
+| Lint, typecheck, guard (160 berkas), secret scan lokal (160 berkas) | lulus |
+| gitleaks | `gitleaks.tgz: OK` (checksum resmi lolos) · **3 commit dipindai (~896 KB) · no leaks found** |
+| `npm audit --omit=dev --audit-level=high` | `found 0 vulnerabilities` |
+| Build · Vitest | **124 test, 0 gagal, 0 dilewati**; langkah setelah Vitest (sebelum E2E) kini keluar "Tidak ada masalah" (baseline 124 / 3) |
+| `playwright install --with-deps chromium` | Chromium v1255 terpasang (sesuai Playwright 1.65.1; tanpa `PW_CHROMIUM_PATH`) |
+| Golden E2E | **G1: 3 lulus**, 7 dilewati (placeholder G2–G8), 8,1 dtk |
+| Tag-report akhir `--require-e2e` | `@tahap-1 \| 124 \| 3 \| 127 \| 124 / 3` — tanpa masalah |
+| Drill backup & restore | lulus |
+
+Catatan operasional: `playwright install --with-deps` memakan ~6 menit (CI total ≈ 7,5 menit) dan GitHub memperingatkan bahwa `actions/checkout@v4`, `setup-node@v4`, `upload-artifact@v4` memakai Node 20 yang akan usang (T1-F21).
+
 ## 5. CCP Tahap 1 (GATE-CHECKLIST bagian C — Gate 1) — pemetaan bukti
 Kolom hasil adalah **evaluasi pembangun**, bukan keputusan; verifikasi ulang oleh auditor.
 
@@ -92,11 +106,11 @@ Kolom hasil adalah **evaluasi pembangun**, bukan keputusan; verifikasi ulang ole
 | 1.2 Super Admin terakhir terlindungi; tak bisa naikkan hak sendiri | 0 lolos | `authorization.test.ts` §anti-eskalasi & §Super Admin terakhir: API, **trigger DB langsung**, dua Super Admin saling menurunkan **bersamaan** → tepat 1 berhasil | Terpenuhi (lokal) |
 | 1.3 2FA wajib sebelum akses administratif Super Admin | 0 bypass | `auth.test.ts` (5 endpoint → 403 `TOTP_SETUP_REQUIRED`/`TOTP_REQUIRED`), E2E G1 (UI diarahkan; API 403 dengan cookie sesi yang sama) | Terpenuhi (lokal) |
 | 1.4 Audit log append-only | UPDATE/DELETE dari aplikasi ditolak | `audit.test.ts`: aplikasi → 42501 (UPDATE/DELETE/TRUNCATE/ALTER/DROP); **pemilik pun** ditolak trigger; mekanisme & batas (superuser DB) di `keamanan-dan-izin.md` §6; drill: tetap berlaku setelah restore | Terpenuhi (lokal); batas superuser DB = T1-F14 |
-| 1.5 Tidak ada rahasia di repository | 0 temuan secret scan; `.env` tak ter-commit | `scan:secrets` lulus (159 berkas), `.gitignore`, test arsitektur (`.env` tak ter-track), 5 test pemindai; pengecualian `secret-scan:allow` hanya pada **5 baris** kredensial DB uji sekali-pakai (2 di `ci.yml`, 2 di `backup-restore-drill.sh`, 1 di `docs/pengembangan.md`) — terlihat & ditinjau di PR | **Sebagian**: lokal lulus; **gitleaks di CI belum berjalan** (T1-F02) |
+| 1.5 Tidak ada rahasia di repository | 0 temuan secret scan; `.env` tak ter-commit | `scan:secrets` lulus (159 berkas), `.gitignore`, test arsitektur (`.env` tak ter-track), 5 test pemindai; pengecualian `secret-scan:allow` hanya pada **5 baris** kredensial DB uji sekali-pakai (2 di `ci.yml`, 2 di `backup-restore-drill.sh`, 1 di `docs/pengembangan.md`) — terlihat & ditinjau di PR | Terpenuhi (lokal **dan CI**): gitleaks atas seluruh riwayat = *no leaks* (run #2) |
 | 1.6 Batas channel aman terhadap permintaan bersamaan | 0 kelebihan pada ≥ 20 paralel | `channels.test.ts`: **24** permintaan API paralel → tepat 5; **30** INSERT langsung ke DB → tepat sisa slot; unarchive paralel → 1 | Terpenuhi (lokal) |
 | 1.7 Backup & restore nyata | Restore berhasil; data terbaca; waktu tercatat | `docs/backup-restore.md` §2 (8 verifikasi lulus; 0,15/0,28 dtk) | **Sebagian**: lokal, data kecil; server/salinan terpisah belum (T1-F01, T1-F09) |
 | 1.8 Status channel jujur | Tidak ada status "terhubung" | CHECK DB (4 nilai ditolak), API mengabaikan `status`, test arsitektur (UI tanpa "Hubungkan WhatsApp"/"Terhubung"), E2E, `docs/reports/bukti/tahap-1-channel-status-jujur.png` (data CONTOH) | Terpenuhi (lokal) |
-| 1.9 Fondasi regresi aktif | CI menjalankan semua test, secret scan, guard; feature flag & registri kill switch berfungsi | `ci.yml`; `guards.test.ts` (18 test membuktikan guard/pemindai/penjaga baseline **menangkap** pelanggaran) + `architecture.test.ts` (lebar allowlist gitleaks, pin checksum); `controls.test.ts` (flag & kill switch) | **Sebagian**: berfungsi lokal; workflow **pernah berjalan** di GitHub (run #1: 119/119 Vitest & drill backup lulus; 2 kegagalan perkakas ditemukan & diperbaiki) tetapi **belum ada run hijau penuh** pada commit akhir termasuk E2E (T1-F02) |
+| 1.9 Fondasi regresi aktif | CI menjalankan semua test, secret scan, guard; feature flag & registri kill switch berfungsi | `ci.yml`; `guards.test.ts` (18 test membuktikan guard/pemindai/penjaga baseline **menangkap** pelanggaran) + `architecture.test.ts` (lebar allowlist gitleaks, pin checksum); `controls.test.ts` (flag & kill switch) | Terpenuhi (lokal **dan CI**): run #2 hijau penuh pada `08bb3a8`, termasuk E2E dan penjaga baseline; **harus diulang pada commit yang diaudit** |
 
 Pemeriksaan lain Tahap 1 §14: tersedia & lulus — login benar/salah, pengguna nonaktif + sesi lama, logout, pembatasan login, TOTP wajib, kode pemulihan sekali pakai, cakupan channel, penolakan menang atas peran, perubahan izin langsung berlaku, non-Super Admin tak bisa menjadi Super Admin, data contoh, batas (batas+1 ditolak), arsip & penggunaan ulang slot, migrasi DB kosong, audit dihasilkan, pengguna tanpa izin tak melihat audit, backup–restore, feature flag mati = fitur tidak aktif, kill switch contoh. "Aplikasi dapat dijalankan ulang mengikuti README": README + `docs/pengembangan.md` diikuti saat menyiapkan DB E2E/drill dari nol lewat skrip yang sama.
 
@@ -118,18 +132,19 @@ Tidak ada tabel/worker untuk fitur tahap berikutnya (ADR-0002/0003 hanya rancang
 | Production | Belum ada. Seed contoh ditolak di production (diuji). |
 
 ## 9. Temuan
-Rincian lengkap: [`docs/temuan-dan-risiko.md`](../temuan-dan-risiko.md). **Kritis: 0 · Tinggi: 0 · Sedang: 7 · Rendah: 12** (menurut pembangun; auditor menilai ulang).
+Rincian lengkap: [`docs/temuan-dan-risiko.md`](../temuan-dan-risiko.md). **Kritis: 0 · Tinggi: 0 · Sedang: 6 terbuka (+1 teratasi: T1-F02) · Rendah: 14** — total 21 temuan (menurut pembangun; auditor menilai ulang).
 
 | ID | Prio | Ringkas | Status |
 |---|---|---|---|
 | T1-F01 | sedang | Staging belum tersedia → bukti HTTPS/cookie/jaringan/backup di server tertunda | Terbuka (Pemilik) |
-| T1-F02 | sedang | CI GitHub belum pernah berjalan (gitleaks, playwright install, job backup) | Terbuka (Pembangun) |
+| T1-F02 | sedang | CI GitHub: run #1 menemukan 2 kegagalan perkakas (gitleaks pada root commit; baseline sebelum E2E) → diperbaiki; **run #2 hijau penuh** | **Teratasi** (verifikasi ulang pada commit yang diaudit) |
 | T1-F03 | sedang | Image Docker belum terbukti ter-build (jaringan sandbox) | Terbuka |
 | T1-F04 | sedang | `jalur-0.md` & prompt tahap 2–9 tidak ada di paket | Terbuka (Pemilik) |
 | T1-F06 | sedang | Pembersih retensi belum ada; D-18 masih usulan | Terbuka |
 | T1-F08 | sedang | Rotasi `APP_ENCRYPTION_KEY` belum dirancang | Terbuka |
 | T1-F09 | sedang | Backup: data kecil, tanpa salinan terpisah/jadwal/media; D-12 belum dinilai | Terbuka |
-| T1-F05,07,10–19 | rendah | Penamaan branch; audit dev-only; trade-off lockout; TRUST_PROXY; CSP inline; pemulihan tanpa email; superuser DB; kill switch & G2–G8 belum nyata; dll. | Lihat dokumen |
+| T1-F21 | rendah | `playwright install --with-deps` ~6 menit; actions memakai Node 20 (akan usang) | Terbuka |
+| T1-F05,07,10–20 | rendah | Penamaan branch; audit dev-only; trade-off lockout; TRUST_PROXY; CSP inline; pemulihan tanpa email; superuser DB; kill switch & G2–G8 belum nyata; dll. | Lihat dokumen |
 
 **Perbaikan yang dibuat selama pengerjaan (bukan temuan terbuka):** lockout global saat IP tak diketahui; editor izin yang bisa menghilangkan entri allow+deny; celah regex guard nomor berspasi; pencabutan sesi yang awalnya tak teruji; Dockerfile tanpa jalur migrasi.
 
