@@ -1,0 +1,12 @@
+# Reverse proxy HTTPS (sertifikat otomatis). Ganti domain staging dengan subdomain khusus TE One (lihat docs/staging.md).
+staging-chat.example.invalid {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	# Caddy menimpa X-Forwarded-For dengan IP klien sebenarnya → aman bila TRUST_PROXY=true di aplikasi.
+	reverse_proxy app:3000 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}

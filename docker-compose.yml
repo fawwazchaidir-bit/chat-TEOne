@@ -1,0 +1,15 @@
+# Development lokal: hanya PostgreSQL. Jalankan aplikasi dengan `npm run dev`.
+# Password di bawah hanya untuk mesin pengembang lokal (tidak dipakai staging/production).
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: dev_superuser_lokal
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: [teone_dev_pg:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+volumes:
+  teone_dev_pg:

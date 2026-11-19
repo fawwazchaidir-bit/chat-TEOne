@@ -1,0 +1,103 @@
+name: CI
+
+# Wajib hijau sebelum merge (AGENTS.md §10). Merge ke main dilakukan pemilik proyek setelah persetujuan.
+on:
+  pull_request:
+  push:
+    branches: [main, "tahap-*", "claude/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint · Typecheck · Guard · Secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 } # gitleaks memindai riwayat
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Guard nomor operasional (Admisi/Hotline tidak boleh muncul di non-production)
+        run: npm run guard:operational
+        env:
+          # Opsional: sha256 digit E.164 nomor operasional (secret CI; bukan di repository).
+          OPERATIONAL_NUMBER_HASHES: ${{ secrets.OPERATIONAL_NUMBER_HASHES }}
+      - name: Secret scan (lokal)
+        run: npm run scan:secrets
+      - name: Secret scan (gitleaks, seluruh riwayat)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Audit dependensi produksi
+        run: npm audit --omit=dev --audit-level=high
+
+  test:
+    name: Build · Test regresi · E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres # database uji sekali pakai di runner CI; bukan rahasia
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres # secret-scan:allow — DB uji sekali pakai di runner CI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Test regresi (@tahap-1 … tahap berjalan) — migrasi diuji pada database kosong
+        run: npm run test:report
+      - name: Pasang Chromium untuk E2E
+        run: npx playwright install --with-deps chromium
+      - name: Golden E2E (G1; G2–G8 placeholder bertanda BELUM TERSEDIA)
+        run: npm run e2e
+      - name: Ringkasan test per tag + penjaga baseline (jumlah test tidak boleh turun)
+        if: always()
+        run: node scripts/test-tag-report.mjs
+      - name: Unggah laporan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laporan-test
+          path: |
+            .test-results/tag-report.md
+            .test-results/vitest.json
+            .test-results/playwright.json
+          retention-days: 30
+
+  backup-restore:
+    name: Drill backup & restore nyata
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres # secret-scan:allow — DB uji sekali pakai di runner CI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client-16 || sudo apt-get install -y postgresql-client
+      - run: bash scripts/backup-restore-drill.sh

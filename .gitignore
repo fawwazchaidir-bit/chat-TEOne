@@ -1,0 +1,21 @@
+node_modules/
+.next/
+out/
+build/
+coverage/
+.test-results/
+playwright-report/
+test-results/
+*.tsbuildinfo
+next-env.d.ts
+# Rahasia — JANGAN PERNAH di-commit (hanya .env.example yang boleh)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Backup database lokal
+backups/
+*.dump
+*.dump.enc
+.DS_Store
