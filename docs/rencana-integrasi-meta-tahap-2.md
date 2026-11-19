@@ -1,5 +1,7 @@
 # Rencana integrasi Meta — Tahap 2 (hal yang HARUS DIBUKTIKAN sebelum membangun)
 
+> **Pembaruan Tahap 2 (19 Nov 2026):** kode konektor selesai dan terbukti **simulasi**. **Seluruh butir di bawah tetap "Belum terbukti"** — tidak ada akses Meta/nomor uji/staging. Hasil dan arah verifikasi: [`tahap-2/`](tahap-2/README.md), terutama [`tahap-2/coexistence.md`](tahap-2/coexistence.md).
+
 > Dokumen ini **bukan** klaim tentang perilaku Meta. Pembangun Tahap 1 tidak memiliki akses ke akun Meta TE One dan tidak memverifikasi
 > dokumentasi Meta. Semua butir bertanda **Belum terbukti** dan harus diisi dengan bukti (tautan dokumentasi resmi + tanggal akses,
 > tangkapan layar disamarkan, atau hasil uji nomor uji) pada Tahap 2. AGENTS.md §7 mewajibkan verifikasi terhadap dokumentasi Meta **terbaru**.

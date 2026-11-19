@@ -24,7 +24,9 @@
     "admin:recover": "tsx scripts/admin-recover.ts",
     "guard:operational": "node scripts/guard-operational.mjs",
     "scan:secrets": "node scripts/secret-scan.mjs",
-    "check:all": "npm run lint && npm run typecheck && npm run guard:operational && npm run scan:secrets && npm test"
+    "check:all": "npm run lint && npm run typecheck && npm run guard:operational && npm run scan:secrets && npm test",
+    "worker": "tsx scripts/worker.ts",
+    "meta:check": "tsx scripts/meta-check.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",

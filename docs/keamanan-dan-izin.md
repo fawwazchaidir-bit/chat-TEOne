@@ -1,4 +1,6 @@
-# Keamanan & izin (Tahap 1)
+# Keamanan & izin (Tahap 1; diperbarui Tahap 2)
+
+> Keamanan webhook/Meta/media ada di [`tahap-2/webhook-dan-keamanan.md`](tahap-2/webhook-dan-keamanan.md).
 
 ## 1. Autentikasi
 | Kontrol | Implementasi | Bukti uji |
@@ -19,7 +21,7 @@
 - **Prosedur pemulihan akun:** (1) pengguna biasa/Super Admin lain kehilangan perangkat → administrator berizin `user.manage` melakukan *Reset 2FA* (sesi dicabut; wajib mendaftar ulang); (2) **Super Admin satu-satunya** kehilangan 2FA/sandi → akses server: `npm run admin:recover -- reset-2fa|reset-password <email>` (tercatat di audit, aktor `cli:recover`).
 
 ## 3. Model izin: AKSI + CAKUPAN
-19 izin (registri `roles-permissions/registry.ts`). Izin bercakupan channel (`channelScoped`) dapat diberikan pada **semua channel** atau **channel tertentu**; izin global (kelola pengguna/peran/tim, lihat audit, kill switch) hanya "semua".
+20 izin (registri `roles-permissions/registry.ts`; Tahap 2 menambah `integration.test` — ADR-0004). Izin bercakupan channel (`channelScoped`) dapat diberikan pada **semua channel** atau **channel tertentu**; izin global (kelola pengguna/peran/tim, lihat audit, kill switch) hanya "semua".
 
 Aturan keputusan (fungsi murni `PermissionSet`, 11 unit test):
 1. **Default menolak.** Tanpa grant → ditolak.

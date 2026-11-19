@@ -71,7 +71,7 @@ const md = [
   ...rows,
   "",
   `Vitest: ${vTotal} test, ${vFail} gagal, ${vSkip} dilewati.`,
-  pw ? `Playwright: ${pTotal} spesifikasi, ${pPass} lulus, ${pPlaceholder} placeholder resmi “BELUM TERSEDIA” (G2–G8; bukan bukti).` : "Playwright: hasil tidak tersedia pada eksekusi ini.",
+  pw ? `Playwright: ${pTotal} spesifikasi, ${pPass} lulus, ${pPlaceholder} placeholder resmi “BELUM TERSEDIA” (G2-nyata, G3–G8; bukan bukti).` : "Playwright: hasil tidak tersedia pada eksekusi ini.",
   problems.length ? `\n**Masalah:**\n${problems.map((p) => `- ${p}`).join("\n")}` : "\nTidak ada masalah.",
 ].join("\n");
 mkdirSync(".test-results", { recursive: true });

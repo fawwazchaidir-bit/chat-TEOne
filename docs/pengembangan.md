@@ -37,6 +37,8 @@ Pemulihan akun lewat server (kehilangan 2FA/sandi Super Admin): `npm run admin:r
 | `npm run e2e` | Playwright; membangun DB `teone_e2e`, menjalankan `next start` pada :3100. Butuh `npm run build` dulu. Bila Chromium bawaan tidak cocok: `PW_CHROMIUM_PATH=/path/chrome npm run e2e` |
 | `npm run test:report` | Vitest JSON + ringkasan per tag + penjaga baseline **Vitest** (`tests/baseline-counts.json`). Setelah `npm run e2e`, jalankan `node scripts/test-tag-report.mjs --require-e2e` untuk menegakkan juga baseline E2E (seperti langkah akhir CI) |
 | `bash scripts/backup-restore-drill.sh` | Drill backup/restore |
+| `npm run worker` | (Tahap 2) pemroses antrean event webhook + rekonsiliasi + unduh media + retensi payload. Opsional di lokal (`WORKER_INLINE=true` memproses di proses web) |
+| `npm run meta:check` | (Tahap 2) diagnostik koneksi Meta; hasil **nyata** hanya bila `META_GRAPH_BASE_URL` = graph.facebook.com |
 
 **Konvensi:** setiap `describe` memuat tag **`@tahap-N`** (tahap pembuat). Test tidak boleh dihapus/di-skip/dilemahkan tanpa ADR; `test-tag-report` gagal bila jumlah turun, ada skip/todo, atau E2E dilewati tanpa penanda resmi `[BELUM TERSEDIA — Tahap N]`. Baseline hanya boleh **naik**.
 Test memakai jam `Date` palsu agar kode TOTP bisa dipakai berulang tanpa melanggar proteksi replay (`tests/helpers/clock.ts`).
@@ -48,6 +50,11 @@ Test memakai jam `Date` palsu agar kode TOTP bisa dipakai berulang tanpa melangg
 - **Feature flag** → `src/modules/feature-flags/index.ts` (default mati); fitur memanggil `requireFeature(key)`.
 - **Otomatisasi** → setiap pengiriman otomatis WAJIB lewat `checkAutomation()`/`guardedAutomation()` tepat sebelum kirim.
 - **Data uji** → tidak ada data pelanggan, nomor lengkap, atau channel `isOperational` (guard CI menolak). Nilai uji sintetis dibangun saat runtime.
+
+## 5b. Tahap 2 — menguji konektor tanpa Meta
+`tests/helpers/mock-graph.ts` = mock Graph API yang dapat diprogram (ok/4xx/5xx/timeout) dan merekam setiap panggilan; `tests/helpers/whatsapp.ts` = fixture payload **sintetis** (nomor bukan Indonesia; nilai dibangun saat runtime agar lolos guard).
+Semua hasil terhadap mock berstatus **SIMULASI**. Webhook lokal: tanda tangani body dengan `META_APP_SECRET` (`signBody`) — lihat E2E `tests/e2e/g2.spec.ts`.
+Dokumen: [`tahap-2/`](tahap-2/README.md).
 
 ## 6. Guard & pemindai
 `npm run guard:operational` menolak penanda operasional di seed/fixture/config/test, nomor berakhiran 1119/0124, dan **nomor telepon lengkap apa pun**; env `OPERATIONAL_NUMBER_HASHES` (sha256 digit E.164, rahasia CI) menambah pengecekan nomor terdaftar. `npm run scan:secrets` + gitleaks di CI. Pengecualian per baris hanya dengan komentar `guard-operational:allow` / `secret-scan:allow` **disertai alasan** (ditinjau di PR).

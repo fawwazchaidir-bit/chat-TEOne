@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 const CsrfCtx = createContext<string | null>(null);
 export const CsrfProvider = ({ token, children }: { token: string | null; children: ReactNode }) => <CsrfCtx.Provider value={token}>{children}</CsrfCtx.Provider>;
 
+export const useCsrf = () => useContext(CsrfCtx);
+
 export type ApiError = { code: string; message: string; details?: unknown };
 export type ApiResult<T = Record<string, unknown>> = { ok: true; status: number; data: T } | { ok: false; status: number; error: ApiError };
 

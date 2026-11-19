@@ -21,6 +21,8 @@ export const PERMISSIONS = [
   { key: "report.view", label: "Lihat laporan", channelScoped: true, available: false },
   { key: "data.export", label: "Ekspor data", channelScoped: true, available: false },
   { key: "audit.view", label: "Lihat audit", channelScoped: false, available: true },
+  // Tahap 2 (ADR-0004): alat uji integrasi WhatsApp — izin khusus, bercakupan channel.
+  { key: "integration.test", label: "Alat uji integrasi WhatsApp", channelScoped: true, available: true },
   // Hanya Super Admin yang dapat memberikan izin ini (UI kill switch khusus Super Admin — Tahap 1 §12).
   { key: "killswitch.manage", label: "Kelola kill switch", channelScoped: false, available: true, superAdminOnlyGrant: true },
 ] as const satisfies readonly PermissionMeta[];

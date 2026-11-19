@@ -43,8 +43,8 @@ describe("@tahap-1 arsitektur & kontrol statis", () => {
     }
   });
 
-  it("modul Meta/WhatsApp belum ada (jangan membangun fitur tahap berikutnya)", () => {
-    expect(srcFiles.some((f) => /whatsapp-adapter|ai-agents|pipelines|follow-up/.test(rel(f)))).toBe(false);
+  it("modul tahap berikutnya belum ada (jangan membangun fitur sebelum waktunya) — ADR-0004: whatsapp-adapter, contacts, conversations-messages kini sah (Tahap 2)", () => {
+    expect(srcFiles.some((f) => /ai-agents|pipelines|follow-up|program-cards|knowledge|labels|templates|\/inbox\//.test(rel(f)))).toBe(false);
   });
 
   it("semua route /api/v1 memakai pembungkus apiFull/apiSession/apiPublic (tidak ada handler tanpa pemeriksaan sesi)", () => {

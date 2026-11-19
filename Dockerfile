@@ -23,7 +23,10 @@ CMD ["npm", "run", "db:migrate"]
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
-RUN groupadd -r teone && useradd -r -g teone -d /app teone
+# UID/GID tetap (10001) agar volume media (Tahap 2) dapat dibagi dengan proses worker tanpa konflik hak akses.
+RUN groupadd -r -g 10001 teone && useradd -r -u 10001 -g teone -d /app teone \
+ && mkdir -p /data/media && chown teone:teone /data/media && chmod 700 /data/media
+ENV MEDIA_DIR=/data/media
 COPY --from=build --chown=teone:teone /app/.next/standalone ./
 COPY --from=build --chown=teone:teone /app/.next/static ./.next/static
 USER teone

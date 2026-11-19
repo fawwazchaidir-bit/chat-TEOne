@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getEnv } from "@/lib/env";
 import { AppError, badRequest, forbidden, unauthorized } from "@/lib/errors";
+import { safeErrorLabel } from "@/lib/safe-error";
 import { clientIp, readCookie, resolveSession, sessionCookieName } from "@/modules/auth/session";
 import { loadPermissionSet } from "@/modules/roles-permissions/loader";
 import { getDb } from "@/db/client";
@@ -86,7 +87,7 @@ async function run<C>(mode: Mode, req: Request, routeCtx: RouteParams, handler: 
       return json({ error: { code: e.code, message: e.message, details: e.details }, correlationId }, e.status, headers);
     }
     // Jangan bocorkan detail internal; cukup pesan error + ID korelasi di log server.
-    console.error(`[${correlationId}] error tak terduga:`, e instanceof Error ? e.message : "unknown");
+    console.error(`[${correlationId}] error tak terduga: ${safeErrorLabel(e)}`);
     return json({ error: { code: "INTERNAL", message: "Terjadi kesalahan pada server." }, correlationId }, 500, baseHeaders);
   }
 }

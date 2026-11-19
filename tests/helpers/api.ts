@@ -21,7 +21,8 @@ export async function rawCall(method: string, path: string, init: { body?: unkno
     const handler = mod[method];
     if (!handler) return { status: 405, body: null, headers: new Headers() };
     const params = Object.fromEntries(r.names.map((n, i) => [n, m[i + 1] as string]));
-    const req = new Request(url, { method, headers: { "content-type": "application/json", ...init.headers }, body: init.body === undefined ? undefined : JSON.stringify(init.body) });
+    const isForm = init.body instanceof FormData;
+    const req = new Request(url, { method, headers: { ...(isForm ? {} : { "content-type": "application/json" }), ...init.headers }, body: init.body === undefined ? undefined : isForm ? (init.body as FormData) : JSON.stringify(init.body) });
     const res = await handler(req, { params: Promise.resolve(params) });
     const text = await res.text();
     let body: unknown = null;
@@ -50,6 +51,7 @@ export class Client {
   }
   get = (p: string) => this.request("GET", p);
   post = (p: string, b?: unknown) => this.request("POST", p, b ?? {});
+  postForm = (p: string, form: FormData) => this.request("POST", p, form);
   put = (p: string, b?: unknown) => this.request("PUT", p, b ?? {});
   patch = (p: string, b?: unknown) => this.request("PATCH", p, b ?? {});
   delete = (p: string) => this.request("DELETE", p);

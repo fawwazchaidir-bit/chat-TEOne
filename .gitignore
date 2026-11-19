@@ -19,3 +19,6 @@ backups/
 *.dump
 *.dump.enc
 .DS_Store
+
+# Media pelanggan & data runtime lokal (privat)
+.data/

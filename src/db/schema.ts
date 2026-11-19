@@ -263,3 +263,218 @@ export const killSwitches = pgTable(
     check("kill_switches_global_ref", sql`(${t.scopeType} = 'global' AND ${t.scopeRef} = '') OR (${t.scopeType} <> 'global' AND ${t.scopeRef} <> '')`),
   ],
 );
+
+// ═════════════════════════ TAHAP 2 — Konektor WhatsApp (ADR-0002, ADR-0003, ADR-0004) ═════════════════════════
+// Seluruh fitur di balik feature flag `whatsapp_connector` (default mati).
+
+// ───────────── Kontak & identitas (identitas dari provider, BUKAN nomor tampil) ─────────────
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Pengenal opak yang stabil untuk integrasi masa depan (Internal Portal / Training & Operations). Bukan nomor telepon. */
+    publicRef: uuid("public_ref").notNull().defaultRandom(),
+    displayName: text("display_name"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("contacts_public_ref_unique").on(t.publicRef)],
+);
+
+export const contactIdentities = pgTable(
+  "contact_identities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("whatsapp"),
+    identityType: text("identity_type").notNull(),
+    identityValue: text("identity_value").notNull(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("contact_identities_unique").on(t.provider, t.identityType, t.identityValue), index("contact_identities_contact_idx").on(t.contactId)],
+);
+
+// ───────────── Koneksi channel ↔ Meta (pemetaan WABA ↔ phone_number_id ↔ channel) ─────────────
+export const channelConnections = pgTable(
+  "channel_connections",
+  {
+    channelId: uuid("channel_id").primaryKey().references(() => channels.id),
+    wabaId: text("waba_id").notNull(),
+    phoneNumberId: text("phone_number_id").notNull(),
+    /** Mode uji: pesan keluar hanya ke daftar penerima uji; pengirim di luar daftar tidak diproses (D-03). */
+    testMode: boolean("test_mode").notNull().default(true),
+    rateLimitPerSec: integer("rate_limit_per_sec").notNull().default(5),
+    /** 'terverifikasi' HANYA hasil pemeriksaan ke Graph API; `verificationMode` membedakan Meta asli vs mock. */
+    verificationStatus: text("verification_status").notNull().default("belum_diperiksa"),
+    verificationMode: text("verification_mode"),
+    verifiedAt: ts("verified_at"),
+    verificationDetail: jsonb("verification_detail").notNull().default(sql`'{}'::jsonb`),
+    historyProgress: jsonb("history_progress").notNull().default(sql`'{}'::jsonb`),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+    updatedBy: uuid("updated_by"),
+  },
+  (t) => [
+    uniqueIndex("channel_connections_phone_unique").on(t.phoneNumberId),
+    check("channel_connections_status", sql`${t.verificationStatus} IN ('belum_diperiksa','terverifikasi','gagal')`),
+    check("channel_connections_mode", sql`${t.verificationMode} IS NULL OR ${t.verificationMode} IN ('nyata','simulasi')`),
+    check("channel_connections_verified_has_mode", sql`${t.verificationStatus} <> 'terverifikasi' OR (${t.verificationMode} IS NOT NULL AND ${t.verifiedAt} IS NOT NULL)`),
+    check("channel_connections_rate", sql`${t.rateLimitPerSec} >= 1 AND ${t.rateLimitPerSec} <= 100`),
+  ],
+);
+
+// ───────────── Antrean event masuk (ADR-0002): disimpan SEBELUM respons sukses, diproses idempoten ─────────────
+export const inboundEvents = pgTable(
+  "inbound_events",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    provider: text("provider").notNull().default("whatsapp"),
+    eventKey: text("event_key").notNull(),
+    kind: text("kind").notNull(),
+    channelId: uuid("channel_id").references(() => channels.id),
+    wabaId: text("waba_id"),
+    phoneNumberId: text("phone_number_id"),
+    /** Fragmen event mentah. Dibatasi retensinya (D-18: ≤ 30 hari, di-NULL-kan) dan TIDAK PERNAH masuk log. */
+    payload: jsonb("payload"),
+    status: text("status").notNull().default("pending"),
+    quarantineReason: text("quarantine_reason"),
+    attempts: integer("attempts").notNull().default(0),
+    runAfter: ts("run_after").notNull().defaultNow(),
+    lockedUntil: ts("locked_until"),
+    lastError: text("last_error"),
+    providerTs: ts("provider_ts"),
+    receivedAt: ts("received_at").notNull().defaultNow(),
+    processedAt: ts("processed_at"),
+  },
+  (t) => [
+    uniqueIndex("inbound_events_key_unique").on(t.provider, t.eventKey),
+    index("inbound_events_queue_idx").on(t.status, t.runAfter),
+    check("inbound_events_status", sql`${t.status} IN ('pending','processing','processed','failed','quarantined')`),
+    check("inbound_events_kind", sql`${t.kind} IN ('message','status','echo','history','contact_sync','unknown')`),
+    check("inbound_events_quarantine_reason", sql`${t.status} <> 'quarantined' OR ${t.quarantineReason} IS NOT NULL`),
+  ],
+);
+
+// ───────────── Percakapan & pesan ─────────────
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id").notNull().references(() => contacts.id),
+    channelId: uuid("channel_id").notNull().references(() => channels.id),
+    /** Dasar jendela layanan 24 jam: HANYA dari pesan pelanggan yang terbukti. Echo & history TIDAK memperbarui kolom ini. */
+    lastCustomerMessageAt: ts("last_customer_message_at"),
+    lastMessageAt: ts("last_message_at"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("conversations_contact_channel_unique").on(t.contactId, t.channelId), index("conversations_channel_idx").on(t.channelId)],
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id),
+    channelId: uuid("channel_id").notNull().references(() => channels.id),
+    direction: text("direction").notNull(),
+    source: text("source").notNull(),
+    type: text("type").notNull(),
+    rawType: text("raw_type"),
+    body: text("body"),
+    providerMessageId: text("provider_message_id"),
+    providerTs: ts("provider_ts"),
+    receivedAt: ts("received_at").notNull().defaultNow(),
+    status: text("status"),
+    statusRank: integer("status_rank").notNull().default(0),
+    statusUpdatedAt: ts("status_updated_at"),
+    errorCategory: text("error_category"),
+    errorCode: text("error_code"),
+    idempotencyKey: text("idempotency_key"),
+    isHistory: boolean("is_history").notNull().default(false),
+    createdBy: uuid("created_by"),
+  },
+  (t) => [
+    // NULL dianggap berbeda oleh PostgreSQL → indeks biasa sudah benar dan kompatibel dengan ON CONFLICT.
+    uniqueIndex("messages_provider_unique").on(t.channelId, t.providerMessageId),
+    uniqueIndex("messages_idempotency_unique").on(t.idempotencyKey),
+    index("messages_conversation_idx").on(t.conversationId, t.receivedAt),
+    check("messages_direction", sql`${t.direction} IN ('masuk','keluar')`),
+    check("messages_source", sql`${t.source} IN ('pelanggan','te_one','whatsapp_business_app','history')`),
+    check("messages_type", sql`${t.type} IN ('text','image','document','unsupported')`),
+    check("messages_status", sql`${t.status} IS NULL OR ${t.status} IN ('diproses','diterima_api','terkirim','diterima','dibaca','gagal','belum_pasti')`),
+    // History tidak pernah berasal dari sumber lain, dan sebaliknya.
+    check("messages_history_consistent", sql`(${t.source} = 'history') = ${t.isHistory}`),
+    // Pesan masuk hanya dari pelanggan atau history; pesan keluar dari TE One / WhatsApp Business App / history.
+    check("messages_direction_source", sql`(${t.direction} = 'masuk' AND ${t.source} IN ('pelanggan','history')) OR (${t.direction} = 'keluar' AND ${t.source} IN ('te_one','whatsapp_business_app','history'))`),
+  ],
+);
+
+/** Log status dari provider. Status dapat datang berulang, tidak berurutan, atau SEBELUM pesan dicatat — semuanya disimpan lalu diterapkan. */
+export const messageStatusEvents = pgTable(
+  "message_status_events",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    channelId: uuid("channel_id").notNull().references(() => channels.id),
+    providerMessageId: text("provider_message_id").notNull(),
+    status: text("status").notNull(),
+    providerTs: ts("provider_ts"),
+    errorCode: text("error_code"),
+    opaque: text("opaque"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("message_status_events_unique").on(t.channelId, t.providerMessageId, t.status), index("message_status_events_opaque_idx").on(t.opaque)],
+);
+
+export const leadSources = pgTable(
+  "lead_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id),
+    messageId: uuid("message_id").notNull().references(() => messages.id),
+    channelId: uuid("channel_id").notNull().references(() => channels.id),
+    sourceType: text("source_type"),
+    sourceId: text("source_id"),
+    sourceUrl: text("source_url"),
+    headline: text("headline"),
+    clickId: text("click_id"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("lead_sources_message_unique").on(t.messageId), index("lead_sources_conversation_idx").on(t.conversationId)],
+);
+
+export const media = pgTable(
+  "media",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    messageId: uuid("message_id").notNull().references(() => messages.id),
+    channelId: uuid("channel_id").notNull().references(() => channels.id),
+    providerMediaId: text("provider_media_id"),
+    mime: text("mime"),
+    declaredSha256: text("declared_sha256"),
+    sha256: text("sha256"),
+    sizeBytes: integer("size_bytes"),
+    storagePath: text("storage_path"),
+    status: text("status").notNull().default("menunggu"),
+    errorCategory: text("error_category"),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("media_message_unique").on(t.messageId),
+    check("media_status", sql`${t.status} IN ('menunggu','tersimpan','gagal','tidak_tersedia')`),
+    check("media_stored_has_path", sql`${t.status} <> 'tersimpan' OR (${t.storagePath} IS NOT NULL AND ${t.sha256} IS NOT NULL)`),
+  ],
+);
+
+/** Daftar penerima uji — ditegakkan di server untuk SEMUA pengiriman (AGENTS.md §3.6). Nilai = identitas WhatsApp (digit). */
+export const testRecipients = pgTable(
+  "test_recipients",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    label: text("label").notNull(),
+    identityValue: text("identity_value").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdBy: uuid("created_by"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("test_recipients_identity_unique").on(t.identityValue), check("test_recipients_digits", sql`${t.identityValue} ~ '^[0-9]{7,16}$'`)],
+);

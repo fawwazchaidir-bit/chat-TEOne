@@ -73,7 +73,7 @@ jobs:
         run: npm run test:report
       - name: Pasang Chromium untuk E2E
         run: npx playwright install --with-deps chromium
-      - name: Golden E2E (G1; G2–G8 placeholder bertanda BELUM TERSEDIA)
+      - name: Golden E2E (G1 + G2 SIMULASI; G2-nyata dan G3–G8 placeholder bertanda BELUM TERSEDIA)
         run: npm run e2e
       - name: Ringkasan test per tag + penjaga baseline (jumlah test tidak boleh turun)
         if: always()

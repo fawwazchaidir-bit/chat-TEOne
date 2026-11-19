@@ -1,6 +1,6 @@
 # Staging TE One — server TERSENDIRI (bukan VPS HRIS/keuangan). Semua nilai rahasia dari berkas env di server
 # (/etc/teone/staging.env, chmod 600, TIDAK di repository). Lihat docs/staging.md.
-# STATUS: dibuat, BELUM diuji pada server staging (Jalur 0 J0-03 belum tersedia).
+# STATUS: dibuat, BELUM diuji pada server staging (Jalur 0 J0-03 belum tersedia). Tahap 2: + service worker dan volume media.
 services:
   db:
     image: postgres:16
@@ -21,6 +21,20 @@ services:
     depends_on: { db: { condition: service_healthy } }
     networks: [internal]
     expose: ["3000"]
+    environment:
+      MEDIA_DIR: /data/media        # media privat (Tahap 2) — volume persisten; HARUS ikut dibackup
+    volumes: [media_data:/data/media]
+  worker:                           # Tahap 2: pemroses antrean event webhook, rekonsiliasi, unduh media, retensi payload
+    image: teone-tools:staging      # BELUM DIUJI di server. Aman berdampingan dengan app (SKIP LOCKED + lease)
+    restart: unless-stopped
+    user: "10001:10001"             # sama dengan pengguna image runtime agar menulis ke volume media yang sama
+    command: ["npm", "run", "worker"]
+    env_file: /etc/teone/staging.env
+    environment:
+      MEDIA_DIR: /data/media
+    volumes: [media_data:/data/media]
+    depends_on: { db: { condition: service_healthy } }
+    networks: [internal]
   tools:                            # tugas sekali-jalan: docker compose run --rm tools npm run db:migrate
     image: teone-tools:staging      # dibangun: docker build --target tools -t teone-tools:staging .
     profiles: ["tools"]
@@ -44,3 +58,4 @@ secrets:
 volumes:
   pg_data: {}
   caddy_data: {}
+  media_data: {}

@@ -10,6 +10,18 @@ const schema = z.object({
     .min(1, "APP_ENCRYPTION_KEY wajib diisi")
     .refine((v) => Buffer.from(v, "base64").length === 32, "APP_ENCRYPTION_KEY harus 32 byte dalam base64"),
   TRUST_PROXY: z.enum(["true", "false"]).default("false"),
+  // ── Tahap 2: Meta WhatsApp Cloud API. Seluruhnya opsional di level skema (fitur di balik feature flag);
+  //    modul adapter gagal-tertutup bila nilai wajib untuk suatu operasi tidak ada. TIDAK PERNAH dicatat di log.
+  META_APP_SECRET: z.string().min(8).optional(),
+  META_VERIFY_TOKEN: z.string().min(8).optional(),
+  META_ACCESS_TOKEN: z.string().min(8).optional(),
+  META_GRAPH_BASE_URL: z.string().url().default("https://graph.facebook.com"),
+  META_GRAPH_API_VERSION: z.string().regex(/^v\d+\.\d+$/).default("v23.0"),
+  META_HTTP_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(10000),
+  /** Direktori media privat (di luar webroot). */
+  MEDIA_DIR: z.string().min(1).default(".data/media"),
+  /** true = webhook memicu pemrosesan segera di proses yang sama; worker terpisah tetap aman (SKIP LOCKED). */
+  WORKER_INLINE: z.enum(["true", "false"]).default("true"),
 });
 
 export type Env = z.infer<typeof schema>;

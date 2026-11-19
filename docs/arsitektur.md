@@ -1,4 +1,6 @@
-# Arsitektur — Tahap 1
+# Arsitektur — Tahap 1 (+ ringkasan Tahap 2)
+
+> **Tahap 2** menambah modul `whatsapp-adapter`, `contacts`, `conversations-messages`, proses `worker` (antrean PostgreSQL, ADR-0002) dan webhook publik. Rincian: [`tahap-2/arsitektur-konektor.md`](tahap-2/arsitektur-konektor.md). Teks di bawah menggambarkan Tahap 1 (satu proses, tanpa worker) dan tetap berlaku untuk bagian tersebut.
 
 **Modular monolith** (AGENTS.md §5). Satu aplikasi Next.js, satu database PostgreSQL, tanpa antrean/worker/layanan tambahan.
 Modul berkomunikasi lewat fungsi layanan yang terdokumentasi; tidak ada tabel/worker untuk fitur tahap berikutnya.

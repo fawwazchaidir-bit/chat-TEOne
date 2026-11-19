@@ -4,7 +4,10 @@ import { ChannelActions, CreateChannelForm } from "@/components/admin-forms";
 import { Badge, Denied, PageHeader, SampleBadge, fmtDate } from "@/components/ui";
 import { getDb } from "@/db/client";
 import { channels as channelsTable } from "@/db/schema";
+import { ChannelConnectionPanel, type ConnView } from "@/components/channel-connection";
 import { requireFull } from "@/lib/page-auth";
+import { isFeatureEnabled } from "@/modules/feature-flags";
+import { getConnectionView } from "@/modules/whatsapp-adapter";
 import { CHANNEL_STATUS_LABEL, INTEGRATION_KINDS, listChannels } from "@/modules/channels/service";
 import { getOrgSettings } from "@/modules/org-settings/service";
 
@@ -15,6 +18,9 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
   const [items, org] = await Promise.all([listChannels(ctx, { includeArchived: showArchived }), getOrgSettings()]);
   const [{ n: active } = { n: 0 }] = await getDb().select({ n: sql<number>`count(*)::int` }).from(channelsTable).where(isNull(channelsTable.archivedAt));
   const canCreate = ctx.perms.can("channel.manage");
+  const connectorOn = await isFeatureEnabled("whatsapp_connector");
+  const conns = new Map<string, ConnView>();
+  if (connectorOn) for (const c of items.filter((x) => !x.archivedAt)) conns.set(c.id, JSON.parse(JSON.stringify(await getConnectionView(ctx, c.id))) as ConnView);
   return (
     <>
       <PageHeader title="Channel" sub={<>Slot aktif organisasi: <strong>{active} / {org.maxChannels}</strong>. Semua channel berstatus <em>Belum dikonfigurasi</em> — Tahap 1 tidak membuat koneksi WhatsApp.</>}
@@ -39,6 +45,10 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
           </tbody>
         </table>
       </div>
+      {connectorOn ? items.filter((c) => !c.archivedAt).map((c) => (
+        <details key={c.id} className="card"><summary style={{ cursor: "pointer", fontWeight: 700 }}>Koneksi WhatsApp — {c.name}</summary>
+          <ChannelConnectionPanel channelId={c.id} view={conns.get(c.id) ?? { configured: false }} canManage={ctx.perms.can("channel.manage", c.id)} /></details>
+      )) : <div className="card small muted">Koneksi WhatsApp (Meta Cloud API): <span className="badge na">Belum tersedia · Tahap 2</span> — feature flag <code className="mono">whatsapp_connector</code> masih mati.</div>}
       <p className="small muted">Aturan slot: mengarsipkan membebaskan slot segera; memulihkan memerlukan slot kosong dan nama aktif yang belum dipakai. Jejak audit tetap ada.</p>
     </>
   );

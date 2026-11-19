@@ -7,7 +7,7 @@
 - **Server tersendiri** untuk TE One — jangan memakai VPS HRIS atau aplikasi keuangan (AGENTS.md §1).
 - Database dan **semua rahasia terpisah** dari development/production. Domain: **subdomain khusus** TE One (nama final dari `docs/jalur-0.md` — berkas belum ada; `deploy/Caddyfile` memakai placeholder `staging-chat.example.invalid`).
 - Pita **"LINGKUNGAN STAGING"** tampil otomatis (`APP_ENV=staging`). Data hanya data contoh/uji.
-- Pesan keluar di non-production **hanya** ke daftar penerima uji yang ditegakkan di server (AGENTS.md §3.6) — diimplementasikan di Tahap 2.
+- Pesan keluar di non-production **hanya** ke daftar penerima uji yang ditegakkan di server (AGENTS.md §3.6) — diimplementasikan di Tahap 2 (`tahap-2/konfigurasi-staging.md`; **belum terbukti di server**).
 
 ## 2. HTTPS & cookie
 - Caddy menyediakan sertifikat otomatis + HSTS; port 80/443 satu-satunya yang terbuka ke internet.
@@ -36,6 +36,11 @@ docker compose -f deploy/docker-compose.staging.yml up -d app caddy
 ```
 Role DB dibuat dulu dengan `db/init-roles.sql` (sandi dari secret manager).
 
+## 5b. Tahap 2 — webhook WhatsApp dan worker
+- Meta harus menjangkau `https://<domain-staging>/api/webhooks/whatsapp` (POST/GET) lewat Caddy; **tidak** ada autentikasi sesi di jalur ini (diamankan tanda tangan + verify token).
+- Service `worker` dan volume `media_data` ditambahkan di `deploy/docker-compose.staging.yml` (**dibuat, belum diuji**). Backup media belum ada (T2-F11).
+- Variabel `META_*`, `MEDIA_DIR`, `WORKER_INLINE`: lihat `tahap-2/konfigurasi-staging.md`.
+
 ## 6. Yang HARUS dibuktikan di server (tertunda) — isi saat verifikasi
 - [ ] Sertifikat HTTPS valid; HTTP → HTTPS; HSTS terbaca
 - [ ] Cookie sesi di browser: `__Host-…`, Secure, HttpOnly, SameSite (screenshot disamarkan)
@@ -44,4 +49,5 @@ Role DB dibuat dulu dengan `db/init-roles.sql` (sandi dari secret manager).
 - [ ] Login + 2FA Super Admin berjalan lewat domain staging (Golden E2E G1 di staging, GATE B5)
 - [ ] `TRUST_PROXY=true` + IP klien benar tercatat di audit; batas per-IP berfungsi
 - [ ] Backup terjadwal berjalan; salinan di lokasi terpisah; restore drill di server (GATE B7)
-- [ ] Image Docker berhasil dibangun di server (belum terbukti — lihat temuan T1-F03)
+- [ ] Image Docker berhasil dibangun di server (belum terbukti — lihat temuan T1-F03); Tahap 2: UID tetap 10001 + volume media dapat ditulis `app` dan `worker`
+- [ ] Tahap 2: webhook Meta menjangkau Caddy → app (challenge + POST bertanda tangan); body ≤ 3 MB lewat proxy

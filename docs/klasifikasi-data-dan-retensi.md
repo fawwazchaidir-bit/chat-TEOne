@@ -15,8 +15,8 @@
 ## 2. Retensi (usulan D-18) dan status implementasi
 | Data | Usulan | Status Tahap 1 |
 |---|---|---|
-| Payload webhook mentah | ≤ 30 hari | Belum ada (Tahap 2) |
-| Isi chat & media | usulan 2 tahun, lalu arsip/hapus | Belum ada (Tahap 2+) |
+| Payload webhook mentah | ≤ 30 hari | **Dibuat (Tahap 2), terbukti simulasi**: dibuang saat tidak diperlukan; sisanya dibersihkan worker setelah 30 hari (**ASUMSI D-18**) |
+| Isi chat & media | usulan 2 tahun, lalu arsip/hapus | Data kini **disimpan** (Tahap 2); **pembersih/arsip belum ada**; media di filesystem privat **tanpa backup** (T2-F11) |
 | Log teknis | ≤ 90 hari, tanpa isi chat | Log aplikasi hanya pesan error + ID korelasi; **belum ada pembersih terjadwal** |
 | `login_attempts` | ikut log teknis ≤ 90 hari | **Belum ada pembersih** (T1-F06) |
 | Sesi kedaluwarsa | segera | Dibersihkan *lazy* (saat dipakai / login berikutnya); pembersih terjadwal belum ada |
@@ -26,7 +26,7 @@
 ## 3. Pihak ketiga & lokasi (dicatat sesuai D-18/D-19)
 | Pihak | Data yang akan dikirim | Status |
 |---|---|---|
-| Meta (WhatsApp Cloud API) | pesan & metadata percakapan | **Belum ada koneksi** (Tahap 2) |
+| Meta (WhatsApp Cloud API) | pesan, media, nomor penerima, nama profil, ID kontak | **Kode siap (Tahap 2); belum ada koneksi nyata**. Nomor penerima dikirim **hanya** ke nomor di daftar uji |
 | Provider AI (D-09) | konteks percakapan minimum **tanpa nomor telepon**, tanpa rahasia | **D-09 belum diputuskan**; belum ada |
 | Hosting (D-19) | seluruh data | VPS tersendiri; **lokasi dicatat saat staging/production dibuat** (belum ada) |
 

@@ -1,12 +1,12 @@
 import { test } from "@playwright/test";
 
 /**
- * Golden E2E G2–G8 (GATE-CHECKLIST bagian B): DISIAPKAN sebagai placeholder bertanda BELUM TERSEDIA.
+ * Golden E2E G3–G8 dan G2-NYATA (GATE-CHECKLIST bagian B): DISIAPKAN sebagai placeholder bertanda BELUM TERSEDIA. (G2 versi SIMULASI/mock kini nyata di g2.spec.ts; versi NYATA menunggu akses Meta + nomor uji + staging.)
  * Placeholder ini BUKAN test regresi dan tidak boleh dihitung sebagai bukti. Setiap tahap yang memiliki
  * skenarionya WAJIB mengganti `test.fixme` di sini dengan test sungguhan (tag @tahap-N) pada tahap tersebut.
  */
 const PLACEHOLDERS = [
-  { id: "G2", stage: 2, title: "Pesan masuk peserta uji tercatat di channel yang benar; webhook yang sama dikirim ulang tidak menggandakan pesan" },
+  { id: "G2 (NYATA — Meta asli, nomor uji, staging HTTPS)", stage: 2, title: "Pesan masuk peserta uji tercatat di channel yang benar; webhook yang sama dikirim ulang tidak menggandakan pesan; coexistence: echo dari HP dikenali" },
   { id: "G3", stage: 3, title: "Admin membalas dari inbox; status pesan sesuai bukti provider; AI Off pada chat itu" },
   { id: "G4", stage: 4, title: "AI menjawab dari Kartu Program; peserta minta manusia → eskalasi ke tim yang benar; AI Off" },
   { id: "G5", stage: 4, title: "Admin mengaktifkan AI kembali; pesan lama tidak dijawab; pesan baru dijawab" },

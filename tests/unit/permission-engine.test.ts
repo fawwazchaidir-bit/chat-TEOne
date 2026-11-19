@@ -79,7 +79,11 @@ describe("@tahap-1 engine izin (fungsi murni)", () => {
   });
 
   it("registri: tiap izin memiliki label dan penanda ketersediaan", () => {
-    expect(PERMISSIONS.length).toBe(19);
+    // Kontrak Tahap 1: ke-19 izin awal TETAP ada (ADR-0004: registri boleh bertambah, tidak boleh berkurang/berubah).
+    const tahap1 = ["user.manage", "role.manage", "team.manage", "channel.view", "channel.manage", "chat.view", "chat.reply", "ai.toggle", "chat.transfer", "quickreply.manage", "agent.manage", "knowledge.manage", "label.manage", "pipeline.manage", "template_followup.manage", "report.view", "data.export", "audit.view", "killswitch.manage"];
+    const keys = PERMISSIONS.map((p) => p.key as string);
+    for (const k of tahap1) expect(keys, k).toContain(k);
+    expect(new Set(keys).size).toBe(keys.length);
     for (const p of PERMISSIONS) {
       expect(p.label.length).toBeGreaterThan(2);
       expect(typeof p.available).toBe("boolean");

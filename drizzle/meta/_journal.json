@@ -15,6 +15,13 @@
       "when": 1795045658007,
       "tag": "0001_constraints_and_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795052398096,
+      "tag": "0002_tahap2_whatsapp_connector",
+      "breakpoints": true
     }
   ]
 }

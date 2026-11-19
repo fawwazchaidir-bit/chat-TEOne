@@ -23,6 +23,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     ["/tim", "Tim", p.can("team.manage")],
     ["/channel", "Channel", p.canAny("channel.view")],
     ["/audit", "Audit log", p.can("audit.view")],
+    ["/integrasi", "Alat uji integrasi", p.canAny("integration.test")],
     ["/pengaturan", "Pengaturan organisasi", ctx.user.isSuperAdmin || p.can("user.manage") || p.can("role.manage")],
     ["/kill-switch", "Kill switch & flag", p.can("killswitch.manage")],
   ];

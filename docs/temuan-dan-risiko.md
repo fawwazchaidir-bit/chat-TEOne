@@ -1,4 +1,6 @@
-# Temuan & risiko peluncuran — Tahap 1
+# Temuan & risiko peluncuran — Tahap 1 dan Tahap 2
+
+> Temuan **Tahap 2 (T2-F\*)** ada di [`reports/tahap-2.md`](reports/tahap-2.md) §9. Ringkasnya: **uji nyata Meta/coexistence belum dilakukan**, bentuk payload & kode galat Meta **belum terverifikasi**, Gate 1 belum tercatat.
 
 Daftar ini disusun **pembangun** (bukan audit independen). Prioritas: kritis / tinggi / sedang / rendah. Tidak ada temuan kritis atau tinggi yang diketahui pembangun; auditor independen dapat menilai ulang.
 
