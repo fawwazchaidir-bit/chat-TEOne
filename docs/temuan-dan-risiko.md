@@ -1,0 +1,31 @@
+# Temuan & risiko peluncuran — Tahap 1
+
+Daftar ini disusun **pembangun** (bukan audit independen). Prioritas: kritis / tinggi / sedang / rendah. Tidak ada temuan kritis atau tinggi yang diketahui pembangun; auditor independen dapat menilai ulang.
+
+| ID | Prio | Temuan / risiko | Dampak | Bukti | Tindakan | PJ | Status |
+|---|---|---|---|---|---|---|---|
+| T1-F01 | sedang | **Staging belum tersedia** (Jalur 0 J0-03) → HTTPS, cookie `Secure/__Host-`, kontrol jaringan, backup & restore di server, Golden E2E di staging **belum terbukti** | GATE A10, B5 (staging), 1.7 (di server) tertunda | `docs/staging.md` §6 | Sediakan server; jalankan daftar verifikasi | Pemilik | Terbuka |
+| T1-F02 | sedang | **CI GitHub Actions belum pernah berjalan** (pembangun tidak dapat memicu dari sandbox). Langkah gitleaks, `playwright install`, job backup-restore, `npm audit` belum terverifikasi di runner. Semua perintahnya lulus **secara lokal** | GATE A2 tidak dapat ✅ sebelum ada run hijau pada commit yang diaudit | `.github/workflows/ci.yml` | Push/PR → pastikan run hijau; perbaiki bila ada | Pembangun | Terbuka |
+| T1-F03 | sedang | **Image Docker belum terbukti ter-build** (jaringan di dalam build container sandbox tidak menjangkau registry: `npm error Exit handler never called`). Lockfile valid (`npm ci --dry-run`); paket standalone terverifikasi lokal | Deploy staging bisa tertunda | Log build; uji standalone | Bangun image di server/CI | Pembangun | Terbuka |
+| T1-F04 | sedang | `docs/jalur-0.md` dan `docs/prompts/tahap-2…9.md` **tidak ada di paket** yang diterima; AGENTS.md merujuknya (domain staging, J0-xx) | Prasyarat tahap berikutnya tidak dapat dinilai | `docs/README.md` | Pemilik menambahkan berkas | Pemilik | Terbuka |
+| T1-F05 | rendah | Branch kerja `claude/lucid-carson-blf4x0` (ketentuan sesi) ≠ `tahap-1-fondasi` (AGENTS §2); `main` belum ada di remote. Tag `tahap-1-diterima` & backup titik-kembali **belum** dibuat (hanya setelah keputusan gate) | Penamaan; alur landing | — | Pemilik memutuskan cara landing ke `main` lewat PR | Pemilik | Terbuka |
+| T1-F06 | sedang | **Pembersih retensi belum ada**: `login_attempts` (usulan ≤ 90 hari), sesi kedaluwarsa hanya dibersihkan lazy; kebijakan retensi audit belum diputuskan (D-18 masih usulan) | Data pribadi (email/IP) menumpuk; kepatuhan PDP | `klasifikasi-data-dan-retensi.md` §2 | Job pembersih + keputusan D-18 sebelum Tahap 7 | Pembangun/Pemilik | Terbuka |
+| T1-F07 | rendah | `npm audit`: 4 *moderate* **hanya tooling dev** (`drizzle-kit`→`@esbuild-kit`→`esbuild` ≤0.24: dev server). Dependensi produksi: 0 | Risiko hanya di mesin pengembang | `npm audit`, `npm audit --omit=dev` | Pantau rilis drizzle-kit; CI memblokir *high* pada prod | Pembangun | Diterima sementara |
+| T1-F08 | sedang | **Tidak ada prosedur rotasi `APP_ENCRYPTION_KEY`** (format `v1.` siap diversi); kehilangan kunci ⇒ semua TOTP harus direset | Operasional | `crypto.ts`, backup-restore §1 | Rancang rotasi (dual-key) sebelum production | Pembangun | Terbuka |
+| T1-F09 | sedang | **Backup**: drill hanya pada data kecil & di mesin pengembang; salinan di luar server, jadwal cron, backup media, RPO/RTO (**D-12 belum dinilai**) belum ada; `pg_dump` harian tak cukup untuk RPO ≤ 1 jam | CCP 1.7 hanya sebagian di lingkungan nyata | `backup-restore.md` | Putuskan D-12; pasang jadwal + salinan terpisah; arsip WAL bila perlu | Pemilik/Pembangun | Terbuka |
+| T1-F10 | rendah | Kunci akun 5 gagal/15 menit memungkinkan DoS terbatas pada **satu akun** (trade-off sadar). Batas per-IP dilewati bila IP tak diketahui | Akun korban terkunci ≤ 15 mnt | `rate-limit.ts`, test | Terima; pantau | — | Diterima |
+| T1-F11 | rendah | `TRUST_PROXY=true` tanpa proxy tepercaya memungkinkan pemalsuan IP (menghindari batas per-IP; per-akun tetap) | Pelemahan kontrol | `staging.md` §3 | Set `true` hanya di belakang Caddy | Operasi | Didokumentasikan |
+| T1-F12 | rendah | CSP memakai `'unsafe-inline'` (script/style) karena bootstrap Next.js; belum ada nonce | Pelemahan mitigasi XSS | `next.config.ts` | Evaluasi CSP berbasis nonce (Tahap 7) | Pembangun | Terbuka |
+| T1-F13 | rendah | Pemulihan akun hanya lewat admin/CLI (tanpa email); pengguna dengan 2FA aktif tidak dapat menonaktifkan/meregenerasi kode pemulihan sendiri | Beban admin | `keamanan-dan-izin.md` §2 | Evaluasi saat UAT | Pembangun | Diterima |
+| T1-F14 | rendah | Perlindungan audit tidak mencakup **superuser DB** (dapat melepas trigger) | Integritas audit terhadap admin DB | `keamanan-dan-izin.md` §6 | Kirim audit ke luar server; pisahkan akses DB (Tahap 7) | Pembangun | Terbuka |
+| T1-F15 | rendah | **Kill switch** hanya terbukti pada fungsi contoh (tidak ada otomatisasi nyata); G8 placeholder | CCP 3.6/8.2 belum nyata | `controls.test.ts` | Uji nyata Tahap 3 | Pembangun | Terjadwal |
+| T1-F16 | rendah | Golden E2E **G2–G8 placeholder** (7 skipped, bertanda BELUM TERSEDIA) — bukan bukti | Hanya G1 yang nyata | `golden-placeholders.spec.ts` | Ganti per tahap | Pembangun | Terjadwal |
+| T1-F17 | rendah | UI audit hanya menyaring tindakan & aktor (API mendukung rentang tanggal); belum ada ekspor audit | Kenyamanan | `audit/page.tsx` | Tambah bila diminta UAT | Pembangun | Terbuka |
+| T1-F18 | rendah | Editor izin per pengguna hanya satu efek per izin; kombinasi izin+tolak yang dibuat lewat API dikunci & dipertahankan (tidak hilang) tetapi tidak dapat diubah dari UI | Kenyamanan | `admin-forms.tsx` | Perluas editor bila perlu | Pembangun | Diterima |
+| T1-F19 | rendah | Waktu disimpan UTC; tampilan memakai zona organisasi. **Jam kirim/jam kerja belum ada** (D-06/07, Tahap 6) — risiko zona waktu server berbeda diuji di CCP 6.4 | Tahap 6 | — | Uji simulasi waktu di Tahap 6 | Pembangun | Terjadwal |
+
+## Risiko peluncuran (ke Tahap 2 dan seterusnya)
+1. **Keputusan terbuka** yang membatasi jadwal: D-01 (±22 Des), D-02 & D-03 (±1 Des 2026) — Tahap 1 memakai asumsi default dan tidak memutuskan apa pun.
+2. **Akses Meta** (Tech Provider/BSP, nomor uji) belum dikonfirmasi — jalur kritis Tahap 2.
+3. **Teknologi nomor Hotline belum terverifikasi** (J0-04; diduga WAHA) — larangan menyentuh nomor operasional tetap berlaku.
+4. **Server staging** belum ada — Gate 1 tidak dapat menutup bagian yang bergantung pada staging.
