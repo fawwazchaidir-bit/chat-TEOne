@@ -37,7 +37,7 @@ describe("@tahap-2 migrasi 0002: maju-saja, diuji pada snapshot data Tahap 1 (GA
     try {
       mkdirSync(path.join(tmp, "meta"), { recursive: true });
       const journal = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8"));
-      expect(journal.entries.map((e: { tag: string }) => e.tag)).toEqual(["0000_initial_schema", "0001_constraints_and_triggers", "0002_tahap2_whatsapp_connector"]);
+      expect(journal.entries.map((e: { tag: string }) => e.tag)).toEqual(["0000_initial_schema", "0001_constraints_and_triggers", "0002_tahap2_whatsapp_connector", "0003_tahap2_gate2_mapping_version"]);
       const t1 = { ...journal, entries: journal.entries.filter((e: { idx: number }) => e.idx <= 1) };
       writeFileSync(path.join(tmp, "meta/_journal.json"), JSON.stringify(t1));
       for (const e of t1.entries) cpSync(`drizzle/${e.tag}.sql`, path.join(tmp, `${e.tag}.sql`));
@@ -69,7 +69,7 @@ describe("@tahap-2 migrasi 0002: maju-saja, diuji pada snapshot data Tahap 1 (GA
     const o = new Client({ connectionString: url("teone_owner", "owner_test_pw") });
     await o.connect();
     try {
-      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(3);
+      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(4);
       expect((await o.query("select count(*)::int n from users")).rows[0].n).toBe(2);
       expect((await o.query("select count(*)::int n from channels")).rows[0].n).toBe(2);
       expect((await o.query("select count(*)::int n from audit_log")).rows[0].n).toBe(3);
@@ -84,9 +84,11 @@ describe("@tahap-2 migrasi 0002: maju-saja, diuji pada snapshot data Tahap 1 (GA
       // tabel baru berkaitan dengan data Tahap 1 (FK ke channel yang sudah ada)
       const ch = (await o.query("select id from channels limit 1")).rows[0].id;
       await o.query("insert into channel_connections(channel_id, waba_id, phone_number_id) values ($1,'100000000000003','200000000000003')", [ch]);
+      // 0003 (G2-A04): kolom versi pemetaan ada dengan nilai awal aman
+      expect((await o.query("select mapping_version, mapping_changed_at is not null as has_ts from channel_connections")).rows[0]).toEqual({ mapping_version: 0, has_ts: true });
       // migrasi diulang → idempoten
       await runMigrations(url("teone_owner", "owner_test_pw"), { quiet: true });
-      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(3);
+      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(4);
     } finally {
       await o.end();
     }

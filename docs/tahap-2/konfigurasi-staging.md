@@ -24,6 +24,7 @@ Isi di `/etc/teone/staging.env` (root, `chmod 600`, di luar repository). Nama sa
 | `DATABASE_URL`, `DATABASE_MIGRATION_URL`, `APP_ENCRYPTION_KEY`, `TRUST_PROXY` | ya | seperti Tahap 1 | — |
 | `META_APP_SECRET` | ya (untuk webhook) | validasi `X-Hub-Signature-256` | kosong ⇒ webhook membalas **503** |
 | `META_VERIFY_TOKEN` | ya | verifikasi langganan webhook oleh Meta | string acak ≥ 8 karakter; ditentukan TE One, dimasukkan juga di dashboard Meta |
+| `META_APP_ID` | tidak (sangat disarankan) | ID aplikasi Meta milik TE One (bukan rahasia) | tanpa ini langganan webhook tidak dapat **dikonfirmasi** sebagai aplikasi yang benar → kanal tidak pernah "siap menerima" (G2-A05) |
 | `META_ACCESS_TOKEN` | ya (kirim/unduh/pemeriksaan) | token system user | kosong ⇒ pengiriman & pemeriksaan gagal dengan "konfigurasi belum lengkap" |
 | `META_GRAPH_API_VERSION` | tidak | default `v23.0` | **ASUMSI — belum diverifikasi**; ubah bila Meta mensyaratkan lain |
 | `META_GRAPH_BASE_URL` | tidak | default `https://graph.facebook.com` | selain Meta **hanya** untuk mock lokal/uji; di production ditolak |
@@ -63,6 +64,7 @@ Hasil berlabel **META ASLI** hanya bila `META_GRAPH_BASE_URL` = `graph.facebook.
 
 ## 7. Daftar verifikasi yang harus diisi di server (tertunda)
 - [ ] Webhook terverifikasi oleh dashboard Meta (challenge berhasil)
+- [ ] Panel koneksi (`/channel`) menunjukkan **tiga bukti terpisah**: pemetaan nomor terverifikasi **NYATA** · langganan aplikasi **terkonfirmasi** (isi `META_APP_ID`) · event terakhir diterima; baru kemudian "Siap menerima pesan" (G2-A05)
 - [ ] Pesan teks dari nomor uji masuk dan tampil di `/integrasi`
 - [ ] Kirim teks/gambar/PDF ke nomor uji berhasil; status sent/delivered/read tercatat
 - [ ] `npm run meta:check` bersih dengan **META ASLI**

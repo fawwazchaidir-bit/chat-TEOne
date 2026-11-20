@@ -6,6 +6,7 @@ export type MetaConfig = {
   appSecret: string | undefined;
   verifyToken: string | undefined;
   accessToken: string | undefined;
+  appId: string | undefined;
   timeoutMs: number;
 };
 
@@ -18,6 +19,7 @@ export function getMetaConfig(): MetaConfig {
     appSecret: e.META_APP_SECRET,
     verifyToken: e.META_VERIFY_TOKEN,
     accessToken: e.META_ACCESS_TOKEN,
+    appId: e.META_APP_ID,
     timeoutMs: e.META_HTTP_TIMEOUT_MS,
   };
 }

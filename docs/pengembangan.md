@@ -39,6 +39,7 @@ Pemulihan akun lewat server (kehilangan 2FA/sandi Super Admin): `npm run admin:r
 | `bash scripts/verify-all.sh` | **Verifikasi menyeluruh satu commit** (lint…drill) dengan log/kode keluar/durasi di `.verify/`; lihat §7 |
 | `bash scripts/backup-restore-drill.sh` | Drill backup/restore |
 | `npm run worker` | (Tahap 2) pemroses antrean event webhook + rekonsiliasi + unduh media + retensi payload. Opsional di lokal (`WORKER_INLINE=true` memproses di proses web) |
+| `npm run contacts:repair -- list-multi` / `detach <identity-id>` | (Tahap 2, G2-A01) pemulihan identitas kontak lewat akses server; diaudit; **tidak** memisahkan pesan yang sudah ada |
 | `npm run meta:check` | (Tahap 2) diagnostik koneksi Meta; hasil **nyata** hanya bila `META_GRAPH_BASE_URL` = graph.facebook.com |
 
 **Konvensi:** setiap `describe` memuat tag **`@tahap-N`** (tahap pembuat). Test tidak boleh dihapus/di-skip/dilemahkan tanpa ADR; `test-tag-report` gagal bila jumlah turun, ada skip/todo, atau E2E dilewati tanpa penanda resmi `[BELUM TERSEDIA — Tahap N]`. Baseline hanya boleh **naik**.

@@ -34,6 +34,7 @@ Diuji: 90 varian (payload diubah setelah ditandatangani, tanda tangan diubah 1 k
 | `waba_tidak_cocok` (WABA di payload ≠ WABA channel) | karantina; tidak pernah memakai channel lain |
 | `bentuk_tidak_dikenal` | karantina; hanya field/alasan yang disimpan |
 | `pengirim_di_luar_daftar_uji` (mode uji D-03) | **payload dibuang**; hanya hitungan, jenis, dan alasan; dilaporkan di alat uji |
+| `identitas_bentrok` (G2-A01: identitas pesan menunjuk ≥ 2 kontak berbeda) | karantina; **payload dipertahankan** (dibatasi retensi) untuk ditinjau; tidak ada kontak/pesan/identitas ditulis; audit tanpa nomor; belum dapat diproses ulang lewat alat uji |
 | `pengirim_tanpa_identitas`, `echo_tanpa_penerima`, `history_tanpa_pelanggan` | karantina |
 
 ## 6. Data yang disimpan, retensi, log

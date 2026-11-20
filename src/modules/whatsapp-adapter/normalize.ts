@@ -82,6 +82,30 @@ function parseMessage(m: Obj): MessageFragment | null {
   return { id, from: digits(str(m.from)), userId: str(m.user_id), ts: parseTs(m.timestamp), type, rawType, text, media, referral };
 }
 
+/**
+ * Menautkan satu entri `contacts[]` ke pesan HANYA bila hubungannya dapat dibuktikan dari pengenal yang SAMA di payload (G2-A01):
+ * `wa_id` entri = `from` pesan, atau `user_id` entri = `user_id` pesan — dan entri itu TIDAK bertentangan (pengenal lain pada entri
+ * yang sama tidak boleh berbeda dari yang dibawa pesan). Tidak ada fallback ke "entri pertama". Dipakai ulang oleh ingest untuk
+ * memvalidasi ulang event lama di antrean (pertahanan berlapis).
+ */
+export function contactMatchesMessage(msg: Pick<MessageFragment, "from" | "userId">, ct: ContactInfo): boolean {
+  const byWa = !!msg.from && ct.waId === msg.from;
+  const byUser = !!msg.userId && ct.userId === msg.userId;
+  if (!byWa && !byUser) return false;
+  if (msg.from && ct.waId && ct.waId !== msg.from) return false; // bertentangan
+  if (msg.userId && ct.userId && ct.userId !== msg.userId) return false; // bertentangan
+  return true;
+}
+
+function pickContact(contacts: Obj[], msg: MessageFragment): ContactInfo | null {
+  const matches = contacts
+    .map((x): ContactInfo => ({ waId: digits(str(x.wa_id)), userId: str(x.user_id), name: str(obj(x.profile).name) }))
+    .filter((ct) => contactMatchesMessage(msg, ct));
+  // Ambigu (beberapa entri berbeda cocok) → tidak ada yang dipakai: pengenal hanya dari pesan itu sendiri.
+  const distinct = new Set(matches.map((m) => `${m.waId ?? ""}|${m.userId ?? ""}`));
+  return distinct.size === 1 ? (matches[0] as ContactInfo) : null;
+}
+
 function unknownEvent(meta: EventMeta, reason: string, field: string | null, basis: unknown): NormalizedEvent {
   return { kind: "unknown", eventKey: `unk:${sha(basis)}`, meta, providerTs: null, reason, field };
 }
@@ -105,8 +129,7 @@ export function normalizePayload(body: unknown): NormalizedEvent[] {
           for (const raw of arr(v.messages)) {
             const msg = parseMessage(obj(raw));
             if (!msg) { out.push(unknownEvent(meta, "pesan_tanpa_id", field, raw)); continue; }
-            const ct = contacts.find((x) => digits(str(x.wa_id)) === msg.from) ?? contacts[0];
-            const contact: ContactInfo | null = ct ? { waId: digits(str(ct.wa_id)), userId: str(ct.user_id), name: str(obj(ct.profile).name) } : null;
+            const contact = pickContact(contacts, msg); // G2-A01: tanpa fallback ke contacts[0]
             out.push({ kind: "message", eventKey: `msg:${msg.id}`, meta, providerTs: msg.ts, contact, message: msg });
           }
           for (const raw of arr(v.statuses)) {

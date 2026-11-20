@@ -9,10 +9,31 @@ import { getDb } from "@/db/client";
 import { badRequest, conflict, forbidden, notFound } from "@/lib/errors";
 import { auditFor, writeAudit } from "@/modules/audit";
 import type { Ctx } from "@/modules/shared/context";
+import { getMetaConfig } from "@/modules/whatsapp-adapter";
 import { applyStatusesToMessage } from "./status";
 
-export async function reconcileUncertain(now: Date = new Date(), minAgeMs = 60_000): Promise<{ resolved: number; stillUncertain: number }> {
+/**
+ * `diproses` yang tertahan (G2-A06): proses mati setelah baris dicatat — sebelum ATAU sesudah panggilan Meta. Tidak dapat dibedakan
+ * dari yang masih berjalan kecuali dari umur, sehingga yang melewati ambang dijadikan `belum_pasti` (hasil tidak diketahui) agar masuk
+ * rekonsiliasi (opaque) / penyelesaian manual teraudit. TIDAK PERNAH mengirim ulang. Ambang > timeout HTTP × beberapa panggilan berurutan.
+ */
+export const processingStaleMs = () => Math.max(120_000, 4 * getMetaConfig().timeoutMs);
+export async function expireStaleProcessing(now: Date = new Date(), maxAgeMs: number = processingStaleMs()): Promise<number> {
   const db = getDb();
+  const cutoff = new Date(now.getTime() - maxAgeMs);
+  return db.transaction(async (tx) => {
+    // UPDATE bersyarat + RETURNING: dua pekerja bersamaan tidak menggandakan penandaan maupun audit.
+    const rows = await tx.update(messages).set({ status: "belum_pasti", errorCategory: "proses_terhenti", statusUpdatedAt: now })
+      .where(and(eq(messages.direction, "keluar"), eq(messages.status, "diproses"), isNull(messages.providerMessageId), lt(messages.receivedAt, cutoff)))
+      .returning({ id: messages.id });
+    for (const r of rows) await writeAudit(tx, { actorLabel: "sistem:rekonsiliasi", action: "integration.processing_expired", objectType: "message", objectId: r.id, result: "failure", metadata: { maxAgeMs } });
+    return rows.length;
+  });
+}
+
+export async function reconcileUncertain(now: Date = new Date(), minAgeMs = 60_000): Promise<{ resolved: number; stillUncertain: number; expired: number }> {
+  const db = getDb();
+  const expired = await expireStaleProcessing(now);
   const rows = await db.select().from(messages).where(and(eq(messages.status, "belum_pasti"), isNull(messages.providerMessageId), lt(messages.receivedAt, new Date(now.getTime() - minAgeMs))));
   let resolved = 0;
   for (const m of rows) {
@@ -26,7 +47,7 @@ export async function reconcileUncertain(now: Date = new Date(), minAgeMs = 60_0
     });
     resolved++;
   }
-  return { resolved, stillUncertain: rows.length - resolved };
+  return { resolved, stillUncertain: rows.length - resolved, expired };
 }
 
 export async function resolveUncertainManually(ctx: Ctx, messageId: string, outcome: "terkirim" | "gagal", note: string) {

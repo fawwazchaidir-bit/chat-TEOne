@@ -30,7 +30,12 @@ Meta ──POST──► /api/webhooks/whatsapp
 worker (scripts/worker.ts, atau inline) ──► claimBatch (SKIP LOCKED + lease)
    └─ transaksi: ingestEvent() ──► kontak → percakapan → pesan  | echo | history | status
         • sumber: Pelanggan / WhatsApp Business App (echo) / History
+        • identitas (G2-A01): HANYA dari pesan itu + entri contacts[] yang TERBUKTI miliknya (wa_id/user_id sama); tanpa fallback
+          ke "entri pertama"; identitas menunjuk ≥2 kontak berbeda → karantina `identitas_bentrok` (tidak ada penulisan)
+        • waktu (G2-A02): dasar jendela (last_customer_message_at) HANYA dari cap waktu provider yang sah; waktu diterima disimpan
+          terpisah (received_at); tanpa bukti waktu → pesan tersimpan tetapi jendela TIDAK dibuka/diperpanjang
         • history & echo: TIDAK memperbarui last_customer_message_at, TIDAK memicu hook (emitCustomerMessage)
+        • history→langsung (G2-A03): data diperbarui; hook HANYA bila waktu pesan terbukti & umur ≤ 10 mnt (ASUMSI) — bukan urutan kedatangan
         • mode uji (D-03): pihak di luar daftar uji → karantina minimal (payload dibuang)
       markProcessed | markQuarantined   (satu transaksi)
    └─ pasca-commit: unduh media (privat), hook pesan pelanggan
@@ -43,6 +48,7 @@ UI/API /integrasi → POST /api/v1/integration/send  (izin integration.test pada
   1. penerima di test_recipients? (SEMUA lingkungan)    tidak → 403
   2. idempotency key unik?                              duplikat → kembalikan hasil lama, TIDAK kirim lagi
   3. jendela layanan 24 jam terbukti?                   tidak → blokir + alasan (template = Tahap 6)
+     (diperiksa ULANG tepat sebelum langkah 7, setelah unggah media/limiter — G2-A02; tertutup → gagal pasti, tanpa panggilan)
   4. INSERT pesan 'diproses'
   5. rate limiter per phone_number_id
   6. (gambar/PDF) unggah media → ID media
@@ -70,6 +76,7 @@ Nomor telepon **tidak** menjadi pengenal integrasi; kontak memiliki `public_ref`
 | #7 Kill switch | Belum ada otomatisasi yang dikendalikan — **Di luar lingkup** (registri Tahap 1 tidak diubah) |
 
 ## 6. Batas dan keterbatasan yang diketahui
+- Hook otomatisasi (`emitCustomerMessage`) berjalan **dalam memori** setelah commit — **tidak durable** (T2-F15); wajib dipindah ke outbox sebelum subscriber otomatisasi mengirim pesan (Tahap 3–6).
 - Rate limiter **per proses**; >1 instans aplikasi butuh limiter di database (T2-F10).
 - Media disimpan di filesystem privat (`MEDIA_DIR`, berkas `0600`) — **belum ada backup media** dan bukan penyimpanan objek (T2-F11).
 - Jenis pesan selain teks/gambar/PDF: tersimpan sebagai "jenis pesan belum didukung" (metadata), tidak menggagalkan pemrosesan.

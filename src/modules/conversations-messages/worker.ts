@@ -21,7 +21,7 @@ export async function processInboundBatch(opts: { limit?: number; leaseMs?: numb
       // Pemrosesan + penandaan `processed` dalam SATU transaksi: gagal di tengah ⇒ rollback, event tetap 'processing' sampai lease habis.
       const outcome = await getDb().transaction(async (tx) => {
         const o = await ingestEvent(tx, ev);
-        if (o.kind === "quarantined") await markQuarantined(tx, ev.id, o.reason, { dropPayload: true }); // data minimal: payload dibuang
+        if (o.kind === "quarantined") await markQuarantined(tx, ev.id, o.reason, { dropPayload: !o.keepPayload }); // data minimal: payload dibuang (kecuali konflik identitas: dipertahankan untuk ditinjau; dibatasi retensi)
         else await markProcessed(tx, ev.id, { dropPayload: o.dropPayload });
         return o;
       });
@@ -57,9 +57,9 @@ export function kickProcessing(): void {
 }
 
 /** Pemeliharaan berkala: retensi payload (D-18, ASUMSI), rekonsiliasi hasil belum pasti, ulangi unduhan media tertunda. */
-export async function runMaintenance(): Promise<{ purged: number; reconciled: number; mediaRetried: number }> {
+export async function runMaintenance(): Promise<{ purged: number; reconciled: number; expired: number; mediaRetried: number }> {
   const purged = await purgeRawPayloads();
-  const rec = await reconcileUncertain();
+  const rec = await reconcileUncertain(); // juga menandai `diproses` yang tertahan sebagai `belum_pasti` (G2-A06)
   const mediaRetried = await retryPendingMedia();
-  return { purged, reconciled: rec.resolved, mediaRetried };
+  return { purged, reconciled: rec.resolved, expired: rec.expired, mediaRetried };
 }

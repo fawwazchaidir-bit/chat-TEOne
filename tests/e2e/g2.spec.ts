@@ -80,9 +80,12 @@ test.describe("@tahap-2 G2 (SIMULASI — bukan Meta/nomor uji nyata) pesan masuk
     await page.goto("/channel");
     const panel = page.locator("details", { hasText: "Koneksi WhatsApp — Kemitraan — contoh" });
     await panel.locator("summary").click();
-    await expect(panel.getByText("Belum diperiksa")).toBeVisible();
+    await expect(panel.getByText("Belum diperiksa", { exact: true }).first()).toBeVisible();
+    await expect(panel.getByText("Belum terbukti siap menerima pesan")).toBeVisible(); // G2-A05: tiga bukti terpisah, "siap" tidak diklaim tanpa bukti
+    await expect(panel.getByText("Langganan belum diperiksa")).toBeVisible();
     await panel.getByRole("button", { name: "Periksa koneksi" }).click();
-    await expect(panel.getByText("Pemeriksaan gagal")).toBeVisible({ timeout: 15_000 }); // Meta tidak terjangkau → TIDAK ada klaim koneksi
+    await expect(panel.getByText("Pemeriksaan gagal").first()).toBeVisible({ timeout: 15_000 }); // Meta tidak terjangkau → TIDAK ada klaim koneksi
+    await expect(panel.getByText(/Siap menerima pesan — terbukti/)).toHaveCount(0);
     expect(await page.content()).not.toMatch(/>\s*Terhubung\s*</);
     expect((await page.content()).toLowerCase()).not.toContain("hubungkan whatsapp");
   });

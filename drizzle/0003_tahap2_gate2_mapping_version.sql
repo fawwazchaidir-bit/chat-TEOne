@@ -1,0 +1,2 @@
+ALTER TABLE "channel_connections" ADD COLUMN "mapping_version" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "channel_connections" ADD COLUMN "mapping_changed_at" timestamp with time zone DEFAULT now() NOT NULL;

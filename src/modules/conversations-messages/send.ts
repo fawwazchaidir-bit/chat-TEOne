@@ -6,7 +6,7 @@
  *  4. Baris pesan dicatat SEBELUM memanggil Meta. Timeout/jaringan/5xx ⇒ `belum_pasti` ⇒ TIDAK ADA retry otomatis;
  *     diselesaikan oleh status webhook (via biz_opaque_callback_data = kunci idempotensi) atau tindakan manual teraudit.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { conversations, messages } from "@/db/schema";
 import { getDb } from "@/db/client";
 import { badRequest, conflict, forbidden } from "@/lib/errors";
@@ -115,9 +115,10 @@ export async function sendOutbound(ctx: Ctx, input: SendInput): Promise<SendResu
   const settle = async (status: "diterima_api" | "gagal" | "belum_pasti", o: { wamid?: string; category?: string; code?: number | null } = {}): Promise<SendResult> => {
     let row: typeof messages.$inferSelect | undefined;
     await db.transaction(async (tx) => {
-      // Hanya menulis bila belum ada ID provider (webhook status via opaque mungkin sudah mendahului kita).
+      // Hanya menulis bila belum ada ID provider (webhook status via opaque mungkin sudah mendahului kita). `belum_pasti` ikut diizinkan:
+      // penyapu `diproses` kedaluwarsa (G2-A06) mungkin sudah menandainya, padahal pengirim yang lambat kini punya hasil pasti.
       await tx.update(messages).set({ status, statusUpdatedAt: new Date(), providerMessageId: o.wamid ?? null, errorCategory: o.category ?? null, errorCode: o.code != null ? String(o.code) : null })
-        .where(and(eq(messages.id, messageId), eq(messages.status, "diproses")));
+        .where(and(eq(messages.id, messageId), inArray(messages.status, ["diproses", "belum_pasti"]), isNull(messages.providerMessageId)));
       if (o.wamid) await applyStatusesToMessage(tx, input.channelId, o.wamid);
       [row] = await tx.select().from(messages).where(eq(messages.id, messageId));
       await writeAudit(tx, { ...auditFor(ctx), action: "integration.message_sent", result: status === "diterima_api" ? "success" : "failure", objectType: "message", objectId: messageId, metadata: { channelId: input.channelId, type: input.kind, status, category: o.category ?? null, to: maskIdentity(to) } });
@@ -138,6 +139,15 @@ export async function sendOutbound(ctx: Ctx, input: SendInput): Promise<SendResu
     if (!up.data?.id) return settle("gagal", { category: "media_upload" });
     await saveOutboundMedia(messageId, input.channelId, f.bytes, f.mime.toLowerCase(), up.data.id);
     payload = input.kind === "image" ? buildImage(to, up.data.id, input.caption, input.idempotencyKey) : buildDocument(to, up.data.id, safeName(f.filename), input.caption, input.idempotencyKey);
+  }
+
+  // 6b) Periksa ulang jendela layanan TEPAT sebelum kirim (kontrak inti #6; G2-A02): unggah media/antrean/limiter memakan waktu,
+  //     jendela bisa tertutup sejak pemeriksaan awal. Belum ada panggilan pengiriman ⇒ gagal PASTI.
+  const [fresh] = await db.select({ t: conversations.lastCustomerMessageAt }).from(conversations).where(eq(conversations.id, conversationId));
+  const win2 = evaluateWindow(fresh?.t ?? null);
+  if (!win2.open) {
+    await writeAudit(db, { ...auditFor(ctx), action: "integration.send_blocked", result: "denied", objectType: "message", objectId: messageId, metadata: { reason: win2.reason, stage: "sebelum_kirim", to: maskIdentity(to) } });
+    return settle("gagal", { category: "jendela_layanan" });
   }
 
   // 7) KIRIM — tepat SATU kali. Tidak ada percobaan ulang pada hasil apa pun.

@@ -41,8 +41,9 @@ describe("@tahap-2 pengiriman teks (alat uji)", () => {
     expect(mock.sends()[0]!.json).toMatchObject({ messaging_product: "whatsapp", to: CUSTOMER, type: "text", text: { body: "Halo balik" }, biz_opaque_callback_data: key });
     const [m] = await q("select direction, source, status, provider_message_id, idempotency_key, created_by from messages where direction = 'keluar'");
     expect(m).toMatchObject({ direction: "keluar", source: "te_one", status: "diterima_api", provider_message_id: "wamid.mock.1", idempotency_key: key });
-    expect((await q("select result, metadata from audit_log where action = 'integration.message_sent'"))[0]).toMatchObject({ result: "success" });
-    expect(JSON.stringify(await q("select * from audit_log"))).not.toContain("Halo balik"); // isi pesan tidak masuk audit
+    // audit_log append-only (tidak ikut di-reset antar test): selalu disaring per objek agar tidak bergantung urutan berkas test
+    expect((await q("select result, metadata from audit_log where action = 'integration.message_sent' and object_id = $1", [r.body.messageId]))[0]).toMatchObject({ result: "success" });
+    expect(JSON.stringify(await q("select * from audit_log where object_id = $1", [r.body.messageId]))).not.toContain("Halo balik"); // isi pesan tidak masuk audit
   });
 
   it("status webhook menggerakkan status pesan keluar: terkirim → diterima → dibaca", async () => {
@@ -89,7 +90,8 @@ describe("@tahap-2 CCP 2.5: daftar penerima uji ditegakkan di server", () => {
     expect(r.body.error.code).toBe("RECIPIENT_NOT_ALLOWED");
     expect(mock.calls).toHaveLength(0);
     expect((await q("select count(*)::int n from messages where direction = 'keluar'"))[0].n).toBe(0);
-    const a = await q("select result, metadata from audit_log where action = 'integration.send_blocked'");
+    const a = await q("select result, metadata from audit_log where action = 'integration.send_blocked' and object_id = $1", [w.channel.id]);
+    expect(a.length).toBeGreaterThan(0);
     expect(a[0].result).toBe("denied");
     expect(JSON.stringify(a)).not.toContain(STRANGER); // hanya disamarkan
   });
@@ -170,9 +172,13 @@ describe("@tahap-2 CCP 2.7: jendela layanan", () => {
     expect(mock.calls).toHaveLength(0);
   });
 
-  it("waktu pesan pelanggan di masa depan (tak dapat dipastikan) → diblokir", async () => {
+  it("waktu pesan pelanggan di masa depan (tak dapat dipastikan) → TIDAK dijadikan dasar jendela (G2-A02) → diblokir; data tak sah di DB pun tetap diblokir", async () => {
     const { w, ui } = await ready();
     await openWindow(String(Math.floor(Date.now() / 1000) + 3600));
+    expect((await q("select last_customer_message_at from conversations"))[0].last_customer_message_at).toBeNull(); // tidak diperbarui oleh cap waktu tak sah
+    expect((await send(ui, w.channel.id)).body.error.details.reason).toBe("belum_ada_pesan_pelanggan");
+    // pertahanan berlapis: bila baris DB (mis. dari versi lama/penulisan langsung) berisi waktu masa depan, evaluasi tetap menolak
+    await ownerQuery("update conversations set last_customer_message_at = now() + interval '1 hour'");
     expect((await send(ui, w.channel.id)).body.error.details.reason).toBe("waktu_tidak_valid");
     expect(mock.calls).toHaveLength(0);
   });
@@ -229,7 +235,7 @@ describe("@tahap-2 CCP 2.6: hasil tidak pasti — TANPA retry buta", () => {
     const key = "kunci-rekonsiliasi-2";
     await send(ui, w.channel.id, { key });
     await ownerQuery("insert into message_status_events(channel_id, provider_message_id, status, opaque) values($1,'wamid.tertinggal.1','sent',$2)", [w.channel.id, key]);
-    expect(await reconcileUncertain(new Date(Date.now() + 3600_000))).toEqual({ resolved: 1, stillUncertain: 0 });
+    expect(await reconcileUncertain(new Date(Date.now() + 3600_000))).toEqual({ resolved: 1, stillUncertain: 0, expired: 0 });
     expect((await q("select status, provider_message_id from messages where direction = 'keluar'"))[0]).toEqual({ status: "terkirim", provider_message_id: "wamid.tertinggal.1" });
   });
 
@@ -247,7 +253,7 @@ describe("@tahap-2 CCP 2.6: hasil tidak pasti — TANPA retry buta", () => {
     expect((await ui.post(`/api/v1/integration/messages/${id}/resolve`, { outcome: "terkirim", note: "dicek di ponsel peserta uji: sudah masuk" })).status).toBe(200);
     expect((await q("select status, error_category from messages where id = $1", [id]))[0]).toEqual({ status: "terkirim", error_category: "dikonfirmasi_manual" });
     expect((await ui.post(`/api/v1/integration/messages/${id}/resolve`, { outcome: "gagal", note: "lagi" })).body.error.code).toBe("NOT_UNCERTAIN");
-    expect((await q("select metadata from audit_log where action = 'integration.uncertain_resolved'"))[0].metadata).toMatchObject({ outcome: "terkirim" });
+    expect((await q("select metadata from audit_log where action = 'integration.uncertain_resolved' and object_id = $1", [id]))[0].metadata).toMatchObject({ outcome: "terkirim" });
     expect(mock.sends()).toHaveLength(1);
   });
 });

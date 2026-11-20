@@ -26,7 +26,7 @@ async function main() {
       lastMaintenance = Date.now();
       try {
         const m = await runMaintenance();
-        if (m.purged || m.reconciled || m.mediaRetried) console.log(`[worker] pemeliharaan: payload-dibersihkan=${m.purged} direkonsiliasi=${m.reconciled} media-diulang=${m.mediaRetried}`);
+        if (m.purged || m.reconciled || m.expired || m.mediaRetried) console.log(`[worker] pemeliharaan: payload-dibersihkan=${m.purged} direkonsiliasi=${m.reconciled} diproses-tertahan->belum-pasti=${m.expired} media-diulang=${m.mediaRetried}`);
       } catch (e) {
         console.error(`[worker] pemeliharaan gagal: ${safeErrorLabel(e)}`);
       }

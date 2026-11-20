@@ -1,5 +1,6 @@
 # Temuan & risiko peluncuran — Tahap 1 dan Tahap 2
 
+> Temuan **audit Gate 2 (G2-A01…A07)**: [`gates/gate-2.md`](gates/gate-2.md) dan tanggapan [`gates/gate-2-tindak-lanjut.md`](gates/gate-2-tindak-lanjut.md) — **G2-A01–A04 & A07 tinggi** (A01–A06 diperbaiki, menunggu verifikasi; A07 terbuka).
 > Temuan **audit Gate 1 (G1-A01…A05)**: [`gates/gate-1.md`](gates/gate-1.md) dan tanggapan [`gates/gate-1-tindak-lanjut.md`](gates/gate-1-tindak-lanjut.md) — **G1-A01 & G1-A02 tinggi**.
 > Temuan **Tahap 2 (T2-F\*)** ada di [`reports/tahap-2.md`](reports/tahap-2.md) §9. Ringkasnya: **uji nyata Meta/coexistence belum dilakukan**, bentuk payload & kode galat Meta **belum terverifikasi**, Gate 1 belum tercatat.
 

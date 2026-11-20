@@ -10,17 +10,18 @@ import { and, eq, sql } from "drizzle-orm";
 import { channelConnections, conversations, leadSources, media, messages } from "@/db/schema";
 import type { Executor } from "@/db/client";
 import { writeAudit } from "@/modules/audit";
-import { upsertContact, type IdentityInput } from "@/modules/contacts/service";
-import type { ClaimedEvent, MessageFragment, NormalizedEvent } from "@/modules/whatsapp-adapter";
+import { IdentityConflictError, upsertContact, type IdentityInput } from "@/modules/contacts/service";
+import { contactMatchesMessage, type ClaimedEvent, type MessageFragment, type NormalizedEvent } from "@/modules/whatsapp-adapter";
 import { upsertConversation } from "./conversations";
-import { emitCustomerMessage } from "./events";
+import { automationEligible, emitCustomerMessage } from "./events";
 import { fetchInboundMedia } from "./media";
 import { isListedRecipient } from "./recipients";
 import { applyStatusesToMessage, recordStatusEvent } from "./status";
+import { provenCustomerTime } from "./window";
 
 export type IngestOutcome =
   | { kind: "processed"; dropPayload?: boolean; after: (() => Promise<void>)[] }
-  | { kind: "quarantined"; reason: string };
+  | { kind: "quarantined"; reason: string; keepPayload?: boolean };
 
 const noop: IngestOutcome = { kind: "processed", after: [] };
 
@@ -32,7 +33,8 @@ function classify(m: MessageFragment): { type: "text" | "image" | "document" | "
 }
 
 type InsertArgs = { conversationId: string; channelId: string; direction: "masuk" | "keluar"; source: "pelanggan" | "whatsapp_business_app" | "history"; msg: MessageFragment; status: string | null };
-async function insertMessage(tx: Executor, a: InsertArgs): Promise<{ id: string; inserted: boolean; type: ReturnType<typeof classify>["type"]; downloadable: boolean }> {
+type InsertResult = { id: string; inserted: boolean; reclassified: boolean; type: ReturnType<typeof classify>["type"]; downloadable: boolean };
+async function insertMessage(tx: Executor, a: InsertArgs): Promise<InsertResult> {
   const cls = classify(a.msg);
   const providerTs = a.msg.ts ? new Date(a.msg.ts) : null;
   const values = {
@@ -40,20 +42,25 @@ async function insertMessage(tx: Executor, a: InsertArgs): Promise<{ id: string;
     body: a.msg.text ?? a.msg.media?.caption ?? null, providerMessageId: a.msg.id, providerTs, status: a.status, isHistory: a.source === "history",
   };
   const ins = await tx.insert(messages).values(values).onConflictDoNothing({ target: [messages.channelId, messages.providerMessageId] }).returning({ id: messages.id });
-  if (ins.length) return { id: (ins[0] as { id: string }).id, inserted: true, ...cls };
+  if (ins.length) return { id: (ins[0] as { id: string }).id, inserted: true, reclassified: false, ...cls };
   const [ex] = await tx.select().from(messages).where(and(eq(messages.channelId, a.channelId), eq(messages.providerMessageId, a.msg.id)));
-  // Event langsung yang tiba SETELAH salinan history-nya: event langsung dipercaya (pesan itu memang baru).
+  // Event langsung yang tiba SETELAH salinan history-nya: DATA diperbarui (sumber, isi, waktu provider), tetapi ini BUKAN pesan baru —
+  // pemanggil memutuskan jendela/otomatisasi dari BUKTI WAKTU, tidak dari urutan kedatangan (G2-A03).
   if (ex && ex.isHistory && a.source === "pelanggan" && ex.direction === "masuk") {
     await tx.update(messages).set({ source: "pelanggan", isHistory: false, body: values.body, providerTs }).where(eq(messages.id, ex.id));
-    return { id: ex.id, inserted: true, ...cls };
+    return { id: ex.id, inserted: false, reclassified: true, ...cls };
   }
-  return { id: (ex as { id: string }).id, inserted: false, ...cls };
+  return { id: (ex as { id: string }).id, inserted: false, reclassified: false, ...cls };
 }
 
-async function touchConversation(tx: Executor, conversationId: string, ts: Date, customer: boolean) {
+/**
+ * `lastMessageAt` (urutan tampilan) boleh memakai waktu kedatangan bila cap waktu tak ada; `lastCustomerMessageAt` (DASAR JENDELA LAYANAN)
+ * hanya diperbarui dengan waktu pesan yang TERBUKTI (`customerProof`, G2-A02) — tidak pernah dengan waktu kedatangan.
+ */
+async function touchConversation(tx: Executor, conversationId: string, displayTs: Date, customerProof: Date | null) {
   await tx.update(conversations).set({
-    lastMessageAt: sql`GREATEST(COALESCE(${conversations.lastMessageAt}, 'epoch'::timestamptz), ${ts})`,
-    ...(customer ? { lastCustomerMessageAt: sql`GREATEST(COALESCE(${conversations.lastCustomerMessageAt}, 'epoch'::timestamptz), ${ts})` } : {}),
+    lastMessageAt: sql`GREATEST(COALESCE(${conversations.lastMessageAt}, 'epoch'::timestamptz), ${displayTs})`,
+    ...(customerProof ? { lastCustomerMessageAt: sql`GREATEST(COALESCE(${conversations.lastCustomerMessageAt}, 'epoch'::timestamptz), ${customerProof})` } : {}),
   }).where(eq(conversations.id, conversationId));
 }
 
@@ -68,6 +75,8 @@ async function attachMedia(tx: Executor, messageId: string, channelId: string, m
 }
 
 const idsOf = (waId: string | null, userId: string | null): IdentityInput[] => [...(waId ? [{ type: "wa_id" as const, value: waId }] : []), ...(userId ? [{ type: "user_id" as const, value: userId }] : [])];
+
+const dedupeIds = (ids: IdentityInput[]): IdentityInput[] => ids.filter((i, k) => ids.findIndex((j) => j.type === i.type && j.value === i.value) === k);
 
 async function quarantineUnlisted(tx: Executor, channelId: string, kind: string): Promise<IngestOutcome> {
   await writeAudit(tx, { actorLabel: "sistem:webhook", action: "integration.unlisted_sender", objectType: "channel", objectId: channelId, result: "denied", metadata: { kind } });
@@ -89,22 +98,37 @@ export async function ingestEvent(tx: Executor, ev: ClaimedEvent): Promise<Inges
 
     case "message": {
       const m = p.message;
-      const identities = idsOf(m.from ?? p.contact?.waId ?? null, m.userId ?? p.contact?.userId ?? null);
+      // Pengenal HANYA dari pesan itu sendiri + entri contacts yang terbukti miliknya (validasi ulang: event lama di antrean mungkin
+      // dinormalisasi oleh versi sebelum perbaikan G2-A01). Entri contacts yang tak terbukti diabaikan seluruhnya (termasuk namanya).
+      const ct = p.contact && contactMatchesMessage(m, p.contact) ? p.contact : null;
+      const identities = dedupeIds([...idsOf(m.from, m.userId), ...idsOf(ct?.waId ?? null, ct?.userId ?? null)]);
       if (identities.length === 0) return { kind: "quarantined", reason: "pengirim_tanpa_identitas" };
       const waId = identities.find((i) => i.type === "wa_id")?.value;
       if (conn.testMode && !(waId && (await isListedRecipient(tx, waId)))) return quarantineUnlisted(tx, channelId, "message");
-      const contact = await upsertContact(tx, identities, p.contact?.name ?? null);
+      let contact;
+      try {
+        contact = await upsertContact(tx, identities, ct?.name ?? null);
+      } catch (e) {
+        if (!(e instanceof IdentityConflictError)) throw e;
+        await writeAudit(tx, { actorLabel: "sistem:webhook", action: "integration.identity_conflict", objectType: "channel", objectId: channelId, result: "denied", metadata: { kind: "message", contacts: e.contactIds.length } });
+        return { kind: "quarantined", reason: "identitas_bentrok", keepPayload: true }; // tidak ada kontak/pesan ditulis; tidak ada penggabungan otomatis
+      }
       const conversationId = await upsertConversation(tx, contact.id, channelId);
       const r = await insertMessage(tx, { conversationId, channelId, direction: "masuk", source: "pelanggan", msg: m, status: null });
-      if (!r.inserted) return noop; // event ganda: tidak ada efek samping
-      const received = m.ts ? new Date(m.ts) : new Date(); // waktu provider; bila tak ada → waktu server
-      await touchConversation(tx, conversationId, received, true);
+      if (!r.inserted && !r.reclassified) return noop; // event ganda: tidak ada efek samping
+      const now = new Date();
+      const proven = provenCustomerTime(m.ts, now); // bukti waktu: cap provider yang sah, bukan waktu kedatangan
+      await touchConversation(tx, conversationId, proven ?? now, proven);
       const after: (() => Promise<void>)[] = [];
-      if (m.referral) {
+      if (r.inserted && m.referral) {
         await tx.insert(leadSources).values({ conversationId, messageId: r.id, channelId, sourceType: m.referral.sourceType, sourceId: m.referral.sourceId, sourceUrl: m.referral.sourceUrl, headline: m.referral.headline, clickId: m.referral.clickId }).onConflictDoNothing();
       }
-      if (r.downloadable) { const job = await attachMedia(tx, r.id, channelId, m.media, "download"); if (job) after.push(job); }
-      after.push(() => emitCustomerMessage({ channelId, conversationId, messageId: r.id, contactId: contact.id })); // satu-satunya pemicu otomatisasi
+      if (r.inserted && r.downloadable) { const job = await attachMedia(tx, r.id, channelId, m.media, "download"); if (job) after.push(job); }
+      // Pemicu otomatisasi: PEMBARUAN DATA ≠ KELAYAKAN. Hanya bila waktu pesan terbukti dan baru; penggolongan ulang history→langsung
+      // yang lama/tak terbukti TIDAK memicu (G2-A03).
+      if (automationEligible(proven, now)) {
+        after.push(() => emitCustomerMessage({ channelId, conversationId, messageId: r.id, contactId: contact.id, providerTs: (proven as Date).toISOString(), receivedAt: now.toISOString() })); // satu-satunya pemicu otomatisasi
+      }
       return { kind: "processed", after };
     }
 
@@ -118,7 +142,7 @@ export async function ingestEvent(tx: Executor, ev: ClaimedEvent): Promise<Inges
       const r = await insertMessage(tx, { conversationId, channelId, direction: "keluar", source: "whatsapp_business_app", msg: m, status: "terkirim" });
       if (!r.inserted) return noop;
       await applyStatusesToMessage(tx, channelId, m.id); // status yang datang LEBIH DULU dari pesannya diterapkan sekarang
-      await touchConversation(tx, conversationId, m.ts ? new Date(m.ts) : new Date(), false); // BUKAN pesan pelanggan → jendela tidak berubah
+      await touchConversation(tx, conversationId, m.ts ? new Date(m.ts) : new Date(), null); // BUKAN pesan pelanggan → jendela tidak berubah
       const after: (() => Promise<void>)[] = [];
       if (r.downloadable) { const job = await attachMedia(tx, r.id, channelId, m.media, "download"); if (job) after.push(job); }
       return { kind: "processed", after };
@@ -137,7 +161,7 @@ export async function ingestEvent(tx: Executor, ev: ClaimedEvent): Promise<Inges
       const conversationId = await upsertConversation(tx, contact.id, channelId);
       const r = await insertMessage(tx, { conversationId, channelId, direction: p.direction, source: "history", msg: p.message, status: null });
       if (!r.inserted) return noop; // dideduplikasi terhadap event langsung
-      await touchConversation(tx, conversationId, p.message.ts ? new Date(p.message.ts) : new Date(), false);
+      await touchConversation(tx, conversationId, p.message.ts ? new Date(p.message.ts) : new Date(), null);
       if (r.downloadable) await attachMedia(tx, r.id, channelId, p.message.media, "history"); // media riwayat tidak diunduh (Tahap 2)
       return { kind: "processed", after: [] }; // TIDAK ada hook: history tidak memicu apa pun
     }

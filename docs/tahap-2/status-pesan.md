@@ -31,11 +31,15 @@ urutan prioritas **`dibaca` > `diterima` > `gagal` > `terkirim` > `diterima_api`
 3. Bila tidak ada bukti, pengguna berizin `integration.test` menyelesaikannya **manual** (`POST /api/v1/integration/messages/{id}/resolve`) sebagai `terkirim` atau `gagal` **dengan catatan wajib**; teraudit. Tidak ada tombol "kirim ulang" untuk pesan `belum_pasti` — mengirim lagi adalah keputusan manusia dengan kunci idempotensi baru dan risiko ganda yang disadari.
 4. Klik ganda / permintaan ulang dengan kunci idempotensi yang sama → mengembalikan hasil sebelumnya (`duplicate: true`), **tidak** mengirim lagi (diuji, termasuk paralel).
 
+### 3b. `diproses` yang tertahan (G2-A06)
+Bila proses mati setelah baris dicatat (sebelum **atau** sesudah panggilan Meta), pesan tertahan di `diproses`. Pemeliharaan worker menandai `diproses` **tanpa ID provider** yang lebih tua dari `max(120 dtk, 4 × META_HTTP_TIMEOUT_MS)` sebagai
+**`belum_pasti`** (`proses_terhenti`; teraudit; UPDATE bersyarat sehingga dua pekerja aman) agar masuk alur di atas. **Tidak pernah dikirim ulang.** Pengirim yang hanya lambat (bukan mati) tetap dapat menyelesaikan hasil pastinya (`diterima_api` + ID).
+
 ## 4. Kategori galat Meta → operasional
 `autentikasi` (token) · `izin` · `rate_limit` · `jendela_layanan` (butuh template) · `penerima_tidak_valid` · `media` · `template` · `parameter` · `server_meta` · `tipe_tidak_didukung` · `tidak_dikenal`; plus lokal: `timeout`, `jaringan`, `media_upload`, `konfigurasi`.
 **Pemetaan kode → kategori disusun dari sumber sekunder dan BELUM diverifikasi** terhadap tabel kode galat resmi Meta; kode tak dikenal → `tidak_dikenal` (aman). Pesan mentah dari Meta **tidak** dicatat ke log; yang tersimpan hanya kode/kategori.
 
 ## 5. Jendela layanan
-- Dihitung dari `last_customer_message_at` (waktu provider; bila tak ada, waktu server) + 24 jam. **History dan echo tidak pernah memperbaruinya.**
+- Dihitung dari `last_customer_message_at` + 24 jam, yang HANYA diperbarui dengan **cap waktu provider yang sah** (ada, terbaca, tidak di masa depan > 5 menit). **Waktu kedatangan webhook bukan bukti waktu pesan** (G2-A02): pesan tanpa cap waktu sah tetap tersimpan tetapi tidak membuka/memperpanjang jendela. **History dan echo tidak pernah memperbaruinya.** Jendela diperiksa ulang tepat sebelum panggilan kirim.
 - Tertutup / belum ada pesan pelanggan / waktu di masa depan (>5 menit dari jam server) → pesan bebas **diblokir** dengan alasan (diuji, termasuk batas tepat 24 jam). Di luar jendela hanya template yang disetujui (**Tahap 6**).
 - Galat Meta `131047` (di luar jendela) tetap dipetakan ke `jendela_layanan` sebagai lapis kedua.

@@ -22,6 +22,7 @@
     "db:seed:sample": "tsx scripts/seed-sample.ts",
     "admin:bootstrap": "tsx scripts/bootstrap-super-admin.ts",
     "admin:recover": "tsx scripts/admin-recover.ts",
+    "contacts:repair": "tsx scripts/contacts-repair.ts",
     "guard:operational": "node scripts/guard-operational.mjs",
     "scan:secrets": "node scripts/secret-scan.mjs",
     "check:all": "npm run lint && npm run typecheck && npm run guard:operational && npm run scan:secrets && npm test",

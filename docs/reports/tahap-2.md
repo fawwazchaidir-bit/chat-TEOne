@@ -1,5 +1,11 @@
 # Laporan Akhir — Tahap 2: Konektor WhatsApp Cloud API & Coexistence
 
+> ### Pembaruan 21 Nov 2026 — audit independen Gate 2 diterima
+> Audit ([`docs/gates/gate-2.md`](../gates/gate-2.md)) merekomendasikan **TAHAN**: **G2-A01** identitas dua pelanggan dapat tercampur · **G2-A02** timestamp hilang membuka jendela 24 jam · **G2-A03** history→langsung dapat memicu hook ·
+> **G2-A04** verifikasi dicatat pada pemetaan yang sudah berubah · G2-A05 "terverifikasi" menyesatkan · G2-A06 `diproses` tertahan · **G2-A07** bukti nyata/prasyarat Gate 1 belum ada.
+> **Penilaian CCP 2.7 dan 2.9 di §5 ("Terpenuhi (simulasi)") salah pada saat laporan awal dan DIKOREKSI** (lihat §5). A01–A06 **diperbaiki di kode dan dikunci 35 test + uji mutasi 15 mutan** ([ADR-0006](../adr/0006-perbaikan-audit-gate-2.md),
+> [`gates/gate-2-tindak-lanjut.md`](../gates/gate-2-tindak-lanjut.md)) — **menunggu verifikasi ulang auditor**. A07 **terbuka**. Angka terkini: Vitest **281** (`@tahap-1` 143 · `@tahap-2` **138**), E2E 6 + 7 placeholder. Tahap 2 tetap **BELUM LULUS PENUH**.
+
 > Disusun oleh **pembangun**. Ini **bukan audit** (AGENTS.md §2.6). Gate 2 memerlukan `docs/gates/gate-2.md` dari **sesi auditor baru**.
 > **STATUS TAHAP 2: BELUM LULUS PENUH.** Uji nyata dengan Meta dan nomor uji — termasuk **coexistence** — **belum dilakukan** (spesifikasi §1, §14; CCP 2.10).
 > Semua "lulus" di bawah adalah **simulasi** (mock Graph API + fixture sintetis) kecuali dinyatakan lain.
@@ -8,7 +14,7 @@
 Konektor resmi Meta WhatsApp Cloud API dibangun sebagai kode yang berjalan dan teruji **secara simulasi**: webhook (challenge, tanda tangan pada raw body, simpan-sebelum-200, dedup idempoten, karantina, antrean PostgreSQL tahan restart), adapter Meta (kirim teks/gambar/PDF, unggah/unduh media, normalisasi event, rate limiter, kategori galat, pembentuk template), model **Kontak → Percakapan → Pesan** (ADR-0003), pesan masuk/keluar, **echo** dan **history** (tidak memicu apa pun), status pesan yang tahan urutan, **hasil belum pasti tanpa retry buta**, jendela layanan 24 jam, media privat, pemetaan channel ↔ WABA ↔ `phone_number_id` dengan status verifikasi jujur, dan **alat uji integrasi** (izin khusus `integration.test`, penerima uji ditegakkan server).
 
 **Yang TIDAK terbukti:** tidak ada pesan yang pernah dikirim/diterima lewat Meta sungguhan; bentuk payload resmi, nama field coexistence, kode galat, batas throughput, dan seluruh butir coexistence §4 spesifikasi **belum terverifikasi** (host dokumentasi Meta tidak dapat dijangkau dari lingkungan pembangun; tidak ada aplikasi Meta/token/nomor uji/staging).
-**Gate 1 belum tercatat** — Tahap 2 dikerjakan atas instruksi eksplisit pemilik proyek dan **tidak dapat diterima** sebelum Gate 1 diputuskan.
+**Gate 1 belum diputuskan** (audit independen ada: `gates/gate-1.md`, rekomendasi TAHAN; keputusan pemilik kosong) — Tahap 2 dikerjakan atas instruksi eksplisit pemilik proyek dan **tidak dapat diterima** sebelum Gate 1 diputuskan.
 **Nomor Admisi (…1119) dan Hotline (…0124) serta Halo AI tidak disentuh** (§11).
 
 ## 2. Repository, branch, commit, tag
@@ -80,12 +86,12 @@ Temuan selama pengujian yang **diperbaiki di kode**: pesan galat driver DB memua
 | 2.1 Tanda tangan raw body | 100% tanpa/salah/diubah ditolak | **Terpenuhi (simulasi)** — 90 varian + kasus header; diperiksa sebelum parse | `tahap2-webhook.test.ts` (CCP 2.1), `tahap2-units`; M1 |
 | 2.2 Simpan sebelum 200 | DB mati → bukan 200; event tidak hilang | **Terpenuhi (simulasi)** — 500 saat DB menolak; tersimpan tepat sekali setelah pulih; atomik per payload | `tahap2-webhook.test.ts` (CCP 2.2) |
 | 2.3 Idempotensi | 0 duplikat dari kiriman ulang ≥ 100 event | **Terpenuhi (simulasi)** — 110 event × 2, 120× berurutan, 40 paralel | CCP 2.3; M2 (setelah test ditambah) |
-| 2.4 Pemetaan channel | 0 pesan masuk channel lain; karantina | **Terpenuhi (simulasi)** — 5 channel, kontak sama di 2 channel, UNIQUE phone_number_id | `tahap2-channels-worker.test.ts`; M8 |
+| 2.4 Pemetaan channel *(audit: G2-A01/A04 — diperbaiki, menunggu verifikasi)* | 0 pesan masuk channel lain; karantina | **Terpenuhi (simulasi)** — 5 channel, kontak sama di 2 channel, UNIQUE phone_number_id | `tahap2-channels-worker.test.ts`; M8 |
 | 2.5 Daftar penerima uji | 0 pengiriman ke luar daftar (Test + log) | **Terpenuhi (simulasi)** — 403 server, 0 panggilan ke Meta, berlaku di semua mode, normalisasi nomor, teraudit | `tahap2-send.test.ts`; M3 |
 | 2.6 Hasil kirim tidak pasti | 0 retry; tampil "belum pasti" | **Terpenuhi (simulasi)** — timeout/5xx/tanpa ID → belum pasti; tetap **1** panggilan setelah menunggu, pemeliharaan, klik ulang | `tahap2-send.test.ts`; M4 |
-| 2.7 Jendela layanan | 0 pesan bebas di luar jendela | **Terpenuhi (simulasi)** — batas 24 jam tepat, tanpa pesan pelanggan, waktu masa depan, echo/history tidak membuka | `tahap2-send.test.ts`; M5, M6 |
+| 2.7 Jendela layanan *(DIKOREKSI — audit G2-A02: ❌)* | 0 pesan bebas di luar jendela | ~~Terpenuhi (simulasi)~~ **Celah ditemukan auditor** (waktu kedatangan membuka jendela); **diperbaiki** (waktu terbukti + cek ulang sebelum kirim; 7 test baru), menunggu verifikasi ulang — **Terpenuhi (simulasi) setelah perbaikan**;  — batas 24 jam tepat, tanpa pesan pelanggan, waktu masa depan, echo/history tidak membuka | `tahap2-send.test.ts`; M5, M6 |
 | 2.8 Echo WhatsApp Business App | 0 echo tercatat sebagai pesan pelanggan (**uji nyata nomor uji**) | **BELUM TERPENUHI** — hanya simulasi (echo = keluar/*WhatsApp Business App*, dedup, tidak membuka jendela); **nyata belum diuji** | `tahap2-messages.test.ts`; M6 |
-| 2.9 History | 0 otomatisasi/unread dari history | **Terpenuhi (simulasi)** — tidak memicu hook, tidak menaikkan unread, dedup | `tahap2-messages.test.ts`; M7 |
+| 2.9 History *(DIKOREKSI — audit G2-A03: ❌)* | 0 otomatisasi/unread dari history | ~~Terpenuhi (simulasi)~~ **Celah ditemukan auditor** (history→langsung memicu hook); **diperbaiki** (kelayakan dari bukti waktu; 7 test baru), menunggu verifikasi ulang; hook masih in-memory (T2-F15) — **Terpenuhi (simulasi) setelah perbaikan**;  — tidak memicu hook, tidak menaikkan unread, dedup | `tahap2-messages.test.ts`; M7 |
 | 2.10 Coexistence nyata | Terbukti dengan nomor uji **atau** "belum lulus penuh" | **Tidak terbukti → Tahap 2 dinyatakan BELUM LULUS PENUH** | §1, §4.2 |
 
 ## 6. Regresi tahap-tahap sebelumnya
@@ -127,6 +133,16 @@ Temuan selama pengujian yang **diperbaiki di kode**: pesan galat driver DB memua
 | T2-F11 | sedang | **Media di filesystem privat (`MEDIA_DIR`) tanpa backup**, bukan penyimpanan objek | Kehilangan media bila volume hilang | `konfigurasi-staging.md` §2 | Sertakan di backup / pindah ke object storage sebelum production | Pembangun/Operasi | Terbuka |
 | T2-F12 | sedang | Compose `worker`, volume media, dan UID tetap 10001 **belum diuji di server**; image Docker belum pernah ter-build (T1-F03) | Deploy staging bisa gagal | `deploy/`, `Dockerfile` | Bangun & uji di server/CI | Pembangun | Terbuka |
 | T2-F13 | sedang | **Grup tidak dicakup dan tidak diuji** (D-01 Terbuka); bentuk payload grup tidak diketahui | Kebutuhan grup lama tidak terpenuhi | `tahap-2/coexistence.md` §5 | Putuskan D-01 sebelum Tahap 3 | Pemilik | Terbuka |
+| **G2-A01** | **tinggi** | Identitas dua pelanggan dapat tercampur (fallback `contacts[0]`) | **Diperbaiki — menunggu verifikasi auditor** (ADR-0006; 7 test; mutan terdeteksi) |
+| **G2-A02** | **tinggi** | Timestamp hilang/tak sah membuka jendela 24 jam | **Diperbaiki — menunggu verifikasi** (7 test) |
+| **G2-A03** | **tinggi** | history→langsung memicu hook tanpa bukti umur | **Diperbaiki sebagian** — hook durable belum (T2-F15) |
+| **G2-A04** | **tinggi** | Verifikasi dicatat pada pemetaan yang sudah berubah | **Diperbaiki — menunggu verifikasi** (migrasi 0003; 3 test) |
+| G2-A05 | sedang | "Terverifikasi" menyesatkan (pemetaan ≠ siap menerima) | **Diperbaiki — menunggu verifikasi** (4 test) |
+| G2-A06 | sedang | Pesan keluar `diproses` dapat tertahan setelah proses mati | **Diperbaiki — menunggu verifikasi** (7 test) |
+| **G2-A07** | **tinggi** | Bukti nyata Meta/coexistence & prasyarat Gate 1 belum ada (sama dengan T2-F01/F03/F04) | **Terbuka** |
+| T2-F15 | **tinggi** | **Hook otomatisasi berjalan dalam memori setelah commit** (tidak durable): event dapat hilang bila proses mati; harus dipindah ke outbox **sebelum** subscriber otomatisasi (Tahap 3–6) mengirim pesan | Perlu desain durable di Tahap 3 | `events.ts`, audit G2 §peta keterkaitan | Rancang outbox (ADR) di Tahap 3 | Pembangun | Terbuka |
+| T2-F16 | sedang | **Ambang kelayakan otomatisasi 10 menit (`AUTOMATION_MAX_AGE_MS`) dan aturan "event langsung bercap waktu terbukti ≤ 24 jam membuka jendela" adalah ASUMSI teknis** — belum ada keputusan bisnis | Perilaku otomatisasi Tahap 3–4 | ADR-0006 | Pemilik/Tahap 3–4 memutuskan | Pemilik | Terbuka |
+| T2-F17 | rendah | Data identitas yang **sudah** tercampur tidak dapat dipisah otomatis (pesan tak menyimpan identitas pengirim); belum ada penggabungan kontak | Hanya relevan bila terjadi setelah uji nyata | `scripts/contacts-repair.ts` | Rancang merge/split kontak bila perlu | Pembangun | Terbuka |
 | T2-F14 | rendah | Pengamatan: peringatan Turbopack "seluruh proyek ikut tracing" pada akses filesystem media menyebabkan `docs/`/`AGENTS.md` ikut ke bundle standalone | Ukuran/isi image | build | **Teratasi**: `turbopackIgnore` pada akses berkas media; standalone kini hanya `node_modules`, `package.json`, `server.js` | Pembangun | Teratasi |
 
 Temuan terbuka Tahap 1 (T1-F01, F03–F06, F08–F09, dst.) **tidak berubah**, kecuali T1-F16 (placeholder G2 sebagian digantikan E2E G2 simulasi).

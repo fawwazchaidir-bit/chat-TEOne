@@ -19,6 +19,7 @@ export const TEST_ENV: Record<string, string> = {
   META_APP_SECRET: "uji-app-secret-sintetis-0001",
   META_VERIFY_TOKEN: "uji-verify-token-sintetis-0001",
   META_ACCESS_TOKEN: "uji-access-token-sintetis-0001",
+  META_APP_ID: "300000000000001",
   META_GRAPH_BASE_URL: "http://127.0.0.1:1",
   META_HTTP_TIMEOUT_MS: "1500",
   MEDIA_DIR: ".data/test-media",

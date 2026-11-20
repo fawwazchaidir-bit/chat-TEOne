@@ -22,6 +22,13 @@
       "when": 1795052398096,
       "tag": "0002_tahap2_whatsapp_connector",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795214454949,
+      "tag": "0003_tahap2_gate2_mapping_version",
+      "breakpoints": true
     }
   ]
 }

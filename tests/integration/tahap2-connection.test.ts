@@ -75,7 +75,7 @@ describe("@tahap-2 verifikasi koneksi: 'terverifikasi' HANYA dari pemeriksaan ny
     expect(c).toMatchObject({ verification_status: "terverifikasi", verification_mode: "simulasi" });
     expect(c.verified_at).not.toBeNull();
     expect(JSON.stringify(await q("select * from channel_connections")) + JSON.stringify(r.body)).not.toContain("uji-access-token-sintetis");
-    expect((await q("select result from audit_log where action = 'integration.connection_verified'"))[0].result).toBe("success");
+    expect((await q("select result from audit_log where action = 'integration.connection_verified' and object_id = $1", [ch.id]))[0].result).toBe("success");
     expect(mock.calls.length).toBeGreaterThanOrEqual(3);
   });
 

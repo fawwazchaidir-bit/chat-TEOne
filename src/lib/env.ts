@@ -15,6 +15,8 @@ const schema = z.object({
   META_APP_SECRET: z.string().min(8).optional(),
   META_VERIFY_TOKEN: z.string().min(8).optional(),
   META_ACCESS_TOKEN: z.string().min(8).optional(),
+  /** ID aplikasi Meta milik TE One (bukan rahasia). Dipakai agar langganan webhook dapat DIKONFIRMASI sebagai aplikasi yang benar (G2-A05). */
+  META_APP_ID: z.string().regex(/^\d{5,30}$/, "META_APP_ID harus berupa angka").optional(),
   META_GRAPH_BASE_URL: z.string().url().default("https://graph.facebook.com"),
   META_GRAPH_API_VERSION: z.string().regex(/^v\d+\.\d+$/).default("v23.0"),
   META_HTTP_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(10000),

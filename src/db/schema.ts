@@ -303,6 +303,10 @@ export const channelConnections = pgTable(
     /** Mode uji: pesan keluar hanya ke daftar penerima uji; pengirim di luar daftar tidak diproses (D-03). */
     testMode: boolean("test_mode").notNull().default(true),
     rateLimitPerSec: integer("rate_limit_per_sec").notNull().default(5),
+    /** Naik setiap pemetaan (WABA/phone_number_id) berubah. Hasil verifikasi hanya boleh ditulis bila versi masih sama (G2-A04). */
+    mappingVersion: integer("mapping_version").notNull().default(0),
+    /** Waktu pemetaan terakhir berubah: bukti "event diterima" hanya dihitung sesudahnya (G2-A05). */
+    mappingChangedAt: ts("mapping_changed_at").notNull().defaultNow(),
     /** 'terverifikasi' HANYA hasil pemeriksaan ke Graph API; `verificationMode` membedakan Meta asli vs mock. */
     verificationStatus: text("verification_status").notNull().default("belum_diperiksa"),
     verificationMode: text("verification_mode"),
