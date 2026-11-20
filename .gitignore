@@ -22,3 +22,4 @@ backups/
 
 # Media pelanggan & data runtime lokal (privat)
 .data/
+.verify/

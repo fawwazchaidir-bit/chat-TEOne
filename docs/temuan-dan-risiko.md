@@ -1,8 +1,9 @@
 # Temuan & risiko peluncuran — Tahap 1 dan Tahap 2
 
+> Temuan **audit Gate 1 (G1-A01…A05)**: [`gates/gate-1.md`](gates/gate-1.md) dan tanggapan [`gates/gate-1-tindak-lanjut.md`](gates/gate-1-tindak-lanjut.md) — **G1-A01 & G1-A02 tinggi**.
 > Temuan **Tahap 2 (T2-F\*)** ada di [`reports/tahap-2.md`](reports/tahap-2.md) §9. Ringkasnya: **uji nyata Meta/coexistence belum dilakukan**, bentuk payload & kode galat Meta **belum terverifikasi**, Gate 1 belum tercatat.
 
-Daftar ini disusun **pembangun** (bukan audit independen). Prioritas: kritis / tinggi / sedang / rendah. Tidak ada temuan kritis atau tinggi yang diketahui pembangun; auditor independen dapat menilai ulang.
+Daftar ini disusun **pembangun** (bukan audit independen). Prioritas: kritis / tinggi / sedang / rendah. Menurut pembangun (laporan awal) tidak ada temuan kritis/tinggi; **audit independen Gate 1 menemukan 2 temuan tinggi (G1-A01, G1-A02)** — lihat baris G1-* di bawah.
 
 | ID | Prio | Temuan / risiko | Dampak | Bukti | Tindakan | PJ | Status |
 |---|---|---|---|---|---|---|---|
@@ -26,6 +27,11 @@ Daftar ini disusun **pembangun** (bukan audit independen). Prioritas: kritis / t
 | T1-F18 | rendah | Editor izin per pengguna hanya satu efek per izin; kombinasi izin+tolak yang dibuat lewat API dikunci & dipertahankan (tidak hilang) tetapi tidak dapat diubah dari UI | Kenyamanan | `admin-forms.tsx` | Perluas editor bila perlu | Pembangun | Diterima |
 | T1-F20 | rendah | `.gitleaks.toml` mengizinkan aturan `generic-api-key` di `tests/` (kata sandi sintetis akun uji). Bila seseorang menaruh rahasia nyata ber-pola generik di `tests/`, gitleaks tidak menangkapnya (pola token spesifik tetap tertangkap; `secret-scan.mjs` generik juga mengecualikan `tests/`) | Celah sempit & disengaja | `.gitleaks.toml`, `architecture.test.ts` | Larangan data nyata di tests/ ditegakkan lewat tinjauan PR + guard nomor/ rahasia spesifik | Pembangun | Diterima |
 | T1-F21 | rendah | CI memakan ≈ 7,5 menit karena `playwright install --with-deps` (~6 menit; belum ada cache browser). GitHub memperingatkan `actions/checkout@v4`, `setup-node@v4`, `upload-artifact@v4` berjalan di Node 20 yang akan usang | Waktu umpan balik PR; pemeliharaan | Log run #2 | Cache `~/.cache/ms-playwright`; naikkan versi actions saat tersedia | Pembangun | Terbuka |
+| G1-A01 | **tinggi** | Penjaga CI dapat meloloskan kegagalan tingkat suite (exit code Vitest dibuang; pelapor hanya memeriksa assertion) — audit independen Gate 1 | CCP 1.9 ❌; CI dapat hijau padahal Vitest gagal | `gates/gate-1.md`; reproduksi auditor + konfirmasi pembangun (Vitest 5.1.1) | **Diperbaiki:** `run-test-report.mjs`, pelapor diperketat, 19 test `ci-guard` (mutasi 14/19 gagal pada perilaku lama); ADR-0005. Verifikasi ulang auditor + CI pada commit perbaikan | Pembangun/Auditor | **Menunggu verifikasi** |
+| G1-A02 | **tinggi** | Bukti wajib tidak dapat dijalankan di lingkungan auditor (PostgreSQL/`psql` tidak ada; `tsx` EPERM) | CCP 1.1–1.7 belum terverifikasi independen | `gates/gate-1.md` | `scripts/verify-all.sh`, panduan lingkungan terisolasi (`pengembangan.md` §7); pembangun 11/11 lulus (bukan independen) | Pemilik/Auditor | Sebagian |
+| G1-A03 | sedang | CI hijau pada commit yang diaudit belum terverifikasi | A2/B | `gates/gate-1-tindak-lanjut.md` §3 | Run #5 pada `7331493` diverifikasi dari API/log (penjaga lama); CI pada commit perbaikan dicatat | Pembangun | Sebagian |
+| G1-A04 | sedang | `gate-1.md`/tag/`jalur-0.md`/titik-kembali belum lengkap | Tata kelola | `gate-1.md` | `gate-1.md` dimasukkan; tag & keputusan hanya oleh pemilik; `jalur-0.md` tidak dikarang | Pemilik | Terbuka |
+| G1-A05 | sedang | Staging/backup di server belum dibuktikan (D-12, D-18) | Data operasional belum boleh dipakai | `staging.md` §6, `backup-restore.md` | Sediakan server; isi daftar verifikasi | Pemilik/Infra | Terbuka |
 | T1-F19 | rendah | Waktu disimpan UTC; tampilan memakai zona organisasi. **Jam kirim/jam kerja belum ada** (D-06/07, Tahap 6) — risiko zona waktu server berbeda diuji di CCP 6.4 | Tahap 6 | — | Uji simulasi waktu di Tahap 6 | Pembangun | Terjadwal |
 
 ## Risiko peluncuran (ke Tahap 2 dan seterusnya)

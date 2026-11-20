@@ -144,11 +144,26 @@ describe("@tahap-1 secret scan (CI)", () => {
 });
 
 describe("@tahap-1 penjaga regresi jumlah test", () => {
-  const vitestJson = (statuses: string[], tag = "@tahap-1") => JSON.stringify({ testResults: [{ assertionResults: statuses.map((s, i) => ({ ancestorTitles: [`${tag} suite`], title: `t${i}`, status: s })) }] });
+  // Fixture dibuat REALISTIS (bentuk keluaran Vitest asli: success, ringkasan, status berkas, waktu mulai) sejak perbaikan G1-A01 —
+  // pelapor kini menolak hasil yang tidak lengkap/usang. Semua ekspektasi lama di bawah TIDAK dilonggarkan.
+  const vitestJson = (statuses: string[], tag = "@tahap-1") => {
+    const failed = statuses.filter((s) => s === "failed").length;
+    return JSON.stringify({
+      success: failed === 0, numTotalTests: statuses.length, numFailedTests: failed, numFailedTestSuites: failed ? 1 : 0, startTime: Date.now(),
+      testResults: [{ name: "/x/a.test.ts", status: failed ? "failed" : "passed", assertionResults: statuses.map((s, i) => ({ ancestorTitles: [`${tag} suite`], title: `t${i}`, status: s })) }],
+    });
+  };
   const spec = (title: string, status: string) => ({ title, ok: status !== "failed", tests: [{ status, expectedStatus: status === "skipped" ? "skipped" : "passed", results: [{ status }] }] });
-  const pwJson = (specs: object[]) => ({ suites: [{ title: "g1.spec.ts", specs: [], suites: [{ title: "@tahap-1 G1", specs }] }] });
+  const pwJson = (specs: object[]) => ({
+    stats: { startTime: new Date().toISOString(), unexpected: specs.filter((s) => (s as { ok?: boolean }).ok === false).length }, errors: [],
+    suites: [{ title: "g1.spec.ts", specs: [], suites: [{ title: "@tahap-1 G1", specs }] }],
+  });
   const mk = (v: string, baseline: { vitest: number; playwright: number }, pw?: object) => {
-    const files: Record<string, string> = { ".test-results/vitest.json": v, "tests/baseline-counts.json": JSON.stringify({ "@tahap-1": baseline }) };
+    const files: Record<string, string> = {
+      ".test-results/vitest.json": v,
+      ".test-results/vitest-exit.json": JSON.stringify({ exitCode: JSON.parse(v).success ? 0 : 1, finishedAt: new Date().toISOString() }),
+      "tests/baseline-counts.json": JSON.stringify({ "@tahap-1": baseline }),
+    };
     if (pw) files[".test-results/playwright.json"] = JSON.stringify(pw);
     return tmp(files);
   };

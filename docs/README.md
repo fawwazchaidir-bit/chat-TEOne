@@ -6,7 +6,8 @@
 | [`decisions.md`](decisions.md) | Keputusan bisnis (D-01…D-24); status **Terbuka** = dipakai sebagai ASUMSI |
 | [`prompts/tahap-1.md`](prompts/tahap-1.md) · [`prompts/tahap-2.md`](prompts/tahap-2.md) | Prompt Tahap 1 dan 2 |
 | [`gates/GATE-CHECKLIST.md`](gates/GATE-CHECKLIST.md) | Checklist gate CCP + prompt auditor independen |
-| [`arsitektur.md`](arsitektur.md) · [`adr/`](adr) | Arsitektur & ADR-0001…0004 |
+| [`gates/gate-1.md`](gates/gate-1.md) · [`gates/gate-1-tindak-lanjut.md`](gates/gate-1-tindak-lanjut.md) | **Audit independen Gate 1 (rekomendasi TAHAN; keputusan pemilik belum diisi)** · tanggapan & perbaikan pembangun |
+| [`arsitektur.md`](arsitektur.md) · [`adr/`](adr) | Arsitektur & ADR-0001…0005 |
 | [`pengembangan.md`](pengembangan.md) | Panduan development |
 | [`staging.md`](staging.md) | Panduan staging (HTTPS, cookie, jaringan) — **belum diverifikasi** |
 | [`keamanan-dan-izin.md`](keamanan-dan-izin.md) | Keamanan, model izin + cakupan channel, tim |

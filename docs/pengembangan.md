@@ -35,7 +35,8 @@ Pemulihan akun lewat server (kehilangan 2FA/sandi Super Admin): `npm run admin:r
 |---|---|
 | `npm test` | Vitest. `tests/global-setup.ts` membuat ulang database `teone_test` **dari kosong** (menguji migrasi) lewat `TEST_ADMIN_DATABASE_URL` (default `postgres://postgres:postgres@localhost:5432/postgres`) | <!-- secret-scan:allow — kredensial DB uji sekali pakai (lokal/CI), bukan rahasia -->
 | `npm run e2e` | Playwright; membangun DB `teone_e2e`, menjalankan `next start` pada :3100. Butuh `npm run build` dulu. Bila Chromium bawaan tidak cocok: `PW_CHROMIUM_PATH=/path/chrome npm run e2e` |
-| `npm run test:report` | Vitest JSON + ringkasan per tag + penjaga baseline **Vitest** (`tests/baseline-counts.json`). Setelah `npm run e2e`, jalankan `node scripts/test-tag-report.mjs --require-e2e` untuk menegakkan juga baseline E2E (seperti langkah akhir CI) |
+| `npm run test:report` | Pembungkus `scripts/run-test-report.mjs`: Vitest + ringkasan per tag + penjaga baseline; **exit code Vitest diteruskan** dan penjaga menolak suite gagal/hasil hilang/usang/rusak (ADR-0005). **Wajib dipakai** (Vitest manual lalu pelapor akan gagal: bukti exit code tidak ada). Setelah `npm run e2e`, jalankan `node scripts/test-tag-report.mjs --require-e2e` (seperti langkah akhir CI) |
+| `bash scripts/verify-all.sh` | **Verifikasi menyeluruh satu commit** (lint…drill) dengan log/kode keluar/durasi di `.verify/`; lihat §7 |
 | `bash scripts/backup-restore-drill.sh` | Drill backup/restore |
 | `npm run worker` | (Tahap 2) pemroses antrean event webhook + rekonsiliasi + unduh media + retensi payload. Opsional di lokal (`WORKER_INLINE=true` memproses di proses web) |
 | `npm run meta:check` | (Tahap 2) diagnostik koneksi Meta; hasil **nyata** hanya bila `META_GRAPH_BASE_URL` = graph.facebook.com |
@@ -58,3 +59,14 @@ Dokumen: [`tahap-2/`](tahap-2/README.md).
 
 ## 6. Guard & pemindai
 `npm run guard:operational` menolak penanda operasional di seed/fixture/config/test, nomor berakhiran 1119/0124, dan **nomor telepon lengkap apa pun**; env `OPERATIONAL_NUMBER_HASHES` (sha256 digit E.164, rahasia CI) menambah pengecekan nomor terdaftar. `npm run scan:secrets` + gitleaks di CI. Pengecualian per baris hanya dengan komentar `guard-operational:allow` / `secret-scan:allow` **disertai alasan** (ditinjau di PR).
+
+## 7. Lingkungan uji terisolasi setara CI + verifikasi menyeluruh (G1-A02)
+Prasyarat (sama dengan job CI): **Node 22** (`.nvmrc`; Node 24 tidak setara CI), **PostgreSQL 16** yang dapat dijangkau `TEST_ADMIN_DATABASE_URL` (default `localhost:5432`, superuser — untuk DB uji sekali pakai),
+klien `postgresql-client-16` (`psql`, `pg_dump`, `pg_restore`), `gpg`, Chromium (`npx playwright install chromium`, atau `PW_CHROMIUM_PATH=/path/chrome`), dan (opsional lokal) `gitleaks` 8.24.3.
+```bash
+docker run -d --name teone-pg -e POSTGRES_PASSWORD=GANTI_SANDI_UJI -p 5432:5432 postgres:16     # DB uji sekali pakai
+export TEST_ADMIN_DATABASE_URL=postgres://postgres:GANTI_SANDI_UJI@localhost:5432/postgres
+bash scripts/verify-all.sh --ci                                                                      # npm ci + semua langkah
+```
+`verify-all.sh` mencatat commit, versi alat, dan per langkah: **LULUS / GAGAL / TIDAK DAPAT DIJALANKAN** (prasyarat tidak ada — bukan lulus), kode keluar, durasi, dan log di `.verify/` (tidak di-commit); keluar 0 hanya bila semuanya lulus.
+Bila `tsx` gagal dengan `EPERM` saat membuat socket IPC: dugaan penyebab folder sementara tidak dapat ditulis — set `TMPDIR` ke direktori yang dapat ditulis (**belum diverifikasi**).

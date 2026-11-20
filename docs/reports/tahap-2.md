@@ -94,6 +94,8 @@ Temuan selama pengujian yang **diperbaiki di kode**: pesan galat driver DB memua
 | Vitest total | 124 (`@tahap-1`) | **227** (124 `@tahap-1` + 103 `@tahap-2`) |
 | E2E aktif | 3 (G1) | **6** (3 G1 + 3 G2 simulasi); placeholder 7 → 7 (G2 nyata, G3–G8) |
 | `@tahap-1` | 124 Vitest + 3 E2E | **124 + 3 — tidak ada yang hilang, di-skip, atau dilemahkan** |
+> **Pembaruan 20 Nov 2026 (audit Gate 1):** perbaikan G1-A01 menambah 19 test `@tahap-1` (`ci-guard`) → Vitest total **246** (`@tahap-1` 143 + `@tahap-2` 103); baseline `@tahap-1` Vitest = 143. Lihat `docs/gates/gate-1-tindak-lanjut.md`.
+
 **Transparansi:** dua test Tahap 1 **dimodifikasi** karena registri izin/modul bertambah (dicatat di ADR-0004 sesuai AGENTS.md §10.2): `permission-engine.test.ts` kini menegaskan 19 kunci awal **tetap ada** (sebelumnya menegaskan jumlah total persis 19) dan menambah `integration.test`; `architecture.test.ts` mengeluarkan `whatsapp-adapter` dari daftar modul terlarang (kini sah) dan **menambah** modul Tahap 3+ lain ke daftar (`program-cards`, `knowledge`, `labels`, `templates`, `inbox`) — modul yang belum boleh ada tetap terlarang. Penjaga baseline tidak menunjukkan penurunan. Pemilik/auditor perlu menilai apakah perubahan ini dapat diterima.
 
 ## 7. Perubahan database dan migrasi

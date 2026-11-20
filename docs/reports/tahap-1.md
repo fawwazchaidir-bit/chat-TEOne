@@ -1,5 +1,10 @@
 # Laporan Akhir — Tahap 1: Fondasi Produksi
 
+> ### Pembaruan 20 Nov 2026 — audit independen Gate 1 diterima
+> Audit independen ([`docs/gates/gate-1.md`](../gates/gate-1.md)) merekomendasikan **TAHAN**: **G1-A01 (tinggi)** penjaga CI dapat meloloskan kegagalan tingkat suite; **G1-A02 (tinggi)** bukti independen belum ada (lingkungan auditor tanpa PostgreSQL/`psql`);
+> G1-A03/A04/A05 (sedang). Tanggapan, perbaikan, dan bukti pembangun: [`docs/gates/gate-1-tindak-lanjut.md`](../gates/gate-1-tindak-lanjut.md) dan [ADR-0005](../adr/0005-penjaga-hasil-test-ci.md).
+> **CCP 1.9 sebelumnya dinilai "Terpenuhi" oleh pembangun — penilaian itu salah untuk jenis kegagalan G1-A01** (lihat §5, diperbarui). Keputusan gate tetap milik pemilik; **tidak ada tag/penerimaan**. Angka di bagian bawah adalah angka **pada saat laporan awal**; angka terkini: `@tahap-1` Vitest **143** (+19 test `ci-guard`).
+
 > Disusun oleh **pembangun**. Ini **bukan audit**: AGENTS.md §2.6 melarang pembangun mengaudit pekerjaannya sendiri. Kolom "evaluasi pembangun"
 > di bagian 5 hanya memetakan bukti agar auditor independen dapat memverifikasi dengan cepat. Gate 1 memerlukan `docs/gates/gate-1.md` dari **sesi auditor baru**
 > (prompt: `docs/gates/GATE-CHECKLIST.md` bagian G).
@@ -110,11 +115,13 @@ Kolom hasil adalah **evaluasi pembangun**, bukan keputusan; verifikasi ulang ole
 | 1.6 Batas channel aman terhadap permintaan bersamaan | 0 kelebihan pada ≥ 20 paralel | `channels.test.ts`: **24** permintaan API paralel → tepat 5; **30** INSERT langsung ke DB → tepat sisa slot; unarchive paralel → 1 | Terpenuhi (lokal) |
 | 1.7 Backup & restore nyata | Restore berhasil; data terbaca; waktu tercatat | `docs/backup-restore.md` §2 (8 verifikasi lulus; 0,15/0,28 dtk) | **Sebagian**: lokal, data kecil; server/salinan terpisah belum (T1-F01, T1-F09) |
 | 1.8 Status channel jujur | Tidak ada status "terhubung" | CHECK DB (4 nilai ditolak), API mengabaikan `status`, test arsitektur (UI tanpa "Hubungkan WhatsApp"/"Terhubung"), E2E, `docs/reports/bukti/tahap-1-channel-status-jujur.png` (data CONTOH) | Terpenuhi (lokal) |
-| 1.9 Fondasi regresi aktif | CI menjalankan semua test, secret scan, guard; feature flag & registri kill switch berfungsi | `ci.yml`; `guards.test.ts` (18 test membuktikan guard/pemindai/penjaga baseline **menangkap** pelanggaran) + `architecture.test.ts` (lebar allowlist gitleaks, pin checksum); `controls.test.ts` (flag & kill switch) | Terpenuhi (lokal **dan CI**): run #2 hijau penuh pada `08bb3a8`, termasuk E2E dan penjaga baseline; **harus diulang pada commit yang diaudit** |
+| 1.9 Fondasi regresi aktif *(DIPERBARUI 20 Nov 2026 — audit G1-A01: ❌)* | CI menjalankan semua test, secret scan, guard; feature flag & registri kill switch berfungsi | `ci.yml`; `guards.test.ts` (18 test membuktikan guard/pemindai/penjaga baseline **menangkap** pelanggaran) + `architecture.test.ts` (lebar allowlist gitleaks, pin checksum); `controls.test.ts` (flag & kill switch) | ~~Terpenuhi~~ **Dikoreksi:** penjaga lama dapat meloloskan kegagalan suite (G1-A01, terbukti auditor & dikonfirmasi pembangun). **Diperbaiki** (ADR-0005; `tests/unit/ci-guard.test.ts` 19 test; uji mutasi 14/19 gagal pada perilaku lama) — **menunggu CI pada commit perbaikan dan verifikasi ulang auditor** |
 
 Pemeriksaan lain Tahap 1 §14: tersedia & lulus — login benar/salah, pengguna nonaktif + sesi lama, logout, pembatasan login, TOTP wajib, kode pemulihan sekali pakai, cakupan channel, penolakan menang atas peran, perubahan izin langsung berlaku, non-Super Admin tak bisa menjadi Super Admin, data contoh, batas (batas+1 ditolak), arsip & penggunaan ulang slot, migrasi DB kosong, audit dihasilkan, pengguna tanpa izin tak melihat audit, backup–restore, feature flag mati = fitur tidak aktif, kill switch contoh. "Aplikasi dapat dijalankan ulang mengikuti README": README + `docs/pengembangan.md` diikuti saat menyiapkan DB E2E/drill dari nol lewat skrip yang sama.
 
 ## 6. Regresi tahap-tahap sebelumnya
+> Pembaruan: setelah perbaikan G1-A01, baseline `@tahap-1` Vitest = **143** (124 + 19 test `ci-guard`); E2E 3. Tidak ada test yang dihapus/dilonggarkan; fixture `guards.test.ts` dibuat realistis (ADR-0005).
+
 Tidak ada tahap sebelumnya. **Jumlah test sebelum: 0 → sesudah: 127** (`@tahap-1`: 124 Vitest + 3 E2E). Ini menjadi **baseline per jenis** (`tests/baseline-counts.json` = `{"@tahap-1":{"vitest":124,"playwright":3}}`, hanya boleh naik). Tag `@tahap-1` dipasang pada setiap `describe`.
 
 ## 7. Perubahan database dan migrasi
@@ -132,7 +139,7 @@ Tidak ada tabel/worker untuk fitur tahap berikutnya (ADR-0002/0003 hanya rancang
 | Production | Belum ada. Seed contoh ditolak di production (diuji). |
 
 ## 9. Temuan
-Rincian lengkap: [`docs/temuan-dan-risiko.md`](../temuan-dan-risiko.md). **Kritis: 0 · Tinggi: 0 · Sedang: 6 terbuka (+1 teratasi: T1-F02) · Rendah: 14** — total 21 temuan (menurut pembangun; auditor menilai ulang).
+Rincian lengkap: [`docs/temuan-dan-risiko.md`](../temuan-dan-risiko.md). **Pembangun (laporan awal): Kritis 0 · Tinggi 0 · Sedang 6 terbuka (+1 teratasi: T1-F02) · Rendah 14 — total 21.** **Audit independen menambah:** G1-A01 **tinggi** (diperbaiki, menunggu verifikasi), G1-A02 **tinggi** (sebagian), G1-A03/A04/A05 **sedang** — ringkasan di `gate-1-tindak-lanjut.md`. Temuan tinggi **belum nol** menurut auditor.
 
 | ID | Prio | Ringkas | Status |
 |---|---|---|---|
@@ -144,6 +151,11 @@ Rincian lengkap: [`docs/temuan-dan-risiko.md`](../temuan-dan-risiko.md). **Kriti
 | T1-F08 | sedang | Rotasi `APP_ENCRYPTION_KEY` belum dirancang | Terbuka |
 | T1-F09 | sedang | Backup: data kecil, tanpa salinan terpisah/jadwal/media; D-12 belum dinilai | Terbuka |
 | T1-F21 | rendah | `playwright install --with-deps` ~6 menit; actions memakai Node 20 (akan usang) | Terbuka |
+| **G1-A01** | **tinggi** | Penjaga CI meloloskan kegagalan tingkat suite (exit code Vitest dibuang oleh `;`; pelapor hanya memeriksa assertion) | **Diperbaiki — menunggu verifikasi** (ADR-0005) |
+| **G1-A02** | **tinggi** | Bukti wajib belum dapat dijalankan independen (lingkungan auditor: tanpa PostgreSQL/`psql`, `tsx` EPERM) | Sebagian — `scripts/verify-all.sh` + panduan; menunggu audit ulang |
+| G1-A03 | sedang | CI hijau pada commit yang diaudit belum terverifikasi | Diverifikasi pembangun untuk `7331493` (run #5, penjaga lama); perbaikan: lihat tindak lanjut |
+| G1-A04 | sedang | `gate-1.md`, tag, `jalur-0.md`, titik-kembali belum lengkap | `gate-1.md` dimasukkan; sisanya menunggu pemilik |
+| G1-A05 | sedang | Staging/backup di server belum dibuktikan | Menunggu pemilik/infrastruktur |
 | T1-F05,07,10–20 | rendah | Penamaan branch; audit dev-only; trade-off lockout; TRUST_PROXY; CSP inline; pemulihan tanpa email; superuser DB; kill switch & G2–G8 belum nyata; dll. | Lihat dokumen |
 
 **Perbaikan yang dibuat selama pengerjaan (bukan temuan terbuka):** lockout global saat IP tak diketahui; editor izin yang bisa menghilangkan entri allow+deny; celah regex guard nomor berspasi; pencabutan sesi yang awalnya tak teruji; Dockerfile tanpa jalur migrasi.
@@ -163,7 +175,7 @@ Parameter keamanan (umur sesi 12 jam/idle 4 jam, ambang login 5/30 per 15 menit,
 - Tidak ada akses ke akun Meta, aplikasi Halo AI, atau server lain; tidak ada panggilan jaringan keluar dari aplikasi.
 
 ## 12. Prasyarat tahap berikutnya (Tahap 2 — ±2–22 Des 2026)
-1. **Gate 1**: audit independen (`gate-1.md`) + keputusan pemilik; lalu tag `tahap-1-diterima` + backup titik-kembali. CI hijau pada commit yang diaudit (T1-F02).
+1. **Gate 1**: audit independen **sudah ada** (`gate-1.md`, rekomendasi **TAHAN**); perbaikan G1-A01 dikerjakan; perlu **audit ulang** + keputusan pemilik; lalu tag `tahap-1-diterima` + backup titik-kembali. CI hijau pada commit yang diaudit/diperbaiki.
 2. **Keputusan:** D-02 & D-03 (±1 Des 2026), D-01 (sebelum Tahap 3, ±22 Des). Tanpa keputusan, Tahap 2 memakai asumsi default dan menandainya.
 3. **Akses Meta:** Meta Business/WABA/aplikasi Meta milik TE One, jalur Tech Provider/BSP, nomor uji (Kemitraan) — `rencana-integrasi-meta-tahap-2.md`.
 4. **Server staging** dengan HTTPS publik + domain (Jalur 0 J0-03; berkas `docs/jalur-0.md` perlu ditambahkan) — webhook Meta butuh URL publik.
