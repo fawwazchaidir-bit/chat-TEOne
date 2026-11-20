@@ -9,7 +9,7 @@
 |---|---|---|---|
 | G1-A01 | Tinggi | **Diperbaiki di kode** + 19 test regresi nyata + uji mutasi (ADR-0005) | **Diperbaiki — menunggu verifikasi auditor & CI pada commit perbaikan** |
 | G1-A02 | Tinggi | Disediakan `scripts/verify-all.sh` + panduan lingkungan terisolasi; pembangun menjalankannya (11/11 langkah lulus). **Ini bukan verifikasi independen** | **Sebagian — menunggu audit ulang di lingkungan auditor** |
-| G1-A03 | Sedang | Bukti CI pada commit perbaikan dicatat di §3 (run, job, log); CI kini dapat dipicu manual (`workflow_dispatch`) | **Diisi setelah push (lihat §3)** |
+| G1-A03 | Sedang | Bukti CI dicatat di §3: run #5 pada commit yang diaudit `7331493` (penjaga lama) dan run #6 pada commit perbaikan `95b9cc8` (penjaga baru) — keduanya hijau; CI kini dapat dipicu manual (`workflow_dispatch`) | **Diperbaiki untuk `95b9cc8` — auditor memverifikasi ulang pada commit akhir** |
 | G1-A04 | Sedang | `gate-1.md` kini ada di repository; tag/backup/keputusan **tidak dibuat**; `jalur-0.md` **tidak dikarang** | **Menunggu pemilik** |
 | G1-A05 | Sedang | Tidak dapat dikerjakan pembangun tanpa server staging; daftar bukti yang harus diisi sudah ada | **Menunggu pemilik/infrastruktur** |
 
@@ -23,7 +23,7 @@ pelapor lama hanya membaca assertion ⇒ "Tidak ada masalah", exit 0. **Belum te
 - `tests/unit/ci-guard.test.ts` — **19 test `@tahap-1`**: lapis A menjalankan **Vitest sungguhan** pada proyek fixture yang sengaja rusak (afterAll melempar error · assertion gagal · gagal impor · global teardown gagal · promise tak tertangani · tanpa test · hasil lama tertinggal);
   lapis B memberi pelapor hasil hilang · usang · rusak · kosong · berbentuk persis kegagalan audit · exit code 1 dengan JSON "sehat" · E2E bermasalah.
 - **Uji mutasi:** dengan perilaku lama dipulihkan, **14 dari 19** test gagal (5 sisanya mengunci perilaku lama yang dipertahankan).
-- Syarat auditor "jalankan seluruh CI ulang pada commit perbaikan": lihat §3.
+- Syarat auditor "jalankan seluruh CI ulang pada commit perbaikan": **terpenuhi untuk `95b9cc8`** (§3).
 
 ## 2. G1-A02 — bukti wajib pada lingkungan uji terisolasi (Tinggi)
 **Yang dibuat:** `scripts/verify-all.sh` — satu perintah menjalankan lint, typecheck, guard, secret scan, gitleaks seluruh riwayat, `npm audit`, build, Vitest + penjaga, E2E, penjaga akhir `--require-e2e`, dan drill backup/restore pada **satu commit**;
@@ -44,7 +44,11 @@ lint ✔ · typecheck ✔ · guard operasional ✔ · secret scan lokal ✔ · g
 
 Untuk commit **perbaikan** (penjaga baru): hasil run dicatat di bawah **setelah push**. Workflow kini dapat dijalankan manual (`workflow_dispatch`) dan menulis ringkasan test ke ringkasan run.
 
-_Hasil run: **diisi setelah push** (belum ada klaim)._
+**Hasil run pada commit perbaikan `95b9cc8`** — run push [#6 `44823965100`](https://github.com/fawwazchaidir-bit/chat-TEOne/actions/runs/44823965100): **3 job sukses** (Lint·Typecheck·Guard·Secret scan termasuk gitleaks seluruh riwayat; Build·Test regresi·E2E; Drill backup & restore), dibaca dari API dan log job Build·Test·E2E (`136591691040`):
+- langkah `npm run test:report` menjalankan `node scripts/run-test-report.mjs` (penjaga baru): `| @tahap-1 | 143 | 0 | 143 | 143 / 3 |`, `| @tahap-2 | 103 | 0 | 103 | 103 / 3 |`, `Vitest: 246 test, 0 gagal, 0 dilewati`, "Tidak ada masalah";
+- Golden E2E: `6 passed`, `7 skipped` (placeholder resmi);
+- penjaga akhir `--require-e2e` (menulis ke ringkasan run): `@tahap-1 | 143 | 3 | 146 | 143 / 3`, `@tahap-2 | 103 | 3 | 106 | 103 / 3`, "Tidak ada masalah".
+**Batas pernyataan:** ini bukti dari run pembangun/CI; ia **tidak** menggantikan verifikasi ulang oleh auditor independen pada commit yang akan diputuskan. Karena dokumen ini sendiri di-commit sesudahnya, commit yang memuatnya adalah commit baru — auditor sebaiknya memicu `workflow_dispatch` pada commit akhir yang dinilai.
 
 ## 4. G1-A04 — tata kelola gate dan titik-kembali (Sedang)
 - `docs/gates/gate-1.md` **dimasukkan apa adanya** (tanpa suntingan) dan diindeks di `docs/README.md`.
