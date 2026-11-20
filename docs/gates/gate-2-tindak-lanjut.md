@@ -58,14 +58,17 @@ Seluruhnya di `tests/integration/tahap2-gate2.test.ts` (**35 test**, tag `@tahap
 Tidak ada perubahan: uji nyata Meta/coexistence, echo nyata, G2 nyata, staging HTTPS, image/compose, backup offsite, keputusan D-01/D-02/D-03/D-12/D-18, tag/backup Gate 1 menunggu **pemilik/infrastruktur**. Panduan: `docs/tahap-2/panduan-uji-nomor-uji.md`.
 
 ## Hubungan dengan Gate 1 (catatan auditor)
-- **G1-A03:** auditor mencatat run `44823965100` bukan HEAD `e7b9c4e`. CI untuk commit perbaikan Gate 2 dicatat di bawah **setelah push**; auditor sebaiknya menjalankan `workflow_dispatch` pada commit akhir yang dinilai.
+- **G1-A03:** auditor mencatat run `44823965100` bukan HEAD `e7b9c4e`. Untuk commit perbaikan Gate 2 `e2ea136` ada run push #8 hijau (lihat di bawah); auditor sebaiknya tetap menjalankan `workflow_dispatch` pada commit akhir yang dinilai.
 - G1-A02/A04/A05 tetap menunggu lingkungan auditor/pemilik/infrastruktur (lihat `gate-1-tindak-lanjut.md`).
 
 ## Verifikasi pembangun (BUKAN independen)
 `bash scripts/verify-all.sh` pada working tree perbaikan (Node 22.23.5, PostgreSQL 16.15, Chromium, gitleaks 8.24.3): lint ✔ · typecheck ✔ · guard operasional ✔ · secret scan ✔ · gitleaks riwayat ✔ · `npm audit --omit=dev` ✔ · build ✔ ·
 Vitest (`test:report`) ✔ **281 test, 0 gagal, 0 dilewati** (`@tahap-1` 143 · `@tahap-2` 138), exit code Vitest 0 tercatat · E2E ✔ 6 lulus + 7 placeholder · penjaga akhir ✔ · drill backup/restore ✔ (4 migrasi) — **11/11 langkah LULUS**.
 
-_Hasil CI GitHub pada commit perbaikan: **diisi setelah push**._
+**Hasil CI GitHub pada commit perbaikan `e2ea136`** — run push [#8 `44833343168`](https://github.com/fawwazchaidir-bit/chat-TEOne/actions/runs/44833343168): **3 job sukses** (Lint·Typecheck·Guard·Secret scan termasuk gitleaks seluruh riwayat; Build·Test regresi·E2E; Drill backup & restore), dibaca dari API dan log job Build·Test·E2E (`136623534603`):
+- `node scripts/run-test-report.mjs`: `| @tahap-1 | 143 | 0 | 143 | 143 / 3 |`, `| @tahap-2 | 138 | 0 | 138 | 138 / 3 |`, `Vitest: 281 test, 0 gagal, 0 dilewati`, "Tidak ada masalah";
+- Golden E2E: `6 passed`, `7 skipped` (placeholder resmi); penjaga akhir `--require-e2e`: `@tahap-1 | 143 | 3 | 146`, `@tahap-2 | 138 | 3 | 141`, "Tidak ada masalah".
+**Batas pernyataan:** bukti CI pembangun; bukan verifikasi independen. Dokumen ini di-commit sesudahnya (commit baru) — auditor sebaiknya memicu `workflow_dispatch` pada commit akhir yang dinilai.
 
 ## Syarat audit ulang (dari auditor) — status pembangun
 | # | Syarat | Status |
