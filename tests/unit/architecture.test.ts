@@ -18,6 +18,20 @@ const srcFiles = walk(path.join(root, "src")).filter((f) => /\.(ts|tsx)$/.test(f
 const rel = (f: string) => path.relative(root, f);
 
 describe("@tahap-1 arsitektur & kontrol statis", () => {
+  it("portabilitas DB uji (audit ulang Gate 1): tidak ada koneksi PostgreSQL berpatok pada port bawaan di tests/ (selain definisi default) maupun di scripts/ (selain default drill)", () => {
+    // Pola dibangun saat runtime agar berkas ini sendiri tidak cocok. Server uji di port nonstandar harus cukup dikonfigurasi lewat
+    // TEST_ADMIN_DATABASE_URL (TEST_DB_HOST diturunkan darinya) — test lain memakai TEST_DB_HOST/TEST_ADMIN_URL dari tests/test-env.ts.
+    const fixed = new RegExp(["(?:localhost|127\\.0\\.0\\.1)", ":", "5432"].join(""));
+    const allowed = new Set(["tests/test-env.ts", "tests/e2e/env.ts", "scripts/backup-restore-drill.sh", "scripts/verify-all.sh"]);
+    const offenders = [...walk(path.join(root, "tests")), ...walk(path.join(root, "scripts"))]
+      .filter((f) => /\.(ts|mjs|sh)$/.test(f) && !allowed.has(rel(f)) && fixed.test(readFileSync(f, "utf8")))
+      .map(rel);
+    expect(offenders).toEqual([]);
+    // dan definisi default itu sendiri tetap memberi jalan keluar lewat variabel lingkungan
+    expect(readFileSync(path.join(root, "tests/test-env.ts"), "utf8")).toMatch(/process\.env\.TEST_DB_HOST \?\? new URL\(TEST_ADMIN_URL\)\.host/);
+    expect(readFileSync(path.join(root, "tests/e2e/env.ts"), "utf8")).toMatch(/process\.env\.TEST_DB_HOST \?\? new URL\(E2E_ADMIN_URL\)\.host/);
+  });
+
   it("hanya modul kill-switch yang menulis tabel kill_switches (tidak ada jalur lain yang dapat 'menyalakan kembali')", () => {
     const writers = srcFiles.filter((f) => /\.(insert|update|delete)\(\s*killSwitches\s*\)/.test(readFileSync(f, "utf8"))).map(rel);
     expect(writers).toEqual(["src/modules/kill-switch/index.ts"]);
@@ -120,6 +134,15 @@ describe("@tahap-1 arsitektur & kontrol statis", () => {
     expect(ci).not.toMatch(/uses:\s*gitleaks\/gitleaks-action/);
     expect(ci).toMatch(/fetch-depth:\s*0/); // riwayat penuh agar seluruh commit dipindai
     expect(ci).toContain("test-tag-report.mjs --require-e2e"); // E2E tidak boleh diam-diam hilang
+  });
+
+  it("skrip pemasang gitleaks lokal memakai versi + checksum yang SAMA dengan CI (tidak boleh menyimpang)", () => {
+    const ci = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
+    const sh = readFileSync(path.join(root, "scripts/install-gitleaks.sh"), "utf8");
+    const pick = (t: string, re: RegExp) => re.exec(t)?.[1];
+    expect(pick(sh, /GITLEAKS_SHA256="([0-9a-f]{64})"/)).toBe(pick(ci, /GITLEAKS_SHA256:\s*"([0-9a-f]{64})"/));
+    expect(pick(sh, /GITLEAKS_VERSION="([\d.]+)"/)).toBe(pick(ci, /GITLEAKS_VERSION:\s*"([\d.]+)"/));
+    expect(sh).toContain("sha256sum --check --strict");
   });
 
   it(".env tidak ter-commit dan .gitignore mencakupnya", () => {

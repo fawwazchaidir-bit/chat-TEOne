@@ -3,6 +3,7 @@
 > ### Pembaruan 20 Nov 2026 — audit independen Gate 1 diterima
 > Audit independen ([`docs/gates/gate-1.md`](../gates/gate-1.md)) merekomendasikan **TAHAN**: **G1-A01 (tinggi)** penjaga CI dapat meloloskan kegagalan tingkat suite; **G1-A02 (tinggi)** bukti independen belum ada (lingkungan auditor tanpa PostgreSQL/`psql`);
 > G1-A03/A04/A05 (sedang). Tanggapan, perbaikan, dan bukti pembangun: [`docs/gates/gate-1-tindak-lanjut.md`](../gates/gate-1-tindak-lanjut.md) dan [ADR-0005](../adr/0005-penjaga-hasil-test-ci.md).
+> **Audit ulang (21 Nov 2026):** [`gates/gate-1-audit-ulang.md`](../gates/gate-1-audit-ulang.md) — G1-A01 **terverifikasi**; G1-A02 sebagian; **TAHAN untuk penerimaan penuh**; tanggapan di `gates/gate-1-tindak-lanjut.md`; daftar tindakan pemilik: [`gates/daftar-tindakan-pemilik.md`](../gates/daftar-tindakan-pemilik.md).
 > **CCP 1.9 sebelumnya dinilai "Terpenuhi" oleh pembangun — penilaian itu salah untuk jenis kegagalan G1-A01** (lihat §5, diperbarui). Keputusan gate tetap milik pemilik; **tidak ada tag/penerimaan**. Angka di bagian bawah adalah angka **pada saat laporan awal**; angka terkini: `@tahap-1` Vitest **143** (+19 test `ci-guard`).
 
 > Disusun oleh **pembangun**. Ini **bukan audit**: AGENTS.md §2.6 melarang pembangun mengaudit pekerjaannya sendiri. Kolom "evaluasi pembangun"

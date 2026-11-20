@@ -19,6 +19,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 
 const problems = [];
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g"); // kode warna terminal (dibangun saat runtime agar lolos aturan lint no-control-regex)
 const maxAgeArg = process.argv.find((a) => a.startsWith("--max-age-min="));
 const maxAgeMs = (maxAgeArg ? Number(maxAgeArg.split("=")[1]) : 180) * 60_000;
 /** Membaca JSON; berkas rusak = MASALAH (bukan crash dan bukan diam-diam dianggap "tidak ada"). */
@@ -62,7 +63,13 @@ if (vitest) for (const f of vitest.testResults ?? []) for (const t of f.assertio
   vTotal++;
   const name = `${(t.ancestorTitles ?? []).join(" ")} ${t.title}`;
   for (const tag of tagOf(name)) bump(tag, "vitest");
-  if (t.status === "failed") { vFail++; problems.push(`GAGAL: ${name}`); }
+  if (t.status === "failed") {
+    vFail++;
+    // Sertakan ALASAN singkat (baris pertama pesan kegagalan, tanpa ANSI/stack) agar kegagalan di CI dapat didiagnosis dari log
+    // tanpa mengunduh artefak. Hanya pesan assertion test (data sintetis); dipotong 300 karakter.
+    const why = String((t.failureMessages ?? [])[0] ?? "").replace(ANSI, "").split("\n").slice(0, 3).join(" ").replace(/\s+/g, " ").slice(0, 300);
+    problems.push(`GAGAL: ${name}${why ? ` — ${why}` : ""}`);
+  }
   else if (t.status !== "passed") { vSkip++; problems.push(`DILEWATI (${t.status}): ${name} — test tidak boleh di-skip/todo tanpa ADR`); }
 }
 

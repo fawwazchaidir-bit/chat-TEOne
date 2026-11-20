@@ -151,6 +151,12 @@ describe("@tahap-1 CI guard (G1-A01) — pelapor menolak hasil yang hilang, usan
     expect(r.code).toBe(1);
     expect(r.out).toMatch(/kosong/);
   });
+  it("kegagalan assertion mencantumkan ALASAN (baris pertama failureMessages) agar dapat didiagnosis dari log CI, tanpa kode warna ANSI", () => {
+    const r = report({ ".test-results/vitest-exit.json": exitJson(1), ".test-results/vitest.json": vitestJson({ success: false, numFailedTests: 1, testResults: [{ name: "/x/a.test.ts", status: "failed", assertionResults: [{ ancestorTitles: ["@tahap-1 fixture"], title: "salah", status: "failed", failureMessages: ["\u001b[31mAssertionError: expected 'pelanggan' to be 'history'\u001b[39m\n    at /x/a.test.ts:10:5"] }] }] }) });
+    expect(r.code).toBe(1);
+    expect(r.out).toMatch(/GAGAL: @tahap-1 fixture salah — AssertionError: expected 'pelanggan' to be 'history'/);
+    expect(r.out).not.toContain("\u001b");
+  });
   it("assertion gagal / dilewati → GAGAL (perilaku lama tetap)", () => {
     const failed = report({ ".test-results/vitest-exit.json": exitJson(1), ".test-results/vitest.json": vitestJson({ success: false, numFailedTests: 1, testResults: [{ name: "/x/a.test.ts", status: "failed", assertionResults: [{ ancestorTitles: ["@tahap-1 fixture"], title: "salah", status: "failed" }] }] }) });
     expect(failed.code).toBe(1);

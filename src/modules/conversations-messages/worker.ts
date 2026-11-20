@@ -14,7 +14,7 @@ import { reconcileUncertain } from "./reconcile";
 export type BatchResult = { claimed: number; processed: number; quarantined: number; failed: number };
 
 export async function processInboundBatch(opts: { limit?: number; leaseMs?: number; now?: Date } = {}): Promise<BatchResult> {
-  const events = await claimBatch(opts.limit ?? 20, opts.leaseMs ?? 60_000, opts.now ?? new Date());
+  const events = await claimBatch(opts.limit ?? 20, opts.leaseMs ?? 60_000, opts.now); // tanpa `now` eksplisit → jam database
   const r: BatchResult = { claimed: events.length, processed: 0, quarantined: 0, failed: 0 };
   for (const ev of events) {
     try {

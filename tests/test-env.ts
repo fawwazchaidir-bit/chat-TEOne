@@ -2,7 +2,12 @@
 // bukan rahasia nyata. Superuser dapat diganti lewat TEST_ADMIN_DATABASE_URL.
 export const TEST_DB = "teone_test";
 export const TEST_ADMIN_URL = process.env.TEST_ADMIN_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/postgres";
-const host = process.env.TEST_DB_HOST ?? "localhost:5432";
+/**
+ * Host:port server PostgreSQL uji. SATU-SATUNYA sumber (audit ulang Gate 1): semua test turunan memakai ini, bukan nilai tetap.
+ * Bila TEST_DB_HOST tidak diisi, diturunkan dari TEST_ADMIN_DATABASE_URL sehingga server di port nonstandar cukup dikonfigurasi lewat SATU variabel.
+ */
+export const TEST_DB_HOST = process.env.TEST_DB_HOST ?? new URL(TEST_ADMIN_URL).host;
+const host = TEST_DB_HOST;
 export const TEST_OWNER_URL = `postgres://teone_owner:owner_test_pw@${host}/${TEST_DB}`;
 export const TEST_APP_URL = `postgres://teone_app:app_test_pw@${host}/${TEST_DB}`;
 // Kunci uji acak-tetap (bukan rahasia): 32 byte base64.

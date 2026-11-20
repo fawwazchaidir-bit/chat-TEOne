@@ -5,7 +5,8 @@
 # Setiap langkah dicatat di .verify/NN-nama.log + kode keluar + durasi; ringkasan di .verify/ringkasan.md.
 # Status jujur per langkah:  LULUS · GAGAL · TIDAK DAPAT DIJALANKAN (prasyarat tidak ada — BUKAN lulus).
 # Skrip keluar 0 HANYA bila SEMUA langkah LULUS. Prasyarat: Node 22, PostgreSQL 16 (TEST_ADMIN_DATABASE_URL), psql/pg_dump/pg_restore, gpg,
-# Chromium (PW_CHROMIUM_PATH bila tidak memakai bawaan Playwright), gitleaks 8.24.3 (opsional di lokal; CI memakai biner ber-pin checksum).
+# Chromium (PW_CHROMIUM_PATH bila tidak memakai bawaan Playwright), gitleaks 8.24.3 (opsional di lokal; CI memakai biner ber-pin checksum;
+# pasang dengan `bash scripts/install-gitleaks.sh` lalu tambahkan folder keluarannya ke PATH).
 set -u
 cd "$(dirname "$0")/.."
 OUT=.verify
@@ -28,10 +29,12 @@ dirty=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 } > "$SUM"
 case "$(node -v)" in v22.*) ;; *) echo "PERINGATAN: Node $(node -v) ≠ 22 (versi CI). Hasil tidak setara CI." | tee -a "$OUT/peringatan.txt" ;; esac
 
-# PostgreSQL terjangkau? (tes integrasi & E2E membuat database uji lewat TEST_ADMIN_DATABASE_URL; default localhost:5432)
+# PostgreSQL terjangkau? Host:port diturunkan dari TEST_ADMIN_DATABASE_URL (sama dengan yang dipakai test), jadi server di port
+# nonstandar cukup dikonfigurasi lewat SATU variabel (audit ulang Gate 1). Default: localhost:5432.
 db_up() {
-  if command -v pg_isready >/dev/null 2>&1; then pg_isready -q -h "${PGHOST:-localhost}" -p "${PGPORT:-5432}" && return 0; return 1; fi
-  node -e 'require("net").connect(+(process.env.PGPORT||5432), process.env.PGHOST||"localhost").on("connect",()=>process.exit(0)).on("error",()=>process.exit(1))'
+  node -e '
+    const u = new URL(process.env.TEST_ADMIN_DATABASE_URL || "postgres://postgres@localhost:5432/postgres");
+    require("net").connect(+(u.port || 5432), u.hostname).on("connect", () => process.exit(0)).on("error", () => process.exit(1));'
 }
 
 # step "nama" "perintah" ["prasyarat-perintah" | @db ...]

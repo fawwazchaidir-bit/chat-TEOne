@@ -63,7 +63,8 @@ Dokumen: [`tahap-2/`](tahap-2/README.md).
 
 ## 7. Lingkungan uji terisolasi setara CI + verifikasi menyeluruh (G1-A02)
 Prasyarat (sama dengan job CI): **Node 22** (`.nvmrc`; Node 24 tidak setara CI), **PostgreSQL 16** yang dapat dijangkau `TEST_ADMIN_DATABASE_URL` (default `localhost:5432`, superuser — untuk DB uji sekali pakai),
-klien `postgresql-client-16` (`psql`, `pg_dump`, `pg_restore`), `gpg`, Chromium (`npx playwright install chromium`, atau `PW_CHROMIUM_PATH=/path/chrome`), dan (opsional lokal) `gitleaks` 8.24.3.
+klien `postgresql-client-16` (`psql`, `pg_dump`, `pg_restore`), `gpg`, Chromium (`npx playwright install chromium`, atau `PW_CHROMIUM_PATH=/path/chrome`), dan (opsional lokal) `gitleaks` 8.24.3 (`bash scripts/install-gitleaks.sh`, lalu tambahkan folder keluarannya ke `PATH`).
+**PostgreSQL di port nonstandar:** cukup set **satu** variabel — `TEST_ADMIN_DATABASE_URL=postgres://postgres:…@localhost:55432/postgres`; host:port test diturunkan darinya (`TEST_DB_HOST` hanya untuk menimpa). Dibuktikan: seluruh suite lulus pada klaster di port 55432; test statis melarang port tetap di `tests/`/`scripts/`.
 ```bash
 docker run -d --name teone-pg -e POSTGRES_PASSWORD=GANTI_SANDI_UJI -p 5432:5432 postgres:16     # DB uji sekali pakai
 export TEST_ADMIN_DATABASE_URL=postgres://postgres:GANTI_SANDI_UJI@localhost:5432/postgres

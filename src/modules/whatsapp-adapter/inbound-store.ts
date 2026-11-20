@@ -51,8 +51,12 @@ export async function storeEvents(events: NormalizedEvent[]): Promise<StoreResul
 
 export type ClaimedEvent = { id: number; kind: string; channelId: string | null; payload: NormalizedEvent; attempts: number };
 
-export async function claimBatch(limit = 20, leaseMs = 60_000, now: Date = new Date()): Promise<ClaimedEvent[]> {
-  const until = new Date(now.getTime() + leaseMs);
+export async function claimBatch(limit = 20, leaseMs = 60_000, nowOverride?: Date): Promise<ClaimedEvent[]> {
+  // Tanpa waktu eksplisit, SEMUA perbandingan memakai jam DATABASE (`run_after` & `locked_until` juga ditulis oleh jam database).
+  // Jam aplikasi hanya presisi milidetik dan bisa berbeda dari jam database (beberapa instans/host) — perbandingan lintas jam dapat
+  // melewatkan event yang baru disimpan. `nowOverride` hanya untuk simulasi waktu di test.
+  const now = nowOverride ? sql`${nowOverride}` : sql`now()`;
+  const until = nowOverride ? sql`${new Date(nowOverride.getTime() + leaseMs)}` : sql`now() + (${leaseMs} * interval '1 millisecond')`;
   const res = await getDb().execute(sql`
     UPDATE inbound_events SET status = 'processing', locked_until = ${until}, attempts = attempts + 1
     WHERE id IN (

@@ -10,13 +10,13 @@ import { purgeRawPayloads } from "@/modules/whatsapp-adapter";
 import { runMaintenance } from "@/modules/conversations-messages";
 import { runMigrations } from "../../scripts/migrate";
 import { ownerQuery, resetDb } from "../helpers/db";
-import { TEST_ADMIN_URL } from "../test-env";
+import { TEST_ADMIN_URL, TEST_DB_HOST } from "../test-env";
 import { CUSTOMER, envelope, messagesChange, postWebhook, textMsg, world } from "../helpers/whatsapp";
 
 afterAll(closeDb);
 
 const SNAP = "teone_snap";
-const url = (user: string, pw: string) => `postgres://${user}:${pw}@localhost:5432/${SNAP}`;
+const url = (user: string, pw: string) => `postgres://${user}:${pw}@${TEST_DB_HOST}/${SNAP}`; // host:port dari konfigurasi uji (bukan nilai tetap)
 const TAHAP1_TABLES = ["org_settings", "users", "roles", "user_roles", "role_grants", "user_grants", "sessions", "recovery_codes", "login_attempts", "teams", "team_members", "channels", "team_channels", "audit_log", "feature_flag_overrides", "kill_switches"];
 const TAHAP2_TABLES = ["contacts", "contact_identities", "channel_connections", "inbound_events", "conversations", "messages", "message_status_events", "lead_sources", "media", "test_recipients"];
 

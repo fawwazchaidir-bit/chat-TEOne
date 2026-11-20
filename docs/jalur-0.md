@@ -1,0 +1,26 @@
+# Jalur 0 — daftar kerja prasyarat (DRAF)
+
+> **DRAF disusun PEMBANGUN** atas saran audit ulang Gate 1 (G1-A04), dari `AGENTS.md`, `docs/decisions.md`, prompt tahap, dan audit. **Bukan data resmi dari pemilik.**
+> Kolom **PIC**, **Target**, dan **Bukti** yang kosong berarti **belum ditetapkan / belum ada** — **tidak diisi dengan karangan**. Pemilik wajib memverifikasi, melengkapi, dan menjadi sumber kebenaran berkas ini.
+> Status memakai: **Belum tersedia** · **Belum diputuskan** · **Belum terverifikasi** · **Selesai (bukti: …)**. Tidak ada butir yang berstatus Selesai.
+> Nomor **J0-01…J0-05** dirujuk dokumen proyek; butir **tanpa nomor** adalah usulan tambahan audit dan belum bernomor resmi.
+
+Jadwal rujukan (`decisions.md`): Jalur 0 + Tahap 1 = 18 Nov – 1 Des 2026 · Tahap 2 = 2 – 22 Des 2026 · D-02/D-03 dibutuhkan ±1 Des 2026 · D-02 cadangan BSP bila belum disetujui per 15 Des 2026.
+
+| No | Butir | Terkait | Status | PIC | Target | Bukti yang dibutuhkan | Keputusan / catatan |
+|---|---|---|---|---|---|---|---|
+| J0-01 | **Akses Meta milik TE One**: Meta Business, aplikasi Meta **baru milik TE One** (bukan Halo AI), WABA uji, token system user, App Secret, App ID | D-02; Tahap 2 | **Belum tersedia** — dan jalur (Tech Provider sendiri vs BSP resmi) **belum diputuskan** | _belum ditetapkan_ | ±1 Des 2026 (keputusan D-02) | Tangkapan layar disamarkan (tanpa token/secret); daftar admin; status pengajuan Tech Provider bila dipilih; `npm run meta:check` bersih dengan **META ASLI** | D-02: **Terbuka** |
+| J0-02 | **Nomor uji coexistence** (usulan: Kemitraan, **tidak dipublikasikan** sampai GO) + daftar peserta uji (nomor milik tim sendiri) | D-03; Tahap 2 | **Belum terverifikasi** (kelayakan coexistence nomor: versi WhatsApp Business App, negara, status Meta Business) | _belum ditetapkan_ | ±1 Des 2026 | Hasil cek kelayakan; daftar penerima uji; konfirmasi nomor belum dipublikasikan | D-03: **Terbuka** |
+| J0-03 | **Server staging TE One**: server **terpisah** dari VPS HRIS/keuangan, HTTPS publik, subdomain khusus | Tahap 1–2; webhook Meta butuh URL publik | **Belum tersedia** | _belum ditetapkan_ | _belum ditetapkan_ | Daftar verifikasi `docs/staging.md` §6 terisi (HTTPS, cookie `__Host-`, header, port, backup, G1 di staging, image Docker ter-build) | Domain final: **belum diputuskan** (`deploy/Caddyfile` memakai placeholder) |
+| J0-04 | **Teknologi nomor Hotline (…0124)**: diduga WAHA ("WhatsApp On-premise" + menu "WAHA to WABA Migration" di Halo AI) | Tahap 8–9; AGENTS.md §1 | **Belum terverifikasi** — **jangan menyentuh nomornya** untuk memeriksa | _belum ditetapkan_ | sebelum Tahap 8 | Konfirmasi tertulis teknologi nomor (mis. dari vendor/administrator akun), bukan uji coba pada nomor | — |
+| J0-05 | **Inventaris fitur harian Halo AI** yang dipakai tim | D-24; Tahap 7 | **Belum dikerjakan** | _belum ditetapkan_ | sebelum Tahap 7 | Daftar fitur + frekuensi pemakaian + penilaian boleh hilang/tidak | D-24: **Terbuka** |
+| — | **DNS + TLS + isolasi staging**: subdomain, sertifikat, rahasia & database terpisah per lingkungan, firewall (hanya 80/443; 22 dari IP admin), PostgreSQL tidak terbuka, pita STAGING | audit ulang G1-A05; `docs/staging.md` | **Belum tersedia** | _belum ditetapkan_ | _belum ditetapkan_ | Pemindaian port dari luar; tangkapan layar cookie/header; log | — |
+| — | **Backup & restore di server**: backup terenkripsi, kunci terpisah dari DB/server, **salinan di lokasi/akun berbeda**, uji restore ke lingkungan terisolasi (DB **dan media**), tanpa menjalankan worker/pengiriman | G1-A05; D-12; T1-F09; T2-F11 | **Belum tersedia** (drill **lokal** lulus; server belum ada) | PIC teknis (pembuat) dan **PIC pemeriksa terpisah**: _belum ditetapkan_ | sebelum data operasional/pelanggan dipakai | Waktu, ukuran, lokasi salinan, checksum, hasil restore, durasi; prosedur kehilangan server/kunci | **D-12 (RPO/RTO): Terbuka** — usulan RPO ≤ 1 jam, RTO ≤ 4 jam kerja = target untuk dinilai, **bukan prestasi**; backup harian saja **tidak** menjamin RPO 1 jam |
+| — | **Retensi & UU PDP** | D-18; T1-F06; T2-F06 | **Belum diputuskan** | pemilik + penasihat hukum | sebelum data pelanggan masuk | Keputusan tertulis: dasar, masa retensi, penghapusan (termasuk backup), pengecualian, penanggung jawab | angka 30/90 hari, 2 tahun, 14 hari kerja = **usulan**, bukan ketentuan |
+| — | **Lingkungan audit/uji independen setara CI**: Node 22, PostgreSQL 16, klien PostgreSQL (`psql`, `pg_dump`, `pg_restore`), `gpg`, Chromium yang boleh membuat socket, gitleaks | G1-A02; audit ulang | **Belum tersedia** di sisi auditor | pemilik/auditor | sebelum audit ulang berikutnya | Hasil `bash scripts/verify-all.sh` (semua langkah **LULUS**, tidak ada "TIDAK DAPAT DIJALANKAN") | Panduan: `docs/pengembangan.md` §7 |
+
+## Cara memperbarui berkas ini
+1. Ubah **Status** hanya bila ada **bukti** (tautan/berkas disamarkan) — bukan klaim lisan.
+2. Isi **PIC** dan **Target** dengan nama/tanggal yang benar-benar disepakati.
+3. Catat keputusan di `docs/decisions.md` (kolom *Keputusan akhir* dan *Oleh / tanggal*) — berkas ini hanya merujuk.
+4. Jangan menaruh token, secret, kunci, atau data pelanggan di sini.

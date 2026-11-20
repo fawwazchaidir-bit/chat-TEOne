@@ -26,7 +26,20 @@ afterAll(async () => { process.env.META_GRAPH_BASE_URL = prevBase; resetEnvCache
 beforeEach(async () => { await resetDb(); mock.reset(); });
 
 const q = async (sql: string, p: unknown[] = []) => (await ownerQuery(sql, p)).rows;
-const drain = async () => { for (;;) { const r = await processInboundBatch({ limit: 50 }); if (!r.claimed) return; } };
+/**
+ * Memproses antrean sampai kosong dan MEMASTIKAN tidak ada event tersisa (pending/processing/failed). Kegagalan senyap — event tak
+ * terklaim atau gagal diproses — menjadi kegagalan test yang jelas, bukan asersi hilir yang membingungkan.
+ */
+const drain = async () => {
+  for (let tries = 0; tries < 20; tries++) {
+    for (;;) { const r = await processInboundBatch({ limit: 50 }); if (!r.claimed) break; }
+    if ((await q("select count(*)::int n from inbound_events where status in ('pending','processing')"))[0].n === 0) break;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  expect(await q("select status, event_key, last_error from inbound_events where status in ('pending','processing','failed')"), "event tersisa di antrean setelah drain").toEqual([]);
+};
+/** Webhook yang SAH harus diterima (200); penolakan senyap (mis. flag/DB) tidak boleh tersamar sebagai asersi hilir. */
+const post = async (body: unknown) => { const r = await postWebhook(body); expect(r.status, `webhook ditolak: ${r.text}`).toBe(200); return r; };
 const live = (m: Record<string, unknown>[], contacts?: Record<string, unknown>[]) => envelope([messagesChange({ messages: m, ...(contacts ? { contacts } : {}) })]);
 const spy = () => { const seen: string[] = []; const off = onCustomerMessage((e) => { seen.push(e.messageId); }); return { seen, off }; };
 const hist = (msgs: Record<string, unknown>[]) => envelope([historyChange([{ id: CUSTOMER, messages: msgs.map((m) => ({ ...m, history_context: { status: "READ" } })) }])]);
@@ -65,7 +78,7 @@ describe("@tahap-2 G2-A01 identitas: hanya digabung bila terbukti dari payload",
 
   it("kasus audit end-to-end: from=A, contacts hanya B → kontak A tanpa identitas B; B tidak tersimpan di mana pun", async () => {
     await world();
-    await postWebhook(live([rawMsg("wamid.uji.a01a", A, secAgo(5))], [{ wa_id: B, user_id: B, profile: { name: "Orang B" } }]));
+    await post(live([rawMsg("wamid.uji.a01a", A, secAgo(5))], [{ wa_id: B, user_id: B, profile: { name: "Orang B" } }]));
     await drain();
     expect(await q("select identity_type, identity_value from contact_identities order by identity_type")).toEqual([{ identity_type: "wa_id", identity_value: A }]);
     expect((await q("select display_name from contacts"))[0].display_name).toBeNull(); // nama dari entri B TIDAK dipakai
@@ -75,7 +88,7 @@ describe("@tahap-2 G2-A01 identitas: hanya digabung bila terbukti dari payload",
   it("multi-kontak dalam satu payload: tiap pesan hanya pada kontaknya sendiri (identitas & nama tidak tertukar)", async () => {
     const w = await world();
     await ownerQuery("insert into test_recipients(label, identity_value) values ('B', $1), ('C', $2)", [B, C]);
-    await postWebhook(live(
+    await post(live(
       [rawMsg("wamid.uji.a01b1", A, secAgo(9)), { ...rawMsg("wamid.uji.a01b2", B, secAgo(8)), user_id: "UB" }, rawMsg("wamid.uji.a01b3", C, secAgo(7))],
       [{ wa_id: C, profile: { name: "Orang C" } }, { wa_id: B, user_id: "UB", profile: { name: "Orang B" } }, { wa_id: A, profile: { name: "Orang A" } }],
     ));
@@ -91,13 +104,13 @@ describe("@tahap-2 G2-A01 identitas: hanya digabung bila terbukti dari payload",
 
   it("identitas bentrok: wa_id → kontak X, user_id → kontak Y → KARANTINA 'identitas_bentrok'; tidak ada pesan/identitas baru; X dan Y utuh; payload dipertahankan; diaudit", async () => {
     const w = await world();
-    await postWebhook(live([rawMsg("wamid.uji.x", A, secAgo(30))]));
+    await post(live([rawMsg("wamid.uji.x", A, secAgo(30))]));
     await drain(); // kontak X (wa_id A)
     const [y] = await q("insert into contacts(display_name) values ('Y') returning id");
     await ownerQuery("insert into contact_identities(contact_id, provider, identity_type, identity_value) values ($1,'whatsapp','user_id','UY')", [y.id]);
     const before = await q("select count(*)::int n from messages");
     const s = spy();
-    await postWebhook(live([{ ...rawMsg("wamid.uji.bentrok", A, secAgo(5)), user_id: "UY" }]));
+    await post(live([{ ...rawMsg("wamid.uji.bentrok", A, secAgo(5)), user_id: "UY" }]));
     await drain();
     s.off();
     const ev = (await q("select status, quarantine_reason, payload is not null as has_payload from inbound_events where event_key = 'msg:wamid.uji.bentrok'"))[0];
@@ -113,15 +126,15 @@ describe("@tahap-2 G2-A01 identitas: hanya digabung bila terbukti dari payload",
 
   it("user_id sudah milik kontak yang sama dengan wa_id → ditautkan normal (bukan konflik); pengirim berbeda channel = kontak sama, percakapan berbeda", async () => {
     const w = await world();
-    await postWebhook(live([{ ...rawMsg("wamid.uji.u1", A, secAgo(20)), user_id: "UA" }]));
-    await postWebhook(live([{ ...rawMsg("wamid.uji.u2", A, secAgo(10)), user_id: "UA" }]));
+    await post(live([{ ...rawMsg("wamid.uji.u1", A, secAgo(20)), user_id: "UA" }]));
+    await post(live([{ ...rawMsg("wamid.uji.u2", A, secAgo(10)), user_id: "UA" }]));
     await drain();
     expect((await q("select count(*)::int n from contacts"))[0].n).toBe(1);
     expect((await q("select count(*)::int n from contact_identities"))[0].n).toBe(2);
     // channel kedua dengan kasus audit (contacts hanya B) → tetap kontak A yang sama, tanpa B
     const ch2 = await makeChannel("Hotline — contoh", "Hotline");
     await ownerQuery("insert into channel_connections(channel_id, waba_id, phone_number_id) values ($1,'100000000000002','200000000000002')", [ch2.id]);
-    await postWebhook(envelope([messagesChange({ phoneId: "200000000000002", messages: [rawMsg("wamid.uji.u3", A, secAgo(5))], contacts: [{ wa_id: B, user_id: B }] })], "100000000000002"));
+    await post(envelope([messagesChange({ phoneId: "200000000000002", messages: [rawMsg("wamid.uji.u3", A, secAgo(5))], contacts: [{ wa_id: B, user_id: B }] })], "100000000000002"));
     await drain();
     expect((await q("select count(*)::int n from contacts"))[0].n).toBe(1);
     expect((await q("select count(*)::int n from conversations"))[0].n).toBe(2);
@@ -144,7 +157,7 @@ describe("@tahap-2 G2-A01 identitas: hanya digabung bila terbukti dari payload",
 
   it("pemulihan terkontrol: detachIdentity memindahkan SATU identitas ke kontak baru; menolak identitas tunggal; percakapan lama tetap pada kontak asal", async () => {
     await world();
-    await postWebhook(live([{ ...rawMsg("wamid.uji.rec", A, secAgo(5)), user_id: "UKELIRU" }]));
+    await post(live([{ ...rawMsg("wamid.uji.rec", A, secAgo(5)), user_id: "UKELIRU" }]));
     await drain();
     const [{ id: wrongId }] = await q("select id from contact_identities where identity_type = 'user_id'");
     const out = await getDb().transaction((tx) => detachIdentity(tx, wrongId));
@@ -163,7 +176,7 @@ describe("@tahap-2 G2-A02 waktu pesan: kedatangan ≠ waktu pesan", () => {
     it(`${nama} → pesan tersimpan, TETAPI dasar jendela tidak diperbarui, kirim bebas diblokir, tidak memicu otomatisasi`, async () => {
       const { w, ui } = await ready();
       const s = spy();
-      await postWebhook(live([rawMsg("wamid.uji.ts", A, ts)]));
+      await post(live([rawMsg("wamid.uji.ts", A, ts)]));
       await drain();
       s.off();
       expect((await q("select count(*)::int n from messages"))[0].n).toBe(1);
@@ -182,13 +195,13 @@ describe("@tahap-2 G2-A02 waktu pesan: kedatangan ≠ waktu pesan", () => {
   it("pengiriman ulang tertunda >24 jam (cap waktu lama yang sah): tersimpan, jendela TETAP tertutup, tidak memicu otomatisasi", async () => {
     const { w, ui } = await ready();
     const s = spy();
-    await postWebhook(live([rawMsg("wamid.uji.lama24", A, secAgo(30 * 3600))]));
+    await post(live([rawMsg("wamid.uji.lama24", A, secAgo(30 * 3600))]));
     await drain();
     s.off();
     expect((await send(ui, w.channel.id)).body.error.details.reason).toBe("tertutup");
     expect(s.seen).toEqual([]);
     // pesan segar berikutnya membuka jendela
-    await postWebhook(live([rawMsg("wamid.uji.segar", A, secAgo(20))]));
+    await post(live([rawMsg("wamid.uji.segar", A, secAgo(20))]));
     await drain();
     expect((await send(ui, w.channel.id)).status).toBe(200);
   });
@@ -196,15 +209,15 @@ describe("@tahap-2 G2-A02 waktu pesan: kedatangan ≠ waktu pesan", () => {
   it("pesan tanpa bukti waktu TIDAK memperpanjang jendela yang sudah ada", async () => {
     await world();
     const old = secAgo(23 * 3600);
-    await postWebhook(live([rawMsg("wamid.uji.p1", A, old)]));
-    await postWebhook(live([rawMsg("wamid.uji.p2", A, undefined)])); // tak terbukti
+    await post(live([rawMsg("wamid.uji.p1", A, old)]));
+    await post(live([rawMsg("wamid.uji.p2", A, undefined)])); // tak terbukti
     await drain();
     expect(Math.floor(new Date((await q("select last_customer_message_at t from conversations"))[0].t).getTime() / 1000)).toBe(Number(old));
   });
 
   it("jendela DIPERIKSA ULANG tepat sebelum kirim: tertutup saat unggah media berjalan → gagal PASTI (jendela_layanan), tidak ada panggilan kirim", async () => {
     const { w, ui } = await ready();
-    await postWebhook(live([rawMsg("wamid.uji.jw", A, secAgo(86400 - 60))])); // tersisa ±60 dtk
+    await post(live([rawMsg("wamid.uji.jw", A, secAgo(86400 - 60))])); // tersisa ±60 dtk
     await drain();
     const release = mock.hold("upload");
     const pending = send(ui, w.channel.id, { kind: "image" });
@@ -225,12 +238,12 @@ describe("@tahap-2 G2-A03 history↔langsung: kelayakan dari bukti waktu, bukan 
     await world();
     const s = spy();
     const ts = secAgo(60);
-    await postWebhook(hist([rawMsg("wamid.uji.hb", A, ts)]));
+    await post(hist([rawMsg("wamid.uji.hb", A, ts)]));
     await drain();
     expect((await q("select last_customer_message_at from conversations"))[0].last_customer_message_at).toBeNull(); // history: tidak membuka jendela
-    await postWebhook(live([rawMsg("wamid.uji.hb", A, ts)]));
+    await post(live([rawMsg("wamid.uji.hb", A, ts)]));
     await drain();
-    await postWebhook(live([rawMsg("wamid.uji.hb", A, ts)])); // duplikat langsung
+    await post(live([rawMsg("wamid.uji.hb", A, ts)])); // duplikat langsung
     await drain();
     s.off();
     expect((await q("select source, is_history from messages"))).toEqual([{ source: "pelanggan", is_history: false }]);
@@ -242,9 +255,9 @@ describe("@tahap-2 G2-A03 history↔langsung: kelayakan dari bukti waktu, bukan 
     const { w, ui } = await ready();
     const s = spy();
     const ts = secAgo(3 * 86400);
-    await postWebhook(hist([rawMsg("wamid.uji.hl", A, ts)]));
+    await post(hist([rawMsg("wamid.uji.hl", A, ts)]));
     await drain();
-    await postWebhook(live([rawMsg("wamid.uji.hl", A, ts)]));
+    await post(live([rawMsg("wamid.uji.hl", A, ts)]));
     await drain();
     s.off();
     expect((await q("select source, is_history from messages"))[0]).toEqual({ source: "pelanggan", is_history: false });
@@ -255,9 +268,9 @@ describe("@tahap-2 G2-A03 history↔langsung: kelayakan dari bukti waktu, bukan 
   it("history → langsung TANPA cap waktu: tidak memicu hook dan tidak membuka jendela", async () => {
     await world();
     const s = spy();
-    await postWebhook(hist([rawMsg("wamid.uji.hn", A, secAgo(30))]));
+    await post(hist([rawMsg("wamid.uji.hn", A, secAgo(30))]));
     await drain();
-    await postWebhook(live([rawMsg("wamid.uji.hn", A, undefined)]));
+    await post(live([rawMsg("wamid.uji.hn", A, undefined)]));
     await drain();
     s.off();
     expect(s.seen).toEqual([]);
@@ -267,9 +280,9 @@ describe("@tahap-2 G2-A03 history↔langsung: kelayakan dari bukti waktu, bukan 
   it("langsung → history: salinan history tidak mengubah apa pun dan tidak memicu hook kedua", async () => {
     await world();
     const s = spy();
-    await postWebhook(live([rawMsg("wamid.uji.lh", A, secAgo(30))]));
+    await post(live([rawMsg("wamid.uji.lh", A, secAgo(30))]));
     await drain();
-    await postWebhook(hist([rawMsg("wamid.uji.lh", A, secAgo(30))]));
+    await post(hist([rawMsg("wamid.uji.lh", A, secAgo(30))]));
     await drain();
     s.off();
     expect(s.seen).toHaveLength(1);
@@ -279,7 +292,7 @@ describe("@tahap-2 G2-A03 history↔langsung: kelayakan dari bukti waktu, bukan 
   it(`pesan langsung yang SANGAT terlambat (> ${AUTOMATION_MAX_AGE_MS / 60000} menit setelah dibuat): tersimpan dan jendela terbuka, tetapi TIDAK layak otomatisasi`, async () => {
     const { w, ui } = await ready();
     const s = spy();
-    await postWebhook(live([rawMsg("wamid.uji.terlambat", A, secAgo(3600))]));
+    await post(live([rawMsg("wamid.uji.terlambat", A, secAgo(3600))]));
     await drain();
     s.off();
     expect(s.seen).toEqual([]);
@@ -290,9 +303,9 @@ describe("@tahap-2 G2-A03 history↔langsung: kelayakan dari bukti waktu, bukan 
     await world();
     const s = spy();
     const raw = live([rawMsg("wamid.uji.restart", A, secAgo(20))]);
-    await postWebhook(raw);
+    await post(raw);
     await drain();
-    await postWebhook(raw); // Meta mengirim ulang setelah restart
+    await post(raw); // Meta mengirim ulang setelah restart
     await ownerQuery("update inbound_events set status = 'pending', processed_at = null"); // simulasi: penanda hilang saat crash
     await drain();
     s.off();
@@ -401,7 +414,7 @@ describe("@tahap-2 G2-A05 bukti koneksi: pemetaan ≠ langganan aplikasi ≠ eve
   it("event benar-benar diterima dicatat sebagai bukti terpisah; mengubah pemetaan menghapus bukti lama", async () => {
     const { w, ui } = await verified();
     expect((await view(ui, w.channel.id)).readiness.lastEventAt).toBeNull();
-    await postWebhook(live([rawMsg("wamid.uji.ev", A, secAgo(5))]));
+    await post(live([rawMsg("wamid.uji.ev", A, secAgo(5))]));
     await drain();
     expect((await view(ui, w.channel.id)).readiness.lastEventAt).not.toBeNull();
     await ui.put(`/api/v1/channels/${w.channel.id}/connection`, { wabaId: WABA, phoneNumberId: "200000000000099" });
@@ -451,7 +464,7 @@ describe("@tahap-2 G2-A06 pesan keluar `diproses` yang tertahan (proses mati) �
 
   it("crash SESUDAH Meta menerima: status webhook membawa kunci idempotensi → tertaut; juga bila penyapu sudah menandai belum_pasti lebih dulu", async () => {
     const a = await stuck(3600, "kunci-sesudah-1");
-    await postWebhook(envelope([messagesChange({ statuses: [statusObj("wamid.uji.sesudah1", "sent", A, { biz_opaque_callback_data: "kunci-sesudah-1" })] })]));
+    await post(envelope([messagesChange({ statuses: [statusObj("wamid.uji.sesudah1", "sent", A, { biz_opaque_callback_data: "kunci-sesudah-1" })] })]));
     await drain();
     expect((await q("select status, provider_message_id from messages where id = $1", [a.id]))[0]).toMatchObject({ status: "terkirim", provider_message_id: "wamid.uji.sesudah1" });
     expect(await expireStaleProcessing()).toBe(0); // sudah bukan 'diproses'
@@ -459,7 +472,7 @@ describe("@tahap-2 G2-A06 pesan keluar `diproses` yang tertahan (proses mati) �
     await resetDb();
     const b = await stuck(3600, "kunci-sesudah-2");
     expect(await expireStaleProcessing()).toBe(1);
-    await postWebhook(envelope([messagesChange({ statuses: [statusObj("wamid.uji.sesudah2", "delivered", A, { biz_opaque_callback_data: "kunci-sesudah-2" })] })]));
+    await post(envelope([messagesChange({ statuses: [statusObj("wamid.uji.sesudah2", "delivered", A, { biz_opaque_callback_data: "kunci-sesudah-2" })] })]));
     await drain();
     expect((await q("select status, provider_message_id, error_category from messages where id = $1", [b.id]))[0]).toEqual({ status: "diterima", provider_message_id: "wamid.uji.sesudah2", error_category: null });
   });
@@ -478,7 +491,7 @@ describe("@tahap-2 G2-A06 pesan keluar `diproses` yang tertahan (proses mati) �
 
   it("pengirim yang LAMBAT (bukan mati) menyelesaikan SETELAH disapu: hasil pasti tidak hilang (diterima_api + ID), tetap SATU panggilan", async () => {
     const { w, ui } = await ready();
-    await postWebhook(live([rawMsg("wamid.uji.lambat", A, secAgo(30))]));
+    await post(live([rawMsg("wamid.uji.lambat", A, secAgo(30))]));
     await drain();
     const release = mock.hold("send");
     const pending = send(ui, w.channel.id);
