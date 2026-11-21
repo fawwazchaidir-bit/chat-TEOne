@@ -16,7 +16,7 @@
 - Repository: `https://github.com/fawwazchaidir-bit/chat-TEOne` · branch kerja sesi: `claude/lucid-carson-blf4x0` (≠ `tahap-3-inbox` AGENTS §2; ketentuan sesi — lihat T1-F05).
 - Commit awal Tahap 3: `c22a48a` (akhir Tahap 2/perbaikan audit Gate 1–2) → commit isi: `ecf3bec` → commit laporan (lihat `git log`). 91 berkas, ±12,6 rb baris ditambah.
 - Tag yang **diusulkan** (tidak dibuat): `tahap-3-diterima` — hanya setelah keputusan Gate 3 tercatat.
-- CI GitHub pada commit final: lihat §8 (dicatat setelah run selesai).
+- CI GitHub: run #14 pada `c3a29b1` **hijau penuh** (lihat §8.1); commit setelahnya hanya mengubah dokumen.
 
 ## 3. Status fitur (istilah AGENTS.md §4)
 | Fitur | Status |
@@ -122,9 +122,9 @@ Golden E2E **G1–G3, G5 (aktivasi), G8 berjalan** (G1/G2 tidak diubah; flag Tah
 |---|---|---|
 | #12 | `ecf3bec` | *cancelled* — digantikan push berikutnya (konkurensi CI); bukan kegagalan |
 | #13 | `e4c7245` | **Lint · Typecheck · Guard · Secret scan (gitleaks): sukses** · **Build · Test regresi · E2E: sukses** · **Drill backup & restore: GAGAL** — `GAGAL: berkas rusak tidak ditolak oleh checksum (rc=0)` |
-| (berikutnya) | commit perbaikan drill | *(dicatat setelah run selesai — tidak diisi sebelum ada bukti)* |
+| [#14](https://github.com/fawwazchaidir-bit/chat-TEOne/actions/runs/44903089018) | `c3a29b1` (perbaikan drill; kode aplikasi sama dengan `e4c7245`) | **Hijau penuh — 3 job sukses:** Lint · Typecheck · Guard · Secret scan (termasuk gitleaks seluruh riwayat); Build · Test regresi (migrasi pada DB kosong) · Golden E2E · penjaga baseline; **Drill backup & restore nyata** (lulus setelah perbaikan) |
 
-Kegagalan #13 **bukan** disebabkan kode Tahap 3 (drill lulus di lokal 4×; langkah lain hijau). Penyebabnya kelemahan laten skrip drill sejak Tahap 1 — lihat **T3-F14** (§9.B). Hasil `e4c7245` tidak boleh disebut "CI hijau penuh".
+Kegagalan #13 **bukan** disebabkan kode Tahap 3 (drill lulus di lokal 4×; langkah lain hijau). Penyebabnya kelemahan laten skrip drill sejak Tahap 1 — lihat **T3-F14** (§9.B). Hasil `e4c7245` tidak boleh disebut "CI hijau penuh"; bukti CI hijau penuh untuk Tahap 3 adalah run #14 pada `c3a29b1`. Ini bukti CI untuk **kode simulasi**, bukan bukti Meta nyata. Run harus diulang pada commit yang diaudit.
 
 ## 9. Temuan
 ### A. Temuan terbuka / risiko (juga di `docs/temuan-dan-risiko.md`)
@@ -155,7 +155,7 @@ Kegagalan #13 **bukan** disebabkan kode Tahap 3 (drill lulus di lokal 4×; langk
 | Tata letak 4 kolom menyisakan ±240 px untuk percakapan di laptop; `scrollIntoView` dapat menggeser halaman | Tangkapan layar | Navigasi horizontal ≤ 1500 px; gulir kontainer; layar sempit menggulir ke percakapan |
 | Halaman `/belum-tersedia/inbox` mengaku "belum dibuat" saat flag menyala; label kill switch masih "Tahap 1" | Tinjauan | Dialihkan ke `/inbox` bila flag menyala; label diperbarui |
 | Penjaga struktural lama melarang `inbox`; asumsi "audit_log di-reset" salah | Regresi | Disesuaikan sempit (§6); filter asersi per objek |
-| **T3-F14 — Uji "berkas rusak" pada drill backup bisa merah palsu (peluang 1/256 per run)**: langkah menimpa byte ke-100 dengan konstanta `X`; ciphertext gpg acak, jadi bila byte aslinya sudah `X` berkas tidak berubah → restore lolos → `rc=0` | **CI run #13** (log job drill) — mekanisme dibuktikan secara deterministik; bahwa byte itu `X` pada run tersebut tidak dapat dibuktikan dari log, tetapi tidak ada penjelasan lain untuk `rc=0` pada kode yang ada | Perusakan kini membalik semua bit byte itu (XOR 0xFF) **dan** drill gagal bila berkas tidak berubah; diuji pada nilai tepi (0, 88, 255, …) dan 4× run lokal lulus. Diverifikasi pada run CI berikutnya |
+| **T3-F14 — Uji "berkas rusak" pada drill backup bisa merah palsu (peluang 1/256 per run)**: langkah menimpa byte ke-100 dengan konstanta `X`; ciphertext gpg acak, jadi bila byte aslinya sudah `X` berkas tidak berubah → restore lolos → `rc=0` | **CI run #13** (log job drill) — mekanisme dibuktikan secara deterministik; bahwa byte itu `X` pada run tersebut tidak dapat dibuktikan dari log, tetapi tidak ada penjelasan lain untuk `rc=0` pada kode yang ada | Perusakan kini membalik semua bit byte itu (XOR 0xFF) **dan** drill gagal bila berkas tidak berubah; diuji pada nilai tepi (0, 88, 255, …) dan 4× run lokal lulus. **Terverifikasi:** drill hijau pada CI run #14 |
 
 ## 10. Asumsi yang dipakai (rujuk `docs/decisions.md`)
 - **ASUMSI (D-05):** pesan keluar baru dari HP → AI Off pada chat itu; echo lama/duplikat/tanpa waktu tidak membalik.
