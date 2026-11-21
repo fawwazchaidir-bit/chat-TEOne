@@ -12,6 +12,7 @@ import { getEnv } from "@/lib/env";
 import { forbidden, notFound } from "@/lib/errors";
 import { downloadMedia, getMediaInfo } from "@/modules/whatsapp-adapter";
 import type { Ctx } from "@/modules/shared/context";
+import { canAccessConversation } from "./access";
 
 export const MEDIA_LIMITS = { image: 5 * 1024 * 1024, document: 16 * 1024 * 1024 } as const;
 export const ALLOWED_MIME = { image: ["image/jpeg", "image/png", "image/webp"], document: ["application/pdf"] } as const;
@@ -93,11 +94,13 @@ export async function fetchInboundMedia(mediaId: string): Promise<FetchOutcome> 
 
 /** Membaca media untuk pengguna — SELALU memeriksa izin pada channel pesan. Di luar cakupan → 404 (keberadaan tidak dibocorkan). */
 export async function readMediaForUser(ctx: Ctx, mediaId: string): Promise<{ bytes: Buffer; mime: string; kind: "image" | "document" }> {
-  const [row] = await getDb().select({ m: media, channelId: messages.channelId }).from(media).innerJoin(messages, eq(messages.id, media.messageId)).where(eq(media.id, mediaId));
+  const [row] = await getDb().select({ m: media, channelId: messages.channelId, conversationId: messages.conversationId }).from(media).innerJoin(messages, eq(messages.id, media.messageId)).where(eq(media.id, mediaId));
   if (!row) throw notFound("Media tidak ditemukan.");
   const ch = row.channelId;
+  // Akses media MENGIKUTI akses percakapan (Tahap 3): izin channel ATAU percakapan yang dialihkan ke tim pengguna — hanya percakapan itu.
   if (!ctx.perms.canAny("integration.test") && !ctx.perms.canAny("chat.view")) throw forbidden();
-  if (!ctx.perms.can("integration.test", ch) && !ctx.perms.can("chat.view", ch)) throw notFound("Media tidak ditemukan.");
+  const viaTool = ctx.perms.can("integration.test", ch);
+  if (!viaTool && !(await canAccessConversation(ctx, row.conversationId, "view"))) throw notFound("Media tidak ditemukan.");
   if (row.m.status !== "tersimpan" || !row.m.storagePath || !row.m.mime) throw notFound("Media belum tersedia.");
   const kind = kindOfMime(row.m.mime);
   if (!kind) throw notFound("Media tidak tersedia.");

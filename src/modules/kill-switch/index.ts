@@ -61,8 +61,7 @@ export async function listKillSwitches(ctx: Ctx) {
  * Satu-satunya jalur yang mengubah status kill switch. Tidak ada kedaluwarsa, penjadwal, atau pemulihan otomatis:
  * kill switch yang menyala TIDAK PERNAH menyala kembali (melepas) sendiri — harus tindakan manusia yang teraudit.
  */
-export async function setKillSwitch(ctx: Ctx, scope: KillScope, engaged: boolean, reason: string) {
-  if (!ctx.perms.can("killswitch.manage")) throw forbidden();
+async function applyKillSwitch(ctx: Ctx, scope: KillScope, engaged: boolean, reason: string) {
   if (scope.type === "feature" && !FEATURE_KEYS.has(scope.ref)) throw badRequest("Fitur otomatisasi tidak dikenal.", undefined, "UNKNOWN_FEATURE");
   if (engaged && !reason.trim()) throw badRequest("Alasan wajib diisi saat mengaktifkan kill switch.", undefined, "REASON_REQUIRED");
   const ref = refOf(scope);
@@ -74,4 +73,27 @@ export async function setKillSwitch(ctx: Ctx, scope: KillScope, engaged: boolean
     await tx.insert(killSwitches).values({ scopeType: scope.type, scopeRef: ref, ...values }).onConflictDoUpdate({ target: [killSwitches.scopeType, killSwitches.scopeRef], set: values });
     await writeAudit(tx, { ...auditFor(ctx), action: engaged ? "kill_switch.engaged" : "kill_switch.released", objectType: "kill_switch", objectId: `${scope.type}:${ref}`, metadata: { reason: reason.trim() } });
   });
+}
+
+export async function setKillSwitch(ctx: Ctx, scope: KillScope, engaged: boolean, reason: string) {
+  if (!ctx.perms.can("killswitch.manage")) throw forbidden();
+  await applyKillSwitch(ctx, scope, engaged, reason);
+}
+
+/**
+ * "Jeda otomatisasi channel" (Tahap 3): menghentikan SEMUA pengiriman otomatis pada satu channel. Izin `killswitch.channel` pada channel itu
+ * (cakupan channel) atau `killswitch.manage`. Berlaku untuk pemeriksaan berikutnya (tanpa cache); tidak pernah melepas sendiri.
+ */
+export async function setChannelKillSwitch(ctx: Ctx, channelId: string, engaged: boolean, reason: string) {
+  if (!ctx.perms.can("killswitch.channel", channelId) && !ctx.perms.can("killswitch.manage")) throw forbidden();
+  await applyKillSwitch(ctx, { type: "channel", ref: channelId }, engaged, reason);
+}
+
+/** Status yang tampil di UI inbox (global, channel yang terlihat, fitur). Tanpa cache; hanya yang MENYALA. */
+export async function getEngagedKillSwitches(channelIds: string[]) {
+  const rows = await getDb().select().from(killSwitches).where(eq(killSwitches.engaged, true));
+  const set = new Set(channelIds);
+  return rows
+    .filter((r) => r.scopeType === "global" || r.scopeType === "feature" || (r.scopeType === "channel" && set.has(r.scopeRef)))
+    .map((r) => ({ scopeType: r.scopeType, scopeRef: r.scopeRef, reason: r.reason, engagedAt: r.engagedAt?.toISOString() ?? null }));
 }

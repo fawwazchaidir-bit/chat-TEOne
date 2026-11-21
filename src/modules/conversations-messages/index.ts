@@ -9,3 +9,9 @@ export { reconcileUncertain, expireStaleProcessing, processingStaleMs, resolveUn
 export { fetchInboundMedia, readMediaForUser, retryPendingMedia, sniffMime, MEDIA_LIMITS, ALLOWED_MIME } from "./media";
 export { addRecipient, removeRecipient, listRecipients, resolveRecipientId, isListedRecipient, normalizeIdentity, maskIdentity } from "./recipients";
 export { getOverview, listProblemEvents, retryEvent, listToolChannels } from "./tool";
+export { conversationAccessSql, getConversationForAction, canAccessConversation, permittedChannelIds, resetAccessCacheForTests, ACTION_PERMISSION, type ConvAction } from "./access";
+export { evaluateEligibility, type EligibilityResult } from "./eligibility";
+export { setAiState, AI_OFF_REASONS, AI_OFF_LABEL, type AiChange, type AiState, type AiOffReason, type AiActor } from "./ai-state";
+export { dispatchOutbox, enqueueCustomerMessage } from "./outbox";
+export { executeSend, validateSendInput, byKey, asResult, safeName, type ExecuteSendInput, type SendActor } from "./send";
+export { recipientAllowed } from "./recipients";

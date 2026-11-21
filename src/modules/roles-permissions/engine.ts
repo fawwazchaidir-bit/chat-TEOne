@@ -56,6 +56,16 @@ export class PermissionSet {
     return [...allow.ids].some((id) => !deny?.ids.has(id));
   }
 
+  /**
+   * Apakah pengguna secara EKSPLISIT ditolak (penolakan spesifik pengguna) untuk izin ini pada channel itu?
+   * Dipakai agar akses percakapan yang dialihkan antartim tidak mengalahkan penolakan per pengguna (kontrak inti #1).
+   */
+  deniesChannel(permission: string, channelId: string): boolean {
+    if (this.isSuperAdmin) return false;
+    const deny = this.denies.get(permission);
+    return !!(deny?.all || deny?.ids.has(channelId));
+  }
+
   /** Saring daftar channel menjadi yang boleh diakses untuk izin tertentu. */
   filterChannels<T extends { id: string }>(permission: string, channels: T[]): T[] {
     return channels.filter((c) => this.can(permission, c.id));

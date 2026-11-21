@@ -6,6 +6,10 @@ import { E2E_ADMIN_URL, E2E_CUSTOMER, E2E_DB, E2E_ENV, E2E_OWNER_URL, E2E_PHONE_
 export const E2E_SA = { email: "superadmin@e2e.contoh.test", name: "Super Admin E2E", password: "Sandi-E2E-Super-Admin-1" };
 export const E2E_KEMITRAAN = { email: "kemitraan@e2e.contoh.test", name: "Penguji Kemitraan E2E", password: "Sandi-E2E-Kemitraan-Uji-1" };
 export const E2E_HOTLINE = { email: "hotline@e2e.contoh.test", name: "Admin Hotline E2E", password: "Sandi-E2E-Hotline-Admin-1" };
+// Tahap 3: dua admin inbox pada channel Kemitraan (untuk uji kerja bersama) dan satu pengguna kill switch (tanpa 2FA agar E2E tidak bergantung pada TOTP).
+export const E2E_INBOX1 = { email: "inbox1@e2e.contoh.test", name: "Admin Inbox Satu", password: "Sandi-E2E-Inbox-Satu-1" };
+export const E2E_INBOX2 = { email: "inbox2@e2e.contoh.test", name: "Admin Inbox Dua", password: "Sandi-E2E-Inbox-Dua-1" };
+export const E2E_KILLER = { email: "killswitch@e2e.contoh.test", name: "Pengendali Kill Switch E2E", password: "Sandi-E2E-Kill-Switch-1" };
 
 /** Membuat database E2E dari nol, migrasi, seed contoh, Super Admin (lewat jalur bootstrap CLI), dan satu Admin Hotline. */
 export async function prepareE2eDatabase() {
@@ -55,10 +59,28 @@ export async function prepareE2eDatabase() {
   ]);
   const [ku] = await d.insert(users).values({ email: E2E_KEMITRAAN.email, name: E2E_KEMITRAAN.name, passwordHash: await hashPassword(E2E_KEMITRAAN.password), mustChangePassword: false }).returning({ id: users.id });
   await d.insert(userRoles).values({ userId: ku!.id, roleId: tr!.id });
+
+  // ── Tahap 3: tim, admin inbox, pengendali kill switch. Flag `inbox` & `ai_simulation` SENGAJA tidak dinyalakan di sini: G1/G2 memeriksa kondisi
+  //    "fitur mati"; spec G3 menyalakannya sendiri (beforeAll) dan mematikannya kembali (afterAll). `ai_simulation` tidak pernah menyala di production. ──
+  const { teams, teamChannels, teamMembers } = await import("../../src/db/schema");
+  const [team] = await d.insert(teams).values({ name: "Tim Kemitraan E2E" }).returning({ id: teams.id });
+  await d.insert(teamChannels).values({ teamId: team!.id, channelId: kem.id });
+  await d.update(channels).set({ defaultTeamId: team!.id }).where(eq(channels.id, kem.id));
+  const [ir] = await d.insert(roles).values({ name: "Admin Inbox E2E" }).returning({ id: roles.id });
+  await d.insert(roleGrants).values(["channel.view", "chat.view", "chat.reply", "chat.note", "ai.toggle", "chat.assign", "chat.transfer", "quickreply.manage", "killswitch.channel"].map((permission) => ({ roleId: ir!.id, permission, scopeAll: false, channelIds: [kem.id] })));
+  for (const u of [E2E_INBOX1, E2E_INBOX2]) {
+    const [row] = await d.insert(users).values({ email: u.email, name: u.name, passwordHash: await hashPassword(u.password), mustChangePassword: false }).returning({ id: users.id });
+    await d.insert(userRoles).values({ userId: row!.id, roleId: ir!.id });
+    await d.insert(teamMembers).values({ teamId: team!.id, userId: row!.id });
+  }
+  const [kr] = await d.insert(roles).values({ name: "Pengendali Kill Switch E2E" }).returning({ id: roles.id });
+  await d.insert(roleGrants).values([{ roleId: kr!.id, permission: "killswitch.manage", scopeAll: true, channelIds: [] }, { roleId: kr!.id, permission: "channel.view", scopeAll: false, channelIds: [kem.id] }]);
+  const [kuser] = await d.insert(users).values({ email: E2E_KILLER.email, name: E2E_KILLER.name, passwordHash: await hashPassword(E2E_KILLER.password), mustChangePassword: false }).returning({ id: users.id });
+  await d.insert(userRoles).values({ userId: kuser!.id, roleId: kr!.id });
   await closeDb();
 
   mkdirSync(path.dirname(FIXTURE_FILE), { recursive: true });
-  writeFileSync(FIXTURE_FILE, JSON.stringify({ sa: E2E_SA, hotline: E2E_HOTLINE, kemitraan: E2E_KEMITRAAN, channels: Object.fromEntries(chs.map((c) => [c.name, c.id])) }));
+  writeFileSync(FIXTURE_FILE, JSON.stringify({ sa: E2E_SA, hotline: E2E_HOTLINE, kemitraan: E2E_KEMITRAAN, inbox1: E2E_INBOX1, inbox2: E2E_INBOX2, killer: E2E_KILLER, channels: Object.fromEntries(chs.map((c) => [c.name, c.id])) }));
 }
 
 if (process.argv[1]?.endsWith("prepare-db.ts")) {

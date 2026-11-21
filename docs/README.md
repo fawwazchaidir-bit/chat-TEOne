@@ -4,13 +4,13 @@
 |---|---|
 | [`../AGENTS.md`](../AGENTS.md) | Aturan permanen proyek |
 | [`decisions.md`](decisions.md) | Keputusan bisnis (D-01…D-24); status **Terbuka** = dipakai sebagai ASUMSI |
-| [`prompts/tahap-1.md`](prompts/tahap-1.md) · [`prompts/tahap-2.md`](prompts/tahap-2.md) | Prompt Tahap 1 dan 2 |
+| [`prompts/tahap-1.md`](prompts/tahap-1.md) · [`prompts/tahap-2.md`](prompts/tahap-2.md) · [`prompts/tahap-3.md`](prompts/tahap-3.md) | Prompt Tahap 1, 2, dan 3 |
 | [`gates/GATE-CHECKLIST.md`](gates/GATE-CHECKLIST.md) | Checklist gate CCP + prompt auditor independen |
 | [`gates/daftar-tindakan-pemilik.md`](gates/daftar-tindakan-pemilik.md) | **Daftar tindakan pemilik Tahap 1 & 2** (keputusan, akses, server, gate) · [`jalur-0.md`](jalur-0.md) = draf daftar kerja prasyarat |
 | [`gates/gate-1-audit-ulang.md`](gates/gate-1-audit-ulang.md) | Audit ulang Gate 1 (21 Nov 2026; TAHAN untuk penerimaan penuh) |
 | [`gates/gate-2.md`](gates/gate-2.md) · [`gates/gate-2-tindak-lanjut.md`](gates/gate-2-tindak-lanjut.md) | **Audit independen Gate 2 (rekomendasi TAHAN; keputusan pemilik belum diisi)** · tanggapan & perbaikan pembangun |
 | [`gates/gate-1.md`](gates/gate-1.md) · [`gates/gate-1-tindak-lanjut.md`](gates/gate-1-tindak-lanjut.md) | **Audit independen Gate 1 (rekomendasi TAHAN; keputusan pemilik belum diisi)** · tanggapan & perbaikan pembangun |
-| [`arsitektur.md`](arsitektur.md) · [`adr/`](adr) | Arsitektur & ADR-0001…0006 |
+| [`arsitektur.md`](arsitektur.md) · [`adr/`](adr) | Arsitektur & ADR-0001…0009 (0007–0009 = Tahap 3: akses & routing, status AI/outbox/pipeline, pembaruan tampilan) |
 | [`pengembangan.md`](pengembangan.md) | Panduan development |
 | [`staging.md`](staging.md) | Panduan staging (HTTPS, cookie, jaringan) — **belum diverifikasi** |
 | [`keamanan-dan-izin.md`](keamanan-dan-izin.md) | Keamanan, model izin + cakupan channel, tim |
@@ -21,10 +21,12 @@
 | [`reports/tahap-1.md`](reports/tahap-1.md) | Laporan akhir Tahap 1 (format AGENTS.md §12) |
 | [`tahap-2/`](tahap-2/README.md) | Dokumen konektor WhatsApp (Tahap 2): arsitektur, konfigurasi staging, panduan uji, webhook, status pesan, coexistence |
 | [`reports/tahap-2.md`](reports/tahap-2.md) | Laporan Tahap 2 — **belum lulus penuh** (uji nyata Meta belum dilakukan) |
+| [`tahap-3/`](tahap-3/README.md) | Dokumen Tahap 3: panduan inbox, tim/antrian/routing (aturan akses percakapan yang dialihkan), alur AI–admin, kill switch, belum dibaca & penugasan |
+| [`reports/tahap-3.md`](reports/tahap-3.md) | Laporan Tahap 3 — **belum lulus untuk integrasi langsung** (seluruh bukti = simulasi/mock; Gate 2 belum diterima) |
 
 ## Berkas yang disebut aturan proyek tetapi **belum ada di repository**
 Tidak disertakan dalam paket yang diterima pembangun pada Tahap 1, dan **sengaja tidak dikarang**:
 - ~~`docs/jalur-0.md`~~ → **kini ada sebagai DRAF jujur** (`jalur-0.md`; pemilik wajib memverifikasi dan melengkapi)
-- `docs/prompts/tahap-3.md` … `tahap-9.md` (`tahap-2.md` sudah diterima dan disimpan)
+- `docs/prompts/tahap-4.md` … `tahap-9.md` (`tahap-2.md` dan `tahap-3.md` sudah diterima dan disimpan)
 
 Pemilik proyek perlu menambahkannya sebelum Gate 1 ditutup (lihat temuan T1-F04).

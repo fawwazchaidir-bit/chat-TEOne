@@ -25,6 +25,17 @@ export async function isListedRecipient(ex: Executor, identity: string): Promise
   return r?.active === true;
 }
 
+/**
+ * Kebijakan penerima untuk pengiriman dari INBOX/otomatisasi (AGENTS.md §3.6): di lingkungan NON-production, atau selama channel berada
+ * di MODE UJI (D-03), penerima WAJIB ada di daftar penerima uji — ditegakkan di server. Hanya production dengan mode uji dimatikan
+ * (go-live nomor = Tahap 9, di luar lingkup) yang mengizinkan penerima lain. Alat uji Tahap 2 tetap selalu wajib daftar.
+ */
+export async function recipientAllowed(ex: Executor, conn: { testMode: boolean }, identity: string): Promise<boolean> {
+  const { getEnv } = await import("@/lib/env");
+  if (getEnv().APP_ENV === "production" && !conn.testMode) return true;
+  return isListedRecipient(ex, identity);
+}
+
 const need = (ctx: Ctx) => { if (!ctx.perms.can("integration.test")) throw forbidden("Mengelola penerima uji memerlukan izin alat uji di semua channel."); };
 
 export async function listRecipients(ctx: Ctx) {

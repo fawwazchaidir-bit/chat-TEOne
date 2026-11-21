@@ -10,7 +10,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { conversations, messages } from "@/db/schema";
 import { getDb } from "@/db/client";
 import { badRequest, conflict, forbidden } from "@/lib/errors";
-import { auditFor, writeAudit } from "@/modules/audit";
+import { auditFor, writeAudit, type AuditEntry } from "@/modules/audit";
 import { requireFeature } from "@/modules/feature-flags";
 import { getChannel } from "@/modules/channels/service";
 import { upsertContact } from "@/modules/contacts/service";
@@ -32,9 +32,9 @@ export type SendInput = {
 export type SendResult = { messageId: string; status: string; duplicate: boolean; errorCategory: string | null; detail: string | null };
 
 const KEY_RE = /^[A-Za-z0-9_-]{8,100}$/;
-const safeName = (n: string) => n.replace(/[^\w.\- ]/g, "_").replace(/^\.+/, "").slice(0, 100) || "berkas";
+export const safeName = (n: string) => n.replace(/[^\w.\- ]/g, "_").replace(/^\.+/, "").slice(0, 100) || "berkas";
 
-function validate(input: SendInput) {
+export function validateSendInput(input: SendInput) {
   if (!KEY_RE.test(input.idempotencyKey)) throw badRequest("Kunci idempotensi tidak valid (8–100 karakter alfanumerik).", undefined, "VALIDATION_ERROR");
   if (input.kind === "text") {
     if (!input.text || !input.text.trim() || input.text.length > 4096) throw badRequest("Teks wajib diisi (maks. 4096 karakter).", undefined, "VALIDATION_ERROR");
@@ -60,8 +60,8 @@ export function classifyFailure(r: Extract<CallResult<unknown>, { ok: false }>):
   return { category: categorizeMetaError(r.meta.code, r.status), code: r.meta.code, uncertain: r.status >= 500 };
 }
 
-const byKey = async (key: string) => (await getDb().select().from(messages).where(eq(messages.idempotencyKey, key)))[0];
-const asResult = (m: typeof messages.$inferSelect, duplicate: boolean): SendResult => ({
+export const byKey = async (key: string) => (await getDb().select().from(messages).where(eq(messages.idempotencyKey, key)))[0];
+export const asResult = (m: typeof messages.$inferSelect, duplicate: boolean): SendResult => ({
   messageId: m.id, status: m.status ?? "diproses", duplicate, errorCategory: m.errorCategory,
   detail: m.errorCategory && m.errorCategory in CATEGORY_LABEL ? CATEGORY_LABEL[m.errorCategory as keyof typeof CATEGORY_LABEL] : null,
 });
@@ -71,7 +71,7 @@ export async function sendOutbound(ctx: Ctx, input: SendInput): Promise<SendResu
   const ch = await getChannel(ctx, input.channelId); // 403 bila tanpa hak lihat apa pun; 404 di luar cakupan
   if (!ctx.perms.can("integration.test", input.channelId)) throw forbidden();
   if (ch.archivedAt) throw badRequest("Channel diarsipkan.", undefined, "CHANNEL_ARCHIVED");
-  validate(input);
+  validateSendInput(input);
   const db = getDb();
   const conn = await getConnectionRow(input.channelId);
   if (!conn) throw conflict("KONEKSI_BELUM_DIKONFIGURASI", "Koneksi Meta untuk channel ini belum dikonfigurasi.");
@@ -111,7 +111,30 @@ export async function sendOutbound(ctx: Ctx, input: SendInput): Promise<SendResu
     .onConflictDoNothing({ target: messages.idempotencyKey }).returning({ id: messages.id });
   if (ins.length === 0) { const again = await byKey(input.idempotencyKey); return asResult(again as typeof messages.$inferSelect, true); }
   const messageId = (ins[0] as { id: string }).id;
+  return executeSend({ messageId, channelId: input.channelId, conversationId, conn, to, kind: input.kind, text: input.text, caption: input.caption, file: input.file, idempotencyKey: input.idempotencyKey, actor: auditFor(ctx), auditObject: "integration" });
+}
 
+export type SendActor = Pick<AuditEntry, "actor" | "actorLabel" | "correlationId" | "ip">;
+export type ExecuteSendInput = {
+  messageId: string; channelId: string; conversationId: string;
+  conn: NonNullable<Awaited<ReturnType<typeof getConnectionRow>>>;
+  to: string; kind: "text" | "image" | "document"; text?: string; caption?: string; file?: { bytes: Uint8Array; mime: string; filename: string };
+  idempotencyKey: string; actor: SendActor; auditObject: "integration" | "inbox" | "automation";
+  /**
+   * Pemeriksaan TERAKHIR tepat sebelum panggilan Meta (kontrak inti #6): mis. kill switch untuk otomatisasi. Mengembalikan kategori
+   * blokir bila tidak boleh dikirim — pesan lalu ditandai `gagal` PASTI (belum ada panggilan ke Meta).
+   */
+  preSend?: () => Promise<string | null>;
+};
+
+/**
+ * Menjalankan pengiriman untuk baris pesan yang SUDAH dicatat (`diproses`): batas kecepatan → unggah media → cek ulang jendela →
+ * cek terakhir (`preSend`) → KIRIM tepat sekali → catat hasil. Tidak ada percobaan ulang pada hasil apa pun (kontrak inti #5).
+ */
+export async function executeSend(i: ExecuteSendInput): Promise<SendResult> {
+  const db = getDb();
+  const { messageId, channelId, conversationId, conn, to } = i;
+  const act = `${i.auditObject}.`;
   const settle = async (status: "diterima_api" | "gagal" | "belum_pasti", o: { wamid?: string; category?: string; code?: number | null } = {}): Promise<SendResult> => {
     let row: typeof messages.$inferSelect | undefined;
     await db.transaction(async (tx) => {
@@ -119,9 +142,9 @@ export async function sendOutbound(ctx: Ctx, input: SendInput): Promise<SendResu
       // penyapu `diproses` kedaluwarsa (G2-A06) mungkin sudah menandainya, padahal pengirim yang lambat kini punya hasil pasti.
       await tx.update(messages).set({ status, statusUpdatedAt: new Date(), providerMessageId: o.wamid ?? null, errorCategory: o.category ?? null, errorCode: o.code != null ? String(o.code) : null })
         .where(and(eq(messages.id, messageId), inArray(messages.status, ["diproses", "belum_pasti"]), isNull(messages.providerMessageId)));
-      if (o.wamid) await applyStatusesToMessage(tx, input.channelId, o.wamid);
+      if (o.wamid) await applyStatusesToMessage(tx, channelId, o.wamid);
       [row] = await tx.select().from(messages).where(eq(messages.id, messageId));
-      await writeAudit(tx, { ...auditFor(ctx), action: "integration.message_sent", result: status === "diterima_api" ? "success" : "failure", objectType: "message", objectId: messageId, metadata: { channelId: input.channelId, type: input.kind, status, category: o.category ?? null, to: maskIdentity(to) } });
+      await writeAudit(tx, { ...i.actor, action: `${act}message_sent`, result: status === "diterima_api" ? "success" : "failure", objectType: "message", objectId: messageId, metadata: { channelId, type: i.kind, status, category: o.category ?? null, to: maskIdentity(to) } });
     });
     return asResult(row as typeof messages.$inferSelect, false);
   };
@@ -131,14 +154,14 @@ export async function sendOutbound(ctx: Ctx, input: SendInput): Promise<SendResu
 
   // 6) Media: unggah dulu. Unggah gagal/timeout ⇒ belum ada pesan terkirim ⇒ gagal PASTI.
   let payload;
-  if (input.kind === "text") payload = buildText(to, input.text as string, input.idempotencyKey);
+  if (i.kind === "text") payload = buildText(to, i.text as string, i.idempotencyKey);
   else {
-    const f = input.file as NonNullable<SendInput["file"]>;
+    const f = i.file as NonNullable<ExecuteSendInput["file"]>;
     const up = await uploadMedia(conn.phoneNumberId, f.bytes, f.mime.toLowerCase(), safeName(f.filename));
-    if (!up.ok) { const f = classifyFailure(up); return settle("gagal", { category: f.category === "konfigurasi" ? f.category : "media_upload", code: f.code }); } // belum ada pesan terkirim ⇒ gagal PASTI
+    if (!up.ok) { const fl = classifyFailure(up); return settle("gagal", { category: fl.category === "konfigurasi" ? fl.category : "media_upload", code: fl.code }); } // belum ada pesan terkirim ⇒ gagal PASTI
     if (!up.data?.id) return settle("gagal", { category: "media_upload" });
-    await saveOutboundMedia(messageId, input.channelId, f.bytes, f.mime.toLowerCase(), up.data.id);
-    payload = input.kind === "image" ? buildImage(to, up.data.id, input.caption, input.idempotencyKey) : buildDocument(to, up.data.id, safeName(f.filename), input.caption, input.idempotencyKey);
+    await saveOutboundMedia(messageId, channelId, f.bytes, f.mime.toLowerCase(), up.data.id);
+    payload = i.kind === "image" ? buildImage(to, up.data.id, i.caption, i.idempotencyKey) : buildDocument(to, up.data.id, safeName(f.filename), i.caption, i.idempotencyKey);
   }
 
   // 6b) Periksa ulang jendela layanan TEPAT sebelum kirim (kontrak inti #6; G2-A02): unggah media/antrean/limiter memakan waktu,
@@ -146,8 +169,14 @@ export async function sendOutbound(ctx: Ctx, input: SendInput): Promise<SendResu
   const [fresh] = await db.select({ t: conversations.lastCustomerMessageAt }).from(conversations).where(eq(conversations.id, conversationId));
   const win2 = evaluateWindow(fresh?.t ?? null);
   if (!win2.open) {
-    await writeAudit(db, { ...auditFor(ctx), action: "integration.send_blocked", result: "denied", objectType: "message", objectId: messageId, metadata: { reason: win2.reason, stage: "sebelum_kirim", to: maskIdentity(to) } });
+    await writeAudit(db, { ...i.actor, action: `${act}send_blocked`, result: "denied", objectType: "message", objectId: messageId, metadata: { reason: win2.reason, stage: "sebelum_kirim", to: maskIdentity(to) } });
     return settle("gagal", { category: "jendela_layanan" });
+  }
+  // 6c) Pemeriksaan terakhir khusus pemanggil (mis. kill switch untuk otomatisasi). Belum ada panggilan ke Meta ⇒ gagal PASTI.
+  const blocked = i.preSend ? await i.preSend() : null;
+  if (blocked) {
+    await writeAudit(db, { ...i.actor, action: `${act}send_blocked`, result: "denied", objectType: "message", objectId: messageId, metadata: { reason: blocked, stage: "sebelum_kirim", to: maskIdentity(to) } });
+    return settle("gagal", { category: blocked });
   }
 
   // 7) KIRIM — tepat SATU kali. Tidak ada percobaan ulang pada hasil apa pun.

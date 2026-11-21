@@ -185,6 +185,8 @@ export const channels = pgTable(
     status: text("status").notNull().default("belum_dikonfigurasi"),
     isOperational: boolean("is_operational").notNull().default(false),
     isSample: boolean("is_sample").notNull().default(false),
+    /** Antrian tim default: percakapan baru di channel ini masuk ke tim ini (Tahap 3; dapat diatur per channel). */
+    defaultTeamId: uuid("default_team_id").references(() => teams.id),
     archivedAt: ts("archived_at"),
     archivedBy: uuid("archived_by"),
     createdAt: ts("created_at").notNull().defaultNow(),
@@ -369,8 +371,38 @@ export const conversations = pgTable(
     lastCustomerMessageAt: ts("last_customer_message_at"),
     lastMessageAt: ts("last_message_at"),
     createdAt: ts("created_at").notNull().defaultNow(),
+    // ── Tahap 3: penugasan, status AI (kontrak inti #4), penanda ──
+    /** Tim pemilik antrian saat ini (default dari channel; berubah saat dialihkan). */
+    teamId: uuid("team_id").references(() => teams.id),
+    /** PIC chat (opsional; berbeda dari PIC pipeline Tahap 5). */
+    assigneeId: uuid("assignee_id").references(() => users.id),
+    /** Naik setiap tim/PIC berubah — deteksi perubahan bersamaan (optimistic concurrency). */
+    assignVersion: integer("assign_version").notNull().default(0),
+    aiStatus: text("ai_status").notNull().default("aktif"),
+    aiOffReason: text("ai_off_reason"),
+    /** Nomor versi mesin status AI: naik pada SETIAP perubahan; job otomatisasi memeriksanya tepat sebelum kirim. */
+    aiVersion: integer("ai_version").notNull().default(0),
+    /** Batas "pesan yang layak diproses": diisi saat AI diaktifkan kembali. Hanya pesan pelanggan SETELAH batas yang layak. */
+    aiBoundaryAt: ts("ai_boundary_at"),
+    aiChangedAt: ts("ai_changed_at"),
+    aiChangedBy: uuid("ai_changed_by"),
+    escalatedAt: ts("escalated_at"),
+    strayLead: boolean("stray_lead").notNull().default(false),
+    /** Urutan/waktu pesan tak dapat dipastikan saat AI Aktif → ditandai untuk ditinjau, TIDAK diproses. */
+    reviewFlag: text("review_flag"),
+    /** Diperbarui trigger database pada setiap perubahan (pesan, catatan, status) — dasar pembaruan tampilan. */
+    changeAt: ts("change_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("conversations_contact_channel_unique").on(t.contactId, t.channelId), index("conversations_channel_idx").on(t.channelId)],
+  (t) => [
+    uniqueIndex("conversations_contact_channel_unique").on(t.contactId, t.channelId),
+    index("conversations_channel_idx").on(t.channelId),
+    index("conversations_list_idx").on(t.channelId, t.lastMessageAt),
+    index("conversations_team_idx").on(t.teamId),
+    index("conversations_assignee_idx").on(t.assigneeId),
+    index("conversations_change_idx").on(t.changeAt),
+    check("conversations_ai_status", sql`${t.aiStatus} IN ('aktif','off')`),
+    check("conversations_ai_off_reason", sql`(${t.aiStatus} = 'aktif' AND ${t.aiOffReason} IS NULL) OR (${t.aiStatus} = 'off' AND ${t.aiOffReason} IN ('admin_mengambil_alih','admin_membalas','eskalasi','balasan_dari_hp','kill_switch','manual'))`),
+  ],
 );
 
 export const messages = pgTable(
@@ -395,6 +427,8 @@ export const messages = pgTable(
     idempotencyKey: text("idempotency_key"),
     isHistory: boolean("is_history").notNull().default(false),
     createdBy: uuid("created_by"),
+    /** Menambah jumlah belum dibaca (D-16): HANYA pesan pelanggan langsung yang baru — bukan history, duplikat, echo, atau pesan yang digolongkan ulang. */
+    unreadEligible: boolean("unread_eligible").notNull().default(false),
   },
   (t) => [
     // NULL dianggap berbeda oleh PostgreSQL → indeks biasa sudah benar dan kompatibel dengan ON CONFLICT.
@@ -402,13 +436,13 @@ export const messages = pgTable(
     uniqueIndex("messages_idempotency_unique").on(t.idempotencyKey),
     index("messages_conversation_idx").on(t.conversationId, t.receivedAt),
     check("messages_direction", sql`${t.direction} IN ('masuk','keluar')`),
-    check("messages_source", sql`${t.source} IN ('pelanggan','te_one','whatsapp_business_app','history')`),
+    check("messages_source", sql`${t.source} IN ('pelanggan','te_one','whatsapp_business_app','history','ai')`),
     check("messages_type", sql`${t.type} IN ('text','image','document','unsupported')`),
     check("messages_status", sql`${t.status} IS NULL OR ${t.status} IN ('diproses','diterima_api','terkirim','diterima','dibaca','gagal','belum_pasti')`),
     // History tidak pernah berasal dari sumber lain, dan sebaliknya.
     check("messages_history_consistent", sql`(${t.source} = 'history') = ${t.isHistory}`),
     // Pesan masuk hanya dari pelanggan atau history; pesan keluar dari TE One / WhatsApp Business App / history.
-    check("messages_direction_source", sql`(${t.direction} = 'masuk' AND ${t.source} IN ('pelanggan','history')) OR (${t.direction} = 'keluar' AND ${t.source} IN ('te_one','whatsapp_business_app','history'))`),
+    check("messages_direction_source", sql`(${t.direction} = 'masuk' AND ${t.source} IN ('pelanggan','history')) OR (${t.direction} = 'keluar' AND ${t.source} IN ('te_one','whatsapp_business_app','history','ai'))`),
   ],
 );
 
@@ -481,4 +515,133 @@ export const testRecipients = pgTable(
     createdAt: ts("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("test_recipients_identity_unique").on(t.identityValue), check("test_recipients_digits", sql`${t.identityValue} ~ '^[0-9]{7,16}$'`)],
+);
+
+// ───────────── Tahap 3: inbox, routing, status AI, otomatisasi ─────────────
+/** Status belum dibaca PER PENGGUNA (D-16, ASUMSI). Jumlah = pesan `unread_eligible` yang diterima setelah `last_read_at`. */
+export const conversationReads = pgTable(
+  "conversation_reads",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id),
+    lastReadAt: ts("last_read_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.conversationId] })],
+);
+
+/** Akses tim tujuan pada percakapan yang DIALIHKAN — hanya percakapan itu, bukan seluruh channel (kontrak inti #1). */
+export const conversationTeamAccess = pgTable(
+  "conversation_team_access",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id),
+    teamId: uuid("team_id").notNull().references(() => teams.id),
+    grantedBy: uuid("granted_by"),
+    grantedAt: ts("granted_at").notNull().defaultNow(),
+    revokedAt: ts("revoked_at"),
+    revokedBy: uuid("revoked_by"),
+  },
+  (t) => [
+    uniqueIndex("conversation_team_access_active").on(t.conversationId, t.teamId).where(sql`${t.revokedAt} IS NULL`),
+    index("conversation_team_access_team_idx").on(t.teamId),
+  ],
+);
+
+/** Catatan internal: tabel TERPISAH dari `messages` agar secara struktural tidak pernah masuk jalur kirim ke pelanggan. */
+export const conversationNotes = pgTable(
+  "conversation_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id),
+    channelId: uuid("channel_id").notNull().references(() => channels.id),
+    authorId: uuid("author_id").notNull(),
+    body: text("body").notNull(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("conversation_notes_conversation_idx").on(t.conversationId, t.createdAt), check("conversation_notes_body", sql`length(${t.body}) BETWEEN 1 AND 2000`)],
+);
+
+/** Balasan cepat: pustaka teks per channel/tim. `channel_id` NULL = semua channel; `team_id` NULL = semua tim. */
+export const quickReplies = pgTable(
+  "quick_replies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    channelId: uuid("channel_id").references(() => channels.id),
+    teamId: uuid("team_id").references(() => teams.id),
+    isActive: boolean("is_active").notNull().default(true),
+    createdBy: uuid("created_by"),
+    updatedBy: uuid("updated_by"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("quick_replies_channel_idx").on(t.channelId), check("quick_replies_lengths", sql`length(${t.title}) BETWEEN 1 AND 80 AND length(${t.body}) BETWEEN 1 AND 1000`)],
+);
+
+/** Log perubahan status AI (append-only bagi aplikasi): versi, aktor, waktu, alasan, batas. */
+export const conversationAiEvents = pgTable(
+  "conversation_ai_events",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id),
+    fromStatus: text("from_status").notNull(),
+    toStatus: text("to_status").notNull(),
+    reason: text("reason"),
+    version: integer("version").notNull(),
+    actorId: uuid("actor_id"),
+    actorLabel: text("actor_label"),
+    boundaryAt: ts("boundary_at"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("conversation_ai_events_conv_idx").on(t.conversationId, t.version)],
+);
+
+/** Antrean job otomatisasi (Tahap 3: HANYA job SIMULASI `ai_sim`; AI nyata = Tahap 4, follow-up = Tahap 6). */
+export const automationJobs = pgTable(
+  "automation_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").notNull(),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id),
+    channelId: uuid("channel_id").notNull().references(() => channels.id),
+    triggerMessageId: uuid("trigger_message_id").notNull().references(() => messages.id),
+    /** Versi status AI saat job dibuat; job dibatalkan bila versi berubah (pengambilalihan, dsb.). */
+    aiVersion: integer("ai_version").notNull(),
+    feature: text("feature").notNull().default("ai_reply"),
+    payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+    status: text("status").notNull().default("menunggu"),
+    statusReason: text("status_reason"),
+    attempts: integer("attempts").notNull().default(0),
+    runAfter: ts("run_after").notNull().defaultNow(),
+    lockedUntil: ts("locked_until"),
+    outboundMessageId: uuid("outbound_message_id"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("automation_jobs_trigger_unique").on(t.kind, t.triggerMessageId),
+    index("automation_jobs_queue_idx").on(t.status, t.runAfter),
+    index("automation_jobs_conversation_idx").on(t.conversationId),
+    check("automation_jobs_kind", sql`${t.kind} IN ('ai_sim')`),
+    check("automation_jobs_status", sql`${t.status} IN ('menunggu','diproses','dikirim','belum_pasti','selesai','dibatalkan','ditahan','gagal')`),
+  ],
+);
+
+/** Outbox DURABLE (menutup T2-F15): event domain ditulis dalam transaksi yang sama dengan datanya; dikirim ke pelanggan (subscriber) sesudah commit, minimal-sekali. */
+export const domainOutbox = pgTable(
+  "domain_outbox",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    kind: text("kind").notNull(),
+    payload: jsonb("payload").notNull(),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    runAfter: ts("run_after").notNull().defaultNow(),
+    lockedUntil: ts("locked_until"),
+    lastError: text("last_error"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    deliveredAt: ts("delivered_at"),
+  },
+  (t) => [index("domain_outbox_queue_idx").on(t.status, t.runAfter), check("domain_outbox_status", sql`${t.status} IN ('pending','processing','delivered','failed')`), check("domain_outbox_kind", sql`${t.kind} IN ('customer_message')`)],
 );

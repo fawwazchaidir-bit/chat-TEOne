@@ -1,7 +1,7 @@
 /**
  * Hook event domain. Otomatisasi tahap berikutnya (AI, follow-up, label, unread) HANYA boleh berlangganan di sini.
- * CATATAN KETAHANAN (G2-A03/T2-F15): hook ini berjalan DALAM MEMORI setelah commit — event bisa hilang bila proses mati antara commit dan
- * pemancaran. SEBELUM ada subscriber otomatisasi yang mengirim pesan (Tahap 3–6), pemancaran WAJIB dipindah ke desain durable (outbox).
+ * KETAHANAN (T2-F15 TERTUTUP di Tahap 3, ADR-0008): event ditulis ke outbox DURABLE dalam transaksi yang sama dengan pesannya (`outbox.ts`),
+ * lalu dikirim ke subscriber sesudah commit (minimal-sekali; subscriber wajib idempoten). Registri di bawah hanya untuk pendaftaran subscriber.
  * Kontrak inti #3: event `history` dan `echo` TIDAK PERNAH dipancarkan — hanya pesan pelanggan langsung yang baru.
  */
 export type CustomerMessageEvent = { channelId: string; conversationId: string; messageId: string; contactId: string; providerTs: string; receivedAt: string };
@@ -24,8 +24,16 @@ export function onCustomerMessage(h: Handler): () => void {
   return () => handlers.delete(h);
 }
 
-export async function emitCustomerMessage(e: CustomerMessageEvent): Promise<void> {
+/** Mengirim ke semua subscriber; mengembalikan jumlah yang GAGAL (outbox memakainya untuk mencoba ulang). Subscriber harus idempoten. */
+export async function deliverCustomerMessage(e: CustomerMessageEvent): Promise<{ failed: number }> {
+  let failed = 0;
   for (const h of handlers) {
-    try { await h(e); } catch { console.error(`[hook] pelanggan-pesan gagal untuk pesan ${e.messageId}`); }
+    try { await h(e); } catch { failed++; console.error(`[hook] pelanggan-pesan gagal untuk pesan ${e.messageId}`); }
   }
+  return { failed };
+}
+
+/** Dipertahankan untuk kompatibilitas: pengiriman langsung tanpa outbox (hanya test). Produksi memakai outbox durable. */
+export async function emitCustomerMessage(e: CustomerMessageEvent): Promise<void> {
+  await deliverCustomerMessage(e);
 }

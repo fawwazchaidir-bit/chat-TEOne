@@ -24,6 +24,8 @@ const schema = z.object({
   MEDIA_DIR: z.string().min(1).default(".data/media"),
   /** true = webhook memicu pemrosesan segera di proses yang sama; worker terpisah tetap aman (SKIP LOCKED). */
   WORKER_INLINE: z.enum(["true", "false"]).default("true"),
+  /** Tahap 3: jeda (ms) sebelum job AI SIMULASI dijalankan — hanya untuk uji kill switch/pengambilalihan; 0 = langsung. */
+  AI_SIM_DELAY_MS: z.coerce.number().int().min(0).max(600000).default(0),
 });
 
 export type Env = z.infer<typeof schema>;

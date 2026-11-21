@@ -8,11 +8,11 @@ export const PERMISSIONS = [
   { key: "team.manage", label: "Kelola tim", channelScoped: false, available: true },
   { key: "channel.view", label: "Lihat channel", channelScoped: true, available: true },
   { key: "channel.manage", label: "Kelola channel", channelScoped: true, available: true },
-  { key: "chat.view", label: "Lihat chat", channelScoped: true, available: false },
-  { key: "chat.reply", label: "Balas chat", channelScoped: true, available: false },
-  { key: "ai.toggle", label: "Ubah AI On/Off", channelScoped: true, available: false },
-  { key: "chat.transfer", label: "Alihkan chat", channelScoped: true, available: false },
-  { key: "quickreply.manage", label: "Kelola balasan cepat", channelScoped: true, available: false },
+  { key: "chat.view", label: "Lihat chat", channelScoped: true, available: true },
+  { key: "chat.reply", label: "Balas chat", channelScoped: true, available: true },
+  { key: "ai.toggle", label: "Ubah AI On/Off", channelScoped: true, available: true },
+  { key: "chat.transfer", label: "Alihkan chat", channelScoped: true, available: true },
+  { key: "quickreply.manage", label: "Kelola balasan cepat", channelScoped: true, available: true },
   { key: "agent.manage", label: "Kelola agent", channelScoped: true, available: false },
   { key: "knowledge.manage", label: "Kelola Kartu Program & knowledge", channelScoped: true, available: false },
   { key: "label.manage", label: "Kelola label & aturan", channelScoped: true, available: false },
@@ -23,6 +23,10 @@ export const PERMISSIONS = [
   { key: "audit.view", label: "Lihat audit", channelScoped: false, available: true },
   // Tahap 2 (ADR-0004): alat uji integrasi WhatsApp — izin khusus, bercakupan channel.
   { key: "integration.test", label: "Alat uji integrasi WhatsApp", channelScoped: true, available: true },
+  // Tahap 3 (ADR-0007): penugasan/tim, catatan internal, jeda otomatisasi per channel. Registri BERTAMBAH; 19+1 izin sebelumnya tidak berubah.
+  { key: "chat.assign", label: "Ubah penugasan & tim chat", channelScoped: true, available: true },
+  { key: "chat.note", label: "Tulis catatan internal", channelScoped: true, available: true },
+  { key: "killswitch.channel", label: "Jeda otomatisasi channel", channelScoped: true, available: true },
   // Hanya Super Admin yang dapat memberikan izin ini (UI kill switch khusus Super Admin — Tahap 1 §12).
   { key: "killswitch.manage", label: "Kelola kill switch", channelScoped: false, available: true, superAdminOnlyGrant: true },
 ] as const satisfies readonly PermissionMeta[];
@@ -53,7 +57,7 @@ export const DEFAULT_ROLES: { name: string; description: string; function?: stri
     name: `Admin ${fn}`,
     description: `Menangani channel ${fn} saja.`,
     function: fn,
-    grants: (["channel.view", "chat.view", "chat.reply", "ai.toggle", "chat.transfer", "quickreply.manage", "label.manage", "pipeline.manage"] as PermissionKey[]).map(
+    grants: (["channel.view", "chat.view", "chat.reply", "chat.note", "ai.toggle", "chat.transfer", "chat.assign", "quickreply.manage", "killswitch.channel", "label.manage", "pipeline.manage"] as PermissionKey[]).map(
       (permission) => ({ permission, scope: "function" as const }),
     ),
   })),

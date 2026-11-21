@@ -8,7 +8,8 @@ import { ChannelConnectionPanel, type ConnView } from "@/components/channel-conn
 import { requireFull } from "@/lib/page-auth";
 import { isFeatureEnabled } from "@/modules/feature-flags";
 import { getConnectionView } from "@/modules/whatsapp-adapter";
-import { CHANNEL_STATUS_LABEL, INTEGRATION_KINDS, listChannels } from "@/modules/channels/service";
+import { CHANNEL_STATUS_LABEL, INTEGRATION_KINDS, getChannelAutomation, listChannels } from "@/modules/channels/service";
+import { ChannelAutomationControls } from "@/components/channel-automation";
 import { getOrgSettings } from "@/modules/org-settings/service";
 
 export default async function ChannelsPage({ searchParams }: { searchParams: Promise<{ arsip?: string }> }) {
@@ -19,6 +20,8 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
   const [{ n: active } = { n: 0 }] = await getDb().select({ n: sql<number>`count(*)::int` }).from(channelsTable).where(isNull(channelsTable.archivedAt));
   const canCreate = ctx.perms.can("channel.manage");
   const connectorOn = await isFeatureEnabled("whatsapp_connector");
+  const inboxOn = await isFeatureEnabled("inbox");
+  const automation = inboxOn ? await getChannelAutomation(ctx, items.filter((x) => !x.archivedAt).map((x) => x.id)) : {};
   const conns = new Map<string, ConnView>();
   if (connectorOn) for (const c of items.filter((x) => !x.archivedAt)) conns.set(c.id, JSON.parse(JSON.stringify(await getConnectionView(ctx, c.id))) as ConnView);
   return (
@@ -45,6 +48,10 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
           </tbody>
         </table>
       </div>
+      {inboxOn && items.filter((c) => !c.archivedAt && automation[c.id]).map((c) => (
+        <details key={`auto-${c.id}`} className="card"><summary style={{ cursor: "pointer", fontWeight: 700 }}>Antrian &amp; otomatisasi — {c.name}{automation[c.id]?.paused ? " (DIJEDA)" : ""}</summary>
+          <ChannelAutomationControls channelId={c.id} defaultTeamId={c.defaultTeamId ?? null} view={automation[c.id]!} /></details>
+      ))}
       {connectorOn ? items.filter((c) => !c.archivedAt).map((c) => (
         <details key={c.id} className="card"><summary style={{ cursor: "pointer", fontWeight: 700 }}>Koneksi WhatsApp — {c.name}</summary>
           <ChannelConnectionPanel channelId={c.id} view={conns.get(c.id) ?? { configured: false }} canManage={ctx.perms.can("channel.manage", c.id)} /></details>

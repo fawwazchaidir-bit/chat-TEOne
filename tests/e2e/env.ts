@@ -2,6 +2,10 @@
 export const E2E_DB = "teone_e2e";
 export const E2E_PORT = 3100;
 export const E2E_BASE_URL = `http://localhost:${E2E_PORT}`;
+/** Mock Graph API (SIMULASI) yang berjalan di proses terpisah selama E2E; port kontrol dipakai spec untuk memeriksa/memprogram mock. */
+export const E2E_GRAPH_PORT = 3101;
+export const E2E_CTL_PORT = 3102;
+export const E2E_CTL_URL = `http://127.0.0.1:${E2E_CTL_PORT}`;
 export const E2E_ADMIN_URL = process.env.TEST_ADMIN_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/postgres";
 const host = process.env.TEST_DB_HOST ?? new URL(E2E_ADMIN_URL).host; // sama dengan tests/test-env.ts: turunan dari TEST_ADMIN_DATABASE_URL
 export const E2E_OWNER_URL = `postgres://teone_owner:owner_test_pw@${host}/${E2E_DB}`;
@@ -13,11 +17,12 @@ export const E2E_ENV = {
   DATABASE_MIGRATION_URL: E2E_OWNER_URL,
   APP_ENCRYPTION_KEY: Buffer.from("e2e-only-key-0123456789abcdef!!!").toString("base64"),
   TRUST_PROXY: "false",
-  // Tahap 2: nilai SINTETIS. Basis Graph diarahkan ke alamat tak terjangkau → semua hasil pemeriksaan = SIMULASI/gagal (jujur).
+  // Tahap 2/3: nilai SINTETIS. Basis Graph diarahkan ke MOCK lokal (tests/e2e/mock-graph-server.ts) → semua hasil = SIMULASI, bukan Meta.
+  // Mock tidak mendaftarkan nomor, sehingga pemeriksaan koneksi tetap GAGAL secara jujur (tidak ada klaim terhubung).
   META_APP_SECRET: "e2e-app-secret-sintetis-0001",
   META_VERIFY_TOKEN: "e2e-verify-token-sintetis-0001",
   META_ACCESS_TOKEN: "e2e-access-token-sintetis-0001",
-  META_GRAPH_BASE_URL: "http://127.0.0.1:9",
+  META_GRAPH_BASE_URL: `http://127.0.0.1:${E2E_GRAPH_PORT}`,
   META_HTTP_TIMEOUT_MS: "1500",
   MEDIA_DIR: ".data/e2e-media",
   PORT: String(E2E_PORT),

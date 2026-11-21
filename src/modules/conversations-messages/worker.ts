@@ -8,6 +8,7 @@ import { getEnv } from "@/lib/env";
 import { safeErrorLabel } from "@/lib/safe-error";
 import { claimBatch, failEvent, markProcessed, markQuarantined, purgeRawPayloads } from "@/modules/whatsapp-adapter";
 import { ingestEvent } from "./ingest";
+import { dispatchOutbox } from "./outbox";
 import { retryPendingMedia } from "./media";
 import { reconcileUncertain } from "./reconcile";
 
@@ -57,9 +58,13 @@ export function kickProcessing(): void {
 }
 
 /** Pemeliharaan berkala: retensi payload (D-18, ASUMSI), rekonsiliasi hasil belum pasti, ulangi unduhan media tertunda. */
-export async function runMaintenance(): Promise<{ purged: number; reconciled: number; expired: number; mediaRetried: number }> {
+export async function runMaintenance(): Promise<{ purged: number; reconciled: number; expired: number; mediaRetried: number; outbox: number; jobs: number }> {
   const purged = await purgeRawPayloads();
   const rec = await reconcileUncertain(); // juga menandai `diproses` yang tertahan sebagai `belum_pasti` (G2-A06)
   const mediaRetried = await retryPendingMedia();
-  return { purged, reconciled: rec.resolved, expired: rec.expired, mediaRetried };
+  // Tahap 3: kirim ulang event outbox yang tertinggal (proses mati setelah commit) dan jalankan job otomatisasi yang jatuh tempo.
+  const outbox = (await dispatchOutbox()).delivered;
+  const { runDueAutomationJobs } = await import("@/modules/automation");
+  const jobs = (await runDueAutomationJobs()).ran;
+  return { purged, reconciled: rec.resolved, expired: rec.expired, mediaRetried, outbox, jobs };
 }

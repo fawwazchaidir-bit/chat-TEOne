@@ -11,7 +11,7 @@ export default async function KillSwitchPage() {
   const [items, flags, channels] = await Promise.all([listKillSwitches(ctx), ctx.user.isSuperAdmin ? listFlags(ctx) : Promise.resolve([]), listChannels(ctx)]);
   return (
     <>
-      <PageHeader title="Kill switch & feature flag" sub={<>Khusus Super Admin. <Badge kind="warn">Tahap 1: terbukti pada fungsi contoh saja — belum ada otomatisasi nyata yang dihentikan.</Badge></>} />
+      <PageHeader title="Kill switch & feature flag" sub={<>Khusus Super Admin. <Badge kind="warn">Terbukti pada job AI SIMULASI dan mock Meta (Tahap 3) — otomatisasi nyata (AI sungguhan, follow-up) belum ada.</Badge></>} />
       <div className="notice info">Kill switch yang menyala <strong>tidak pernah menyala kembali/terlepas sendiri</strong>; hanya manusia berizin yang dapat melepasnya, dan setiap perubahan tercatat. Pemeriksaan dilakukan tanpa cache sehingga berlaku seketika. Bila status tidak dapat dibaca, otomatisasi diblokir (fail-closed).</div>
       <h2>Kill switch</h2>
       <KillSwitchPanel items={items.map((i) => ({ ...i, engagedAt: i.engagedAt?.toISOString() ?? null, releasedAt: i.releasedAt?.toISOString() ?? null }))} channels={channels.map((c) => ({ id: c.id, name: c.name }))} features={AUTOMATION_FEATURES.map((f) => ({ key: f.key, label: f.label }))} />

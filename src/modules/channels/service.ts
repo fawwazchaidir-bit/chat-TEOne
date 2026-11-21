@@ -1,5 +1,5 @@
-import { and, eq, isNull } from "drizzle-orm";
-import { channels } from "@/db/schema";
+import { and, eq, inArray, isNull } from "drizzle-orm";
+import { channels, killSwitches, teamChannels, teams } from "@/db/schema";
 import { getDb } from "@/db/client";
 import { getEnv } from "@/lib/env";
 import { badRequest, forbidden, notFound } from "@/lib/errors";
@@ -100,4 +100,43 @@ export async function setChannelArchived(ctx: Ctx, id: string, archived: boolean
   } catch (e) {
     return mapDbError(e, { unique: UNIQUE });
   }
+}
+
+/** Antrian tim default channel (Tahap 3): percakapan BARU di channel ini masuk ke tim itu. Perlu `channel.manage` pada channel. */
+export async function setChannelDefaultTeam(ctx: Ctx, channelId: string, teamId: string | null) {
+  const ch = await getChannel(ctx, channelId);
+  if (!ctx.perms.can("channel.manage", channelId)) throw forbidden();
+  if (ch.archivedAt) throw badRequest("Channel yang diarsipkan tidak dapat diubah.", undefined, "CHANNEL_ARCHIVED");
+  const db = getDb();
+  if (teamId) {
+    const [t] = await db.select({ id: teams.id, active: teams.isActive }).from(teams).where(eq(teams.id, teamId));
+    if (!t || !t.active) throw badRequest("Tim tidak ditemukan atau nonaktif.", undefined, "TEAM_INVALID");
+    const [link] = await db.select().from(teamChannels).where(and(eq(teamChannels.teamId, teamId), eq(teamChannels.channelId, channelId)));
+    if (!link) throw badRequest("Tim itu belum terhubung ke channel ini (atur di halaman Tim).", undefined, "TEAM_NOT_LINKED");
+  }
+  await db.transaction(async (tx) => {
+    await tx.update(channels).set({ defaultTeamId: teamId, updatedAt: new Date(), updatedBy: ctx.user.id }).where(eq(channels.id, channelId));
+    await writeAudit(tx, { ...auditFor(ctx), action: "channel.default_team_changed", objectType: "channel", objectId: channelId, metadata: { teamId } });
+  });
+  return { defaultTeamId: teamId };
+}
+
+/**
+ * Data kontrol otomatisasi per channel untuk halaman Channel: tim yang terhubung (kandidat antrian default) dan status
+ * "Jeda otomatisasi channel". Hanya untuk channel yang dapat dilihat pengguna (pemanggil menyaring dengan `listChannels`).
+ */
+export async function getChannelAutomation(ctx: Ctx, channelIds: string[]) {
+  if (channelIds.length === 0) return {} as Record<string, { teams: { id: string; name: string }[]; paused: { reason: string | null; engagedAt: string | null } | null; canSetTeam: boolean; canPause: boolean }>;
+  const db = getDb();
+  const linked = await db.select({ channelId: teamChannels.channelId, id: teams.id, name: teams.name }).from(teamChannels).innerJoin(teams, eq(teams.id, teamChannels.teamId)).where(and(inArray(teamChannels.channelId, channelIds), eq(teams.isActive, true)));
+  const paused = await db.select().from(killSwitches).where(and(eq(killSwitches.scopeType, "channel"), eq(killSwitches.engaged, true), inArray(killSwitches.scopeRef, channelIds)));
+  return Object.fromEntries(channelIds.map((id) => {
+    const p = paused.find((k) => k.scopeRef === id);
+    return [id, {
+      teams: linked.filter((l) => l.channelId === id).map((l) => ({ id: l.id, name: l.name })).sort((a, b) => a.name.localeCompare(b.name)),
+      paused: p ? { reason: p.reason, engagedAt: p.engagedAt?.toISOString() ?? null } : null,
+      canSetTeam: ctx.perms.can("channel.manage", id),
+      canPause: ctx.perms.can("killswitch.channel", id) || ctx.perms.can("killswitch.manage"),
+    }];
+  }));
 }

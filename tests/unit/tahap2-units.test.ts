@@ -205,14 +205,16 @@ describe("@tahap-2 arsitektur statis: batas modul & jalur kritis", () => {
       for (const i of imports) expect(i, `${rel(f)} → ${i}`).not.toMatch(/conversations-messages|contacts|\/app\//);
     }
   });
-  it("hook otomatisasi hanya dipancarkan dari cabang 'message' di ingest.ts (echo/history/status tidak pernah)", () => {
-    const users = src.filter((f) => /emitCustomerMessage\(/.test(read(f)) && !f.endsWith("events.ts")).map(rel);
+  it("hook otomatisasi hanya dipancarkan dari cabang 'message' di ingest.ts (echo/history/status tidak pernah) — sejak Tahap 3 lewat OUTBOX durable (ADR-0008)", () => {
+    // Jaminan yang sama (kontrak inti #3), mekanisme baru: event ditulis ke outbox hanya dari cabang 'message'.
+    const users = src.filter((f) => /enqueueCustomerMessage\(/.test(read(f)) && !f.endsWith("outbox.ts")).map(rel);
     expect(users).toEqual(["src/modules/conversations-messages/ingest.ts"]);
+    expect(src.filter((f) => /emitCustomerMessage\(/.test(read(f)) && !f.endsWith("events.ts")).map(rel)).toEqual([]); // jalur langsung (tanpa outbox) tidak dipakai produksi
     const ing = read(path.join(root, "src/modules/conversations-messages/ingest.ts"));
-    expect(ing.match(/emitCustomerMessage\(/g)).toHaveLength(1);
+    expect(ing.match(/enqueueCustomerMessage\(/g)).toHaveLength(1);
     const msgCase = ing.slice(ing.indexOf('case "message"'), ing.indexOf('case "echo"'));
-    expect(msgCase).toContain("emitCustomerMessage(");
-    expect(ing.slice(ing.indexOf('case "echo"'))).not.toContain("emitCustomerMessage(");
+    expect(msgCase).toContain("enqueueCustomerMessage(");
+    expect(ing.slice(ing.indexOf('case "echo"'))).not.toContain("enqueueCustomerMessage(");
   });
   it("webhook: raw body dibaca & tanda tangan divalidasi SEBELUM JSON.parse; penyimpanan sebelum respons sukses; tidak mencatat payload", () => {
     const w = read(path.join(root, "src/app/api/webhooks/whatsapp/route.ts"));
@@ -230,9 +232,9 @@ describe("@tahap-2 arsitektur statis: batas modul & jalur kritis", () => {
       expect(t, rel(f)).not.toMatch(/console\.error\([^;]*\.message\b/);
     }
   });
-  it("Tahap 2 tidak membawa konektor tidak resmi, dan belum membangun inbox/AI/label/pipeline/follow-up", () => {
+  it("tidak membawa konektor tidak resmi, dan belum membangun AI nyata/label/pipeline/follow-up (inbox sah sejak Tahap 3 — ADR-0007)", () => {
     const pkg = JSON.parse(read(path.join(root, "package.json")));
     expect(Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).join(" ")).not.toMatch(/baileys|whatsapp-web|waha|venom|wppconnect/i);
-    expect(src.some((f) => /ai-agents|pipelines|follow-up|program-cards|\/labels\/|\/templates\/|\/inbox\//.test(rel(f)))).toBe(false);
+    expect(src.some((f) => /ai-agents|pipelines|follow-up|program-cards|\/labels\/|\/templates\//.test(rel(f)))).toBe(false);
   });
 });

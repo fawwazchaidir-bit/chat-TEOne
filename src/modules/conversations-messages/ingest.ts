@@ -13,7 +13,9 @@ import { writeAudit } from "@/modules/audit";
 import { IdentityConflictError, upsertContact, type IdentityInput } from "@/modules/contacts/service";
 import { contactMatchesMessage, type ClaimedEvent, type MessageFragment, type NormalizedEvent } from "@/modules/whatsapp-adapter";
 import { upsertConversation } from "./conversations";
-import { automationEligible, emitCustomerMessage } from "./events";
+import { automationEligible } from "./events";
+import { setAiState } from "./ai-state";
+import { dispatchOutbox, enqueueCustomerMessage } from "./outbox";
 import { fetchInboundMedia } from "./media";
 import { isListedRecipient } from "./recipients";
 import { applyStatusesToMessage, recordStatusEvent } from "./status";
@@ -40,6 +42,8 @@ async function insertMessage(tx: Executor, a: InsertArgs): Promise<InsertResult>
   const values = {
     conversationId: a.conversationId, channelId: a.channelId, direction: a.direction, source: a.source, type: cls.type, rawType: a.msg.rawType,
     body: a.msg.text ?? a.msg.media?.caption ?? null, providerMessageId: a.msg.id, providerTs, status: a.status, isHistory: a.source === "history",
+    // D-16: hanya pesan pelanggan LANGSUNG yang baru menambah jumlah belum dibaca (bukan history/echo/duplikat/penggolongan ulang).
+    unreadEligible: a.source === "pelanggan" && a.direction === "masuk",
   };
   const ins = await tx.insert(messages).values(values).onConflictDoNothing({ target: [messages.channelId, messages.providerMessageId] }).returning({ id: messages.id });
   if (ins.length) return { id: (ins[0] as { id: string }).id, inserted: true, reclassified: false, ...cls };
@@ -57,9 +61,10 @@ async function insertMessage(tx: Executor, a: InsertArgs): Promise<InsertResult>
  * `lastMessageAt` (urutan tampilan) boleh memakai waktu kedatangan bila cap waktu tak ada; `lastCustomerMessageAt` (DASAR JENDELA LAYANAN)
  * hanya diperbarui dengan waktu pesan yang TERBUKTI (`customerProof`, G2-A02) — tidak pernah dengan waktu kedatangan.
  */
-async function touchConversation(tx: Executor, conversationId: string, displayTs: Date, customerProof: Date | null) {
+async function touchConversation(tx: Executor, conversationId: string, displayTs: Date | null, customerProof: Date | null) {
+  if (!displayTs && !customerProof) return;
   await tx.update(conversations).set({
-    lastMessageAt: sql`GREATEST(COALESCE(${conversations.lastMessageAt}, 'epoch'::timestamptz), ${displayTs})`,
+    ...(displayTs ? { lastMessageAt: sql`GREATEST(COALESCE(${conversations.lastMessageAt}, 'epoch'::timestamptz), ${displayTs})` } : {}),
     ...(customerProof ? { lastCustomerMessageAt: sql`GREATEST(COALESCE(${conversations.lastCustomerMessageAt}, 'epoch'::timestamptz), ${customerProof})` } : {}),
   }).where(eq(conversations.id, conversationId));
 }
@@ -75,6 +80,21 @@ async function attachMedia(tx: Executor, messageId: string, channelId: string, m
 }
 
 const idsOf = (waId: string | null, userId: string | null): IdentityInput[] => [...(waId ? [{ type: "wa_id" as const, value: waId }] : []), ...(userId ? [{ type: "user_id" as const, value: userId }] : [])];
+
+/**
+ * D-05 (ASUMSI, default usulan): pesan keluar BARU dari WhatsApp Business App → AI Off pada chat itu. Event lama/duplikat TIDAK boleh
+ * membalik status yang sudah diperbarui: hanya echo baru (bukan duplikat) yang waktunya TERBUKTI dan SETELAH batas aktivasi ulang yang berlaku.
+ */
+async function echoTurnsAiOff(tx: Executor, conversationId: string, ts: Date | null) {
+  const [c] = await tx.select().from(conversations).where(eq(conversations.id, conversationId));
+  if (!c || c.aiStatus !== "aktif") return;
+  const proven = provenCustomerTime(ts ? ts.toISOString() : null);
+  if (!proven || (c.aiBoundaryAt && proven.getTime() <= c.aiBoundaryAt.getTime())) {
+    await writeAudit(tx, { actorLabel: "sistem:echo", action: "conversation.echo_ai_ignored", objectType: "conversation", objectId: conversationId, metadata: { reason: proven ? "sebelum_batas" : "waktu_tidak_terbukti" } });
+    return;
+  }
+  await setAiState(tx, conversationId, { to: "off", reason: "balasan_dari_hp" }, { audit: { actorLabel: "sistem:echo" }, actorId: null, label: "sistem:echo (HP)" });
+}
 
 const dedupeIds = (ids: IdentityInput[]): IdentityInput[] => ids.filter((i, k) => ids.findIndex((j) => j.type === i.type && j.value === i.value) === k);
 
@@ -125,9 +145,13 @@ export async function ingestEvent(tx: Executor, ev: ClaimedEvent): Promise<Inges
       }
       if (r.inserted && r.downloadable) { const job = await attachMedia(tx, r.id, channelId, m.media, "download"); if (job) after.push(job); }
       // Pemicu otomatisasi: PEMBARUAN DATA ≠ KELAYAKAN. Hanya bila waktu pesan terbukti dan baru; penggolongan ulang history→langsung
-      // yang lama/tak terbukti TIDAK memicu (G2-A03).
+      // yang lama/tak terbukti TIDAK memicu (G2-A03). Event ditulis ke OUTBOX DURABLE dalam transaksi yang sama (T2-F15 tertutup).
       if (automationEligible(proven, now)) {
-        after.push(() => emitCustomerMessage({ channelId, conversationId, messageId: r.id, contactId: contact.id, providerTs: (proven as Date).toISOString(), receivedAt: now.toISOString() })); // satu-satunya pemicu otomatisasi
+        await enqueueCustomerMessage(tx, { channelId, conversationId, messageId: r.id, contactId: contact.id, providerTs: (proven as Date).toISOString(), receivedAt: now.toISOString() });
+        after.push(() => dispatchOutbox().then(() => undefined));
+      } else if (r.inserted && !proven) {
+        // Urutan/waktu tak dapat dipastikan saat AI Aktif → tandai untuk ditinjau; JANGAN diproses (Tahap 3 §9).
+        await tx.update(conversations).set({ reviewFlag: "urutan_tidak_pasti" }).where(and(eq(conversations.id, conversationId), eq(conversations.aiStatus, "aktif")));
       }
       return { kind: "processed", after };
     }
@@ -142,6 +166,7 @@ export async function ingestEvent(tx: Executor, ev: ClaimedEvent): Promise<Inges
       const r = await insertMessage(tx, { conversationId, channelId, direction: "keluar", source: "whatsapp_business_app", msg: m, status: "terkirim" });
       if (!r.inserted) return noop;
       await applyStatusesToMessage(tx, channelId, m.id); // status yang datang LEBIH DULU dari pesannya diterapkan sekarang
+      await echoTurnsAiOff(tx, conversationId, m.ts ? new Date(m.ts) : null); // D-05 (ASUMSI): pesan keluar baru dari HP → AI Off
       await touchConversation(tx, conversationId, m.ts ? new Date(m.ts) : new Date(), null); // BUKAN pesan pelanggan → jendela tidak berubah
       const after: (() => Promise<void>)[] = [];
       if (r.downloadable) { const job = await attachMedia(tx, r.id, channelId, m.media, "download"); if (job) after.push(job); }
@@ -161,7 +186,7 @@ export async function ingestEvent(tx: Executor, ev: ClaimedEvent): Promise<Inges
       const conversationId = await upsertConversation(tx, contact.id, channelId);
       const r = await insertMessage(tx, { conversationId, channelId, direction: p.direction, source: "history", msg: p.message, status: null });
       if (!r.inserted) return noop; // dideduplikasi terhadap event langsung
-      await touchConversation(tx, conversationId, p.message.ts ? new Date(p.message.ts) : new Date(), null);
+      await touchConversation(tx, conversationId, p.message.ts ? new Date(p.message.ts) : null, null); // history tanpa waktu TIDAK memindahkan chat ke urutan teratas
       if (r.downloadable) await attachMedia(tx, r.id, channelId, p.message.media, "history"); // media riwayat tidak diunduh (Tahap 2)
       return { kind: "processed", after: [] }; // TIDAK ada hook: history tidak memicu apa pun
     }

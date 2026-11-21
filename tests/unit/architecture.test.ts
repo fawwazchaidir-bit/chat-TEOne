@@ -57,8 +57,9 @@ describe("@tahap-1 arsitektur & kontrol statis", () => {
     }
   });
 
-  it("modul tahap berikutnya belum ada (jangan membangun fitur sebelum waktunya) — ADR-0004: whatsapp-adapter, contacts, conversations-messages kini sah (Tahap 2)", () => {
-    expect(srcFiles.some((f) => /ai-agents|pipelines|follow-up|program-cards|knowledge|labels|templates|\/inbox\//.test(rel(f)))).toBe(false);
+  it("modul tahap berikutnya belum ada (jangan membangun fitur sebelum waktunya) — ADR-0004: whatsapp-adapter, contacts, conversations-messages kini sah (Tahap 2); ADR-0007/0008: inbox dan automation kini sah (Tahap 3)", () => {
+    // Larangan untuk Tahap 4–9 TETAP penuh. Satu-satunya perubahan sejak Tahap 2: `inbox` (dan `automation`) tidak lagi dilarang.
+    expect(srcFiles.some((f) => /ai-agents|pipelines|follow-up|program-cards|knowledge|labels|templates/.test(rel(f)))).toBe(false);
   });
 
   it("semua route /api/v1 memakai pembungkus apiFull/apiSession/apiPublic (tidak ada handler tanpa pemeriksaan sesi)", () => {

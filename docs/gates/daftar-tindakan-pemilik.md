@@ -1,4 +1,4 @@
-# Daftar tindakan pemilik — Tahap 1 & Tahap 2
+# Daftar tindakan pemilik — Tahap 1, 2 & 3
 
 > Disusun pembangun dari audit Gate 1 (awal + ulang), audit Gate 2, `decisions.md`, dan `jalur-0.md`. Isinya hanya hal yang **tidak bisa dikerjakan pembangun** (keputusan, akun, server, tanda tangan gate).
 > Urutan = **yang paling banyak membuka blokir dulu**. Status per 21 Nov 2026. Bukan keputusan gate; tidak mengubah rekomendasi auditor (**TAHAN** untuk Gate 1 dan Gate 2).
@@ -6,6 +6,7 @@
 ## Posisi sekarang (ringkas)
 - **Kode & simulasi:** Tahap 1 dan 2 selesai dan teruji di mock/lokal/CI (281 test, E2E simulasi). Semua temuan audit yang bisa diselesaikan dengan kode **sudah diperbaiki** dan menunggu verifikasi ulang auditor.
 - **Yang menghalangi "lulus":** (1) **uji nyata Meta/coexistence belum ada** → Tahap 2 tidak bisa lulus penuh; (2) **staging + backup di server belum ada** → Gate 1 tidak bisa diterima penuh; (3) **keputusan bisnis masih Terbuka**; (4) **audit ulang** di lingkungan lengkap belum selesai.
+- **Tahap 3 (inbox, routing, pengambilalihan, kill switch)** sudah dibuat dan diuji **secara simulasi** (mock Meta + job AI simulasi); **belum lulus untuk integrasi langsung**. Tindakan Anda ada di bagian **F**.
 - **Semua ini ada di tangan Anda / infrastruktur** — bukan di kode.
 
 ---
@@ -61,8 +62,20 @@
 - **Jangan** mempublikasikan nomor Kemitraan sebelum GO.
 - **Jangan** merge ke `main`, membuat tag `tahap-N-diterima`, atau menyebut gate diterima sebelum keputusan tertulis Anda.
 
+## F. Tahap 3 — Inbox tim, routing, pengambilalihan, kill switch (tindakan Anda)
+
+| # | Tindakan | Kenapa | Catatan |
+|---|---|---|---|
+| F1 | **Putuskan D-16** (belum dibaca per pengguna **atau** bersama) dan **D-22** (lead nyasar dialihkan di percakapan yang sama); **konfirmasi D-05** (pesan dari HP mematikan AI) | Dipakai sebagai **ASUMSI** di Tahap 3; mengubahnya mudah bila diputuskan lain (lokasi perubahan ada di ADR-0007/0008) | Isi kolom Keputusan akhir + Oleh/tanggal di `decisions.md` — pembangun tidak mengisinya |
+| F2 | **Tinjau ADR-0007, 0008, 0009** dan tiga penyesuaian **sempit** pada penjaga statis lama (`architecture.test.ts`, `tahap2-units.test.ts`: `inbox` kini sah; larangan Tahap 4–9 tetap; jaminan "hook hanya dari cabang `message`" dipindah ke outbox) | Aturan: test tidak boleh dilemahkan tanpa ADR — butuh penilaian Anda/auditor | `adr/0007-…` §5 |
+| F3 | **Putuskan penanganan pesan pelanggan yang tiba > 10 menit setelah waktunya** (T3-F04): ditandai "perlu ditinjau"? dieskalasi? | Saat ini hanya tersimpan + belum dibaca; tidak diproses otomatisasi | Mengikat perilaku AI Tahap 4 |
+| F4 | **Coba inbox di lingkungan uji**: Super Admin menyalakan flag `inbox` (dan `ai_simulation` **hanya** untuk uji), beri peran berizin, ikuti `docs/tahap-3/panduan-inbox.md` | Menilai kegunaan nyata sebelum Gate 3 | `ai_simulation` **tidak pernah** menyala di production (ditegakkan server); matikan di staging yang memuat kontak nyata |
+| F5 | **Uji nyata Tahap 3 dengan nomor uji** (setelah A1–A5, A7): balas dari inbox lewat nomor uji, status provider nyata, echo dari HP (D-05), kill switch pada pengiriman nyata | Tanpa ini Tahap 3 tetap **belum lulus untuk integrasi langsung**; G3/G8 versi NYATA masih placeholder | Bukti disamarkan; ganti placeholder hanya bila benar-benar lulus |
+| F6 | **Audit independen Gate 3** di sesi terpisah (prompt auditor: `GATE-CHECKLIST.md` bagian G) — setelah keputusan Gate 2 | Pembangun tidak mengaudit pekerjaannya sendiri | Jangan mengisi formulir keputusan sebelum membaca bukti |
+
 ## Ringkasan urutan kerja yang disarankan
 1. **Minggu ini:** A1, A2 (keputusan) → A3, A4 (akses Meta + cek nomor) → A7 (akses dokumentasi) → C1 (jalur-0).
 2. **Paralel:** A5, A6 (server + backup) dan C2 (lingkungan audit).
 3. **Setelah akses & server siap:** D (uji nyata) → C3, C4 (CI commit final + audit ulang Gate 2).
 4. **Setelah bukti cukup:** B1–B8 → C5 (formulir keputusan) → C6 (tag + backup titik-kembali).
+5. **Tahap 3:** F1–F3 (keputusan/tinjauan) → F4 (coba di lingkungan uji) → F5 (uji nyata, bersama bagian D) → F6 (audit Gate 3).

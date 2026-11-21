@@ -42,8 +42,8 @@ export class MockGraph {
   /** Menimpa URL unduhan yang dikembalikan info media (untuk menguji penolakan SSRF). */
   overrideMediaUrl: string | null = null;
 
-  async start() {
-    await new Promise<void>((r) => this.server.listen(0, "127.0.0.1", r));
+  async start(port = 0) {
+    await new Promise<void>((r) => this.server.listen(port, "127.0.0.1", r));
     this.url = `http://127.0.0.1:${(this.server.address() as AddressInfo).port}`;
     return this;
   }

@@ -1,5 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { NotAvailable, PageHeader } from "@/components/ui";
+import { isFeatureEnabled } from "@/modules/feature-flags";
 
 const MODUL: Record<string, { nama: string; stage: number; ket: string }> = {
   inbox: { nama: "Inbox", stage: 3, ket: "Percakapan multi-channel, routing, pengambilalihan dari AI." },
@@ -11,8 +12,10 @@ const MODUL: Record<string, { nama: string; stage: number; ket: string }> = {
 };
 
 export default async function Page({ params }: { params: Promise<{ modul: string }> }) {
-  const m = MODUL[(await params).modul];
+  const slug = (await params).modul;
+  const m = MODUL[slug];
   if (!m) notFound();
+  if (slug === "inbox" && (await isFeatureEnabled("inbox"))) redirect("/inbox"); // jangan mengaku "belum dibuat" bila modulnya sudah menyala
   return (
     <>
       <PageHeader title={m.nama} sub={<NotAvailable stage={m.stage} />} />

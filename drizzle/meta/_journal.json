@@ -29,6 +29,20 @@
       "when": 1795214454949,
       "tag": "0003_tahap2_gate2_mapping_version",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795259815663,
+      "tag": "0004_tahap3_inbox_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795259819132,
+      "tag": "0005_tahap3_triggers_integrity",
+      "breakpoints": true
     }
   ]
 }
