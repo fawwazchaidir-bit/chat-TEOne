@@ -118,7 +118,13 @@ Golden E2E **G1–G3, G5 (aktivasi), G8 berjalan** (G1/G2 tidak diubah; flag Tah
 | Production | Tidak ada; tidak ada konektor Meta nyata terpasang; `ai_simulation` tidak dapat menyala |
 
 ### 8.1 CI pada commit final
-*(Diisi setelah run GitHub Actions selesai — tidak diisi sebelum ada bukti.)*
+| Run | Commit | Hasil |
+|---|---|---|
+| #12 | `ecf3bec` | *cancelled* — digantikan push berikutnya (konkurensi CI); bukan kegagalan |
+| #13 | `e4c7245` | **Lint · Typecheck · Guard · Secret scan (gitleaks): sukses** · **Build · Test regresi · E2E: sukses** · **Drill backup & restore: GAGAL** — `GAGAL: berkas rusak tidak ditolak oleh checksum (rc=0)` |
+| (berikutnya) | commit perbaikan drill | *(dicatat setelah run selesai — tidak diisi sebelum ada bukti)* |
+
+Kegagalan #13 **bukan** disebabkan kode Tahap 3 (drill lulus di lokal 4×; langkah lain hijau). Penyebabnya kelemahan laten skrip drill sejak Tahap 1 — lihat **T3-F14** (§9.B). Hasil `e4c7245` tidak boleh disebut "CI hijau penuh".
 
 ## 9. Temuan
 ### A. Temuan terbuka / risiko (juga di `docs/temuan-dan-risiko.md`)
@@ -149,6 +155,7 @@ Golden E2E **G1–G3, G5 (aktivasi), G8 berjalan** (G1/G2 tidak diubah; flag Tah
 | Tata letak 4 kolom menyisakan ±240 px untuk percakapan di laptop; `scrollIntoView` dapat menggeser halaman | Tangkapan layar | Navigasi horizontal ≤ 1500 px; gulir kontainer; layar sempit menggulir ke percakapan |
 | Halaman `/belum-tersedia/inbox` mengaku "belum dibuat" saat flag menyala; label kill switch masih "Tahap 1" | Tinjauan | Dialihkan ke `/inbox` bila flag menyala; label diperbarui |
 | Penjaga struktural lama melarang `inbox`; asumsi "audit_log di-reset" salah | Regresi | Disesuaikan sempit (§6); filter asersi per objek |
+| **T3-F14 — Uji "berkas rusak" pada drill backup bisa merah palsu (peluang 1/256 per run)**: langkah menimpa byte ke-100 dengan konstanta `X`; ciphertext gpg acak, jadi bila byte aslinya sudah `X` berkas tidak berubah → restore lolos → `rc=0` | **CI run #13** (log job drill) — mekanisme dibuktikan secara deterministik; bahwa byte itu `X` pada run tersebut tidak dapat dibuktikan dari log, tetapi tidak ada penjelasan lain untuk `rc=0` pada kode yang ada | Perusakan kini membalik semua bit byte itu (XOR 0xFF) **dan** drill gagal bila berkas tidak berubah; diuji pada nilai tepi (0, 88, 255, …) dan 4× run lokal lulus. Diverifikasi pada run CI berikutnya |
 
 ## 10. Asumsi yang dipakai (rujuk `docs/decisions.md`)
 - **ASUMSI (D-05):** pesan keluar baru dari HP → AI Off pada chat itu; echo lama/duplikat/tanpa waktu tidak membalik.

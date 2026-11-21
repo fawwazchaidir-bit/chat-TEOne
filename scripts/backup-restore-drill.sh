@@ -49,7 +49,12 @@ echo "   terenkripsi: isi tidak terbaca sebagai teks/PGDMP (header: $file_head)"
 echo "== Uji keamanan backup: passphrase salah & berkas rusak harus DITOLAK"
 echo "salah-salah-salah" > "$WORK/wrong.pass"; chmod 600 "$WORK/wrong.pass"
 if PGHOST=$HOST PGPORT=$PORT PGUSER=teone_owner PGPASSWORD=$OWNER_PW PGDATABASE=$DST BACKUP_FILE="$BACKUP_FILE" BACKUP_PASSPHRASE_FILE="$WORK/wrong.pass" bash scripts/restore.sh >/dev/null 2>&1; then echo "GAGAL: passphrase salah diterima"; exit 1; else echo "   passphrase salah → ditolak ✔"; fi
-cp "$BACKUP_FILE" "$WORK/corrupt.dump.gpg"; printf 'X' | dd of="$WORK/corrupt.dump.gpg" bs=1 seek=100 conv=notrunc 2>/dev/null
+cp "$BACKUP_FILE" "$WORK/corrupt.dump.gpg"
+# Rusak SATU byte dengan membalik semua bitnya (XOR 0xFF) sehingga berkas PASTI berubah. Versi lama menimpa dengan konstanta 'X': ciphertext gpg
+# acak, jadi dengan peluang 1/256 byte aslinya sudah 'X' → berkas tak berubah → restore lolos → CI merah palsu (ditemukan di CI run #13, Tahap 3).
+orig_byte=$(dd if="$BACKUP_FILE" bs=1 skip=100 count=1 2>/dev/null | od -An -tu1 | tr -d ' \n')
+printf "$(printf '\\%03o' $(( orig_byte ^ 255 )))" | dd of="$WORK/corrupt.dump.gpg" bs=1 seek=100 conv=notrunc 2>/dev/null
+if cmp -s "$BACKUP_FILE" "$WORK/corrupt.dump.gpg"; then echo "GAGAL (uji): perusakan berkas tidak mengubah isinya"; exit 1; fi
 cp "$BACKUP_FILE.sha256" "$WORK/corrupt.dump.gpg.sha256"; sed -i "s#  .*#  corrupt.dump.gpg#" "$WORK/corrupt.dump.gpg.sha256"
 rc=0; PGHOST=$HOST PGPORT=$PORT PGUSER=teone_owner PGPASSWORD=$OWNER_PW PGDATABASE=$DST BACKUP_FILE="$WORK/corrupt.dump.gpg" BACKUP_PASSPHRASE_FILE="$WORK/backup.pass" bash scripts/restore.sh >/dev/null 2>&1 || rc=$?
 [ "$rc" = "2" ] && echo "   berkas rusak → checksum menolak (exit 2) ✔" || { echo "GAGAL: berkas rusak tidak ditolak oleh checksum (rc=$rc)"; exit 1; }
