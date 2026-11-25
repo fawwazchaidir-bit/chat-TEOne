@@ -76,7 +76,7 @@ Nomor telepon **tidak** menjadi pengenal integrasi; kontak memiliki `public_ref`
 | #7 Kill switch | Belum ada otomatisasi yang dikendalikan — **Di luar lingkup** (registri Tahap 1 tidak diubah) |
 
 ## 6. Batas dan keterbatasan yang diketahui
-- Hook otomatisasi (`emitCustomerMessage`) berjalan **dalam memori** setelah commit — **tidak durable** (T2-F15); wajib dipindah ke outbox sebelum subscriber otomatisasi mengirim pesan (Tahap 3–6).
+- Hook otomatisasi (`emitCustomerMessage`) berjalan **dalam memori** setelah commit — **tidak durable** (T2-F15); wajib dipindah ke outbox sebelum subscriber otomatisasi mengirim pesan (Tahap 3–6). **Pembaruan 25 Nov 2026:** sudah dipindah ke **outbox durable** (`domain_outbox`, ADR-0008; terbukti simulasi) — `emitCustomerMessage` tinggal untuk kompatibilitas dan tidak dipakai produksi.
 - Rate limiter **per proses**; >1 instans aplikasi butuh limiter di database (T2-F10).
 - Media disimpan di filesystem privat (`MEDIA_DIR`, berkas `0600`) — **belum ada backup media** dan bukan penyimpanan objek (T2-F11).
 - Jenis pesan selain teks/gambar/PDF: tersimpan sebagai "jenis pesan belum didukung" (metadata), tidak menggagalkan pemrosesan.

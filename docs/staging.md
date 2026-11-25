@@ -1,11 +1,12 @@
 # Panduan staging
 
-> **STATUS: dibuat, BELUM DIVERIFIKASI.** Server staging (Jalur 0, J0-03) belum tersedia pada Tahap 1; berkas `deploy/` hanya
-> diuji secara sintaks/logika lokal. Setiap butir di bagian 6 harus dibuktikan di server sebelum staging dinyatakan siap.
+> **STATUS (diperbarui 25 Nov 2026): staging DILAPORKAN berjalan** di `staging-chat.trilogikaedutama.id` dengan commit `9c297d3` dan Meta nyata (lihat
+> [`tahap-2/bukti-uji-staging-2026-11-25.md`](tahap-2/bukti-uji-staging-2026-11-25.md)), tetapi **bukti belum terlampir** dan **butir di bagian 6 belum ada yang dicentang** —
+> staging **belum dinyatakan siap/terverifikasi**. Pembangun tidak memiliki akses ke server; yang di bawah adalah prosedur yang **dapat direproduksi** dan yang diuji di CI.
 
 ## 1. Prinsip
 - **Server tersendiri** untuk TE One — jangan memakai VPS HRIS atau aplikasi keuangan (AGENTS.md §1).
-- Database dan **semua rahasia terpisah** dari development/production. Domain: **subdomain khusus** TE One (nama final dari `docs/jalur-0.md` — berkas belum ada; `deploy/Caddyfile` memakai placeholder `staging-chat.example.invalid`).
+- Database dan **semua rahasia terpisah** dari development/production. Domain: **subdomain khusus** TE One — staging: `staging-chat.trilogikaedutama.id` (dilaporkan; DNS/HTTPS belum terbukti di repository). Domain **tidak ditulis di berkas terlacak**: dibaca dari `SITE_ADDRESS` di `deploy/.env` (lihat §5); bawaan `.invalid` sengaja tidak dapat memperoleh sertifikat.
 - Pita **"LINGKUNGAN STAGING"** tampil otomatis (`APP_ENV=staging`). Data hanya data contoh/uji.
 - Pesan keluar di non-production **hanya** ke daftar penerima uji yang ditegakkan di server (AGENTS.md §3.6) — diimplementasikan di Tahap 2 (`tahap-2/konfigurasi-staging.md`; **belum terbukti di server**).
 
@@ -24,21 +25,30 @@
 ## 4. Rahasia
 Berkas di luar repository, pemilik root, `chmod 600`: `/etc/teone/staging.env` (nama variabel = `.env.example`), `/etc/teone/pg_superuser.secret`, `/etc/teone/backup.pass` (**disimpan terpisah dari server DB** — lihat backup-restore.md). Kunci `APP_ENCRYPTION_KEY` dikelola terpisah dari database; kehilangan kunci ⇒ seluruh TOTP harus direset.
 
-## 5. Deploy (rencana)
+## 5. Build dan deploy yang dapat direproduksi
+**Prinsip:** image yang diuji harus dapat dikaitkan ke **satu commit**; konfigurasi server **tidak** boleh berupa edit pada berkas yang dilacak git.
+
 ```bash
-docker build -t teone-app:staging .                           # target runtime
-docker build --target tools -t teone-tools:staging .          # migrasi & CLI admin
+git fetch origin && git checkout --detach <SHA-commit-yang-akan-diuji>   # pohon kerja HARUS bersih (git status kosong)
+cp deploy/.env.example deploy/.env      # SEKALI; isi SITE_ADDRESS=<domain staging>  (nilai non-rahasia; berkas ini di-ignore git & docker)
+bash scripts/build-staging-image.sh     # menolak pohon kotor; label revision=SHA; tag staging-<sha7>; mencetak PROVENANCE → salin ke catatan bukti
+export TEONE_TAG=staging-<sha7>         # tag yang dicetak skrip
 docker compose -f deploy/docker-compose.staging.yml up -d db
 docker compose -f deploy/docker-compose.staging.yml run --rm tools npm run db:migrate
 docker compose -f deploy/docker-compose.staging.yml run --rm tools npm run db:seed:sample   # hanya staging
 docker compose -f deploy/docker-compose.staging.yml run --rm -it tools npm run admin:bootstrap
-docker compose -f deploy/docker-compose.staging.yml up -d app caddy
+docker compose -f deploy/docker-compose.staging.yml up -d app worker caddy
 ```
-Role DB dibuat dulu dengan `db/init-roles.sql` (sandi dari secret manager).
+Role DB dibuat dulu dengan `db/init-roles.sql` (sandi dari secret manager). Rahasia hanya di `/etc/teone/staging.env`.
+
+**Mengapa build dulu gagal ("`tests/e2e/env`")** — dan perbaikannya: `.dockerignore` mengecualikan `tests/` (benar: tidak ada alasan mengirimnya ke image), sedangkan `tsconfig.json` memuat `*.ts` sehingga `playwright.config.ts` (yang meng-import `./tests/e2e/env`) ikut diperiksa tipe oleh `next build` di dalam Docker → `Cannot find module './tests/e2e/env'`. **Jangan** "memperbaiki" dengan menghapus `tests` dari `.dockerignore` (itu memasukkan tests ke image). Perbaikan benar: `next build` memakai `tsconfig.build.json` (tanpa tests/ dan konfigurasi uji); `npm run typecheck` tetap memeriksa **semuanya** di CI. Dijaga `npm run check:docker-context` (meniru konteks Docker + memeriksa tipe) dan job CI **Image Docker** (build sungguhan + migrasi + jalan + health + provenance).
+
+**Memeriksa image yang berjalan** (catat di bukti uji): `docker image inspect teone-app:$TEONE_TAG --format '{{ index .Config.Labels "org.opencontainers.image.revision" }} {{.Id}}'` dan `docker compose -f deploy/docker-compose.staging.yml ps`; di host `git rev-parse HEAD` harus sama dengan label revision. Healthcheck: `GET /api/health` = `{"status":"ok"}` (butuh database).
 
 ## 5b. Tahap 2 — webhook WhatsApp dan worker
 - Meta harus menjangkau `https://<domain-staging>/api/webhooks/whatsapp` (POST/GET) lewat Caddy; **tidak** ada autentikasi sesi di jalur ini (diamankan tanda tangan + verify token).
-- Service `worker` dan volume `media_data` ditambahkan di `deploy/docker-compose.staging.yml` (**dibuat, belum diuji**). Backup media belum ada (T2-F11).
+- Service `worker` dan volume `media_data` ada di `deploy/docker-compose.staging.yml` (**belum terbukti di server**). Backup media: skrip `backup.sh`/`restore.sh` kini mencakup media (`docs/backup-restore.md`); jadwal & salinan terpisah di server belum ada.
+- **Keamanan staging dengan Meta asli:** flag `inbox` dan `ai_simulation` harus **mati**. `ai_simulation` kini ditolak server bila `META_GRAPH_BASE_URL` = `graph.facebook.com` (mengirim `[SIMULASI]` nyata dilarang).
 - Variabel `META_*`, `MEDIA_DIR`, `WORKER_INLINE`: lihat `tahap-2/konfigurasi-staging.md`.
 
 ## 6. Yang HARUS dibuktikan di server (tertunda) — isi saat verifikasi
@@ -49,5 +59,5 @@ Role DB dibuat dulu dengan `db/init-roles.sql` (sandi dari secret manager).
 - [ ] Login + 2FA Super Admin berjalan lewat domain staging (Golden E2E G1 di staging, GATE B5)
 - [ ] `TRUST_PROXY=true` + IP klien benar tercatat di audit; batas per-IP berfungsi
 - [ ] Backup terjadwal berjalan; salinan di lokasi terpisah; restore drill di server (GATE B7)
-- [ ] Image Docker berhasil dibangun di server (belum terbukti — lihat temuan T1-F03); Tahap 2: UID tetap 10001 + volume media dapat ditulis `app` dan `worker`
+- [ ] Image Docker berhasil dibangun di server dengan `scripts/build-staging-image.sh` (provenance dicatat) — **di CI sudah ada job "Image Docker"**; di server belum terbukti (T1-F03); Tahap 2: UID tetap 10001 + volume media dapat ditulis `app` dan `worker`
 - [ ] Tahap 2: webhook Meta menjangkau Caddy → app (challenge + POST bertanda tangan); body ≤ 3 MB lewat proxy

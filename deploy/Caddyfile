@@ -1,5 +1,7 @@
-# Reverse proxy HTTPS (sertifikat otomatis). Ganti domain staging dengan subdomain khusus TE One (lihat docs/staging.md).
-staging-chat.example.invalid {
+# Reverse proxy HTTPS (sertifikat otomatis). Domain TIDAK ditulis di berkas ini: dibaca dari variabel SITE_ADDRESS (nilai non-rahasia di deploy/.env,
+# lihat deploy/.env.example). Dengan begitu Caddyfile di server = Caddyfile di repository (tidak ada edit lokal yang menyimpang dari commit).
+# Bila SITE_ADDRESS belum diisi, nilai bawaan `.invalid` sengaja tidak dapat memperoleh sertifikat (kesalahan konfigurasi terlihat jelas).
+{$SITE_ADDRESS:staging-chat.example.invalid} {
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"

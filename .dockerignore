@@ -1,3 +1,5 @@
+# Konteks build Docker. `tests/` dan `docs/` TIDAK dikirim ke image. Konsekuensinya: tsconfig.build.json (dipakai `next build`) tidak boleh
+# merujuk tests/ atau playwright.config.ts — dijaga `npm run check:docker-context`. JANGAN menghapus `tests` dari sini untuk "memperbaiki" build.
 node_modules
 .next
 .git
@@ -10,5 +12,14 @@ playwright-report
 backups
 *.dump
 *.dump.enc
+*.gpg
 docs
 tests
+# artefak lokal (besar / bukan bagian aplikasi)
+.tools
+.verify
+.data
+*.log
+# berkas lokal operator (tidak boleh masuk image)
+deploy/.env
+deploy/*.sebelum-*

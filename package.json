@@ -25,6 +25,7 @@
     "contacts:repair": "node --import tsx scripts/contacts-repair.ts",
     "guard:operational": "node scripts/guard-operational.mjs",
     "scan:secrets": "node scripts/secret-scan.mjs",
+    "check:docker-context": "node scripts/check-docker-context.mjs",
     "check:all": "npm run lint && npm run typecheck && npm run guard:operational && npm run scan:secrets && npm test",
     "worker": "node --import tsx scripts/worker.ts",
     "meta:check": "node --import tsx scripts/meta-check.ts"

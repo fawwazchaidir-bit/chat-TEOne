@@ -17,10 +17,15 @@ RUN npm run build
 #   docker run --rm --env-file /etc/teone/staging.env teone-tools npm run db:migrate
 #   docker run --rm -it --env-file /etc/teone/staging.env teone-tools npm run admin:bootstrap
 FROM build AS tools
+# Provenance: image dikaitkan ke commit lewat label (scripts/build-staging-image.sh mengisi GIT_SHA; tidak ada rahasia/konfigurasi di image).
+ARG GIT_SHA=tidak-diketahui
+LABEL org.opencontainers.image.source="https://github.com/fawwazchaidir-bit/chat-TEOne" org.opencontainers.image.revision="${GIT_SHA}" org.opencontainers.image.title="teone-tools"
 USER node
 CMD ["npm", "run", "db:migrate"]
 
 FROM node:22-bookworm-slim AS runtime
+ARG GIT_SHA=tidak-diketahui
+LABEL org.opencontainers.image.source="https://github.com/fawwazchaidir-bit/chat-TEOne" org.opencontainers.image.revision="${GIT_SHA}" org.opencontainers.image.title="teone-app"
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 # UID/GID tetap (10001) agar volume media (Tahap 2) dapat dibagi dengan proses worker tanpa konflik hak akses.

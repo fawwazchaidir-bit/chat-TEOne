@@ -73,6 +73,17 @@
 | F5 | **Uji nyata Tahap 3 dengan nomor uji** (setelah A1–A5, A7): balas dari inbox lewat nomor uji, status provider nyata, echo dari HP (D-05), kill switch pada pengiriman nyata | Tanpa ini Tahap 3 tetap **belum lulus untuk integrasi langsung**; G3/G8 versi NYATA masih placeholder | Bukti disamarkan; ganti placeholder hanya bila benar-benar lulus |
 | F6 | **Audit independen Gate 3** di sesi terpisah (prompt auditor: `GATE-CHECKLIST.md` bagian G) — setelah keputusan Gate 2 | Pembangun tidak mengaudit pekerjaannya sendiri | Jangan mengisi formulir keputusan sebelum membaca bukti |
 
+## G. Tindak lanjut 25 Nov 2026 — yang diminta dari pemilik/operator staging
+| # | Tindakan | Kenapa | Catatan |
+|---|---|---|---|
+| G1 | **Tempel (disamarkan) hasil perintah rekonsiliasi** di `gates/tindak-lanjut-gate-1-2-2026-11-25.md` §1.2: `git diff` `.dockerignore`/`deploy/Caddyfile`, `diff Caddyfile.sebelum-debug`, `docker image inspect`, `git rev-parse HEAD` | Pembangun **tidak punya akses server**; tanpa ini perubahan lokal tidak bisa dinilai | **Jangan** `git reset`, hapus perubahan, atau ganti image/DB sebelum titik pemulihan diamankan |
+| G2 | **Lampirkan bukti uji 25 Nov (disamarkan)** di `docs/reports/bukti/` sesuai daftar `tahap-2/bukti-uji-staging-2026-11-25.md` §5 | Mengubah status dari **KLAIM** menjadi **TERBUKTI** | Tanpa token/App Secret/Verify Token; nomor 4 digit akhir |
+| G3 | **Pastikan flag `inbox` dan `ai_simulation` MATI di staging** | Staging memakai Meta asli; kode Tahap 3 (simulasi) ikut ter-deploy | Server kini menolak `ai_simulation` terhadap Meta asli, tetapi `inbox` tetap perlu dimatikan |
+| G4 | **Bangun ulang image dari commit bersih** dengan `scripts/build-staging-image.sh`; pindahkan domain ke `deploy/.env` (`SITE_ADDRESS`) | Mengaitkan image ↔ commit; menghilangkan edit lokal | Catat blok PROVENANCE; database **tidak** dibuat ulang |
+| G5 | **Catat kondisi akun/nomor uji** (matriks coexistence §0): apakah …6319 coexistence, versi aplikasi, pilihan history saat onboarding, field webhook yang disubscribe | Dibutuhkan untuk menilai CCP 2.8/2.10 | Pembangun tidak mengetahuinya |
+| G6 | **Setujui/tolak tertulis langkah berdampak akun** (M-11 echo, M-12 history/re-onboarding) | Instruksi: tidak boleh dilakukan tanpa penjelasan dampak ke pemilik | Lihat `tahap-2/matriks-uji-coexistence.md` |
+| G7 | Putuskan **D-12/D-18**, tetapkan **PIC pembuat & pemeriksa backup**, lokasi salinan terpisah | Tidak boleh diklaim tercapai tanpa keputusan + uji | Skrip backup/restore (DB + media + mode aman) sudah siap |
+
 ## Ringkasan urutan kerja yang disarankan
 1. **Minggu ini:** A1, A2 (keputusan) → A3, A4 (akses Meta + cek nomor) → A7 (akses dokumentasi) → C1 (jalur-0).
 2. **Paralel:** A5, A6 (server + backup) dan C2 (lingkungan audit).

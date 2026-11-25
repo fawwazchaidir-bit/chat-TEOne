@@ -19,6 +19,8 @@ const csp = [
 
 const config: NextConfig = {
   output: "standalone",
+  // Pemeriksaan tipe saat build hanya untuk berkas yang ada di image (tanpa tests/ & konfigurasi uji) — lihat tsconfig.build.json.
+  typescript: { tsconfigPath: "tsconfig.build.json" },
   poweredByHeader: false,
   reactStrictMode: true,
   serverExternalPackages: ["pg", "@node-rs/argon2"],

@@ -200,6 +200,40 @@ describe("@tahap-3 CCP 3.6 kill switch: empat tingkat menghentikan job simulasi 
   });
 });
 
+describe("@tahap-3 keamanan staging dengan Meta ASLI: subscriber otomatisasi tidak dapat mengirim (tindak lanjut Gate 1–2)", () => {
+  it("DEFAULT (flag mati): pesan masuk → event outbox terkirim ke subscriber, tetapi 0 job otomatisasi dan 0 panggilan Graph API", async () => {
+    const w = await inboxWorld(); // tanpa ai_simulation
+    await inbound({ text: "halo dari peserta uji" });
+    expect(await q("select status from domain_outbox")).toEqual([{ status: "delivered" }]); // subscriber terdaftar & dipanggil...
+    expect(await q("select 1 from automation_jobs")).toHaveLength(0); // ...tetapi tidak melakukan apa pun
+    expect(mock.calls).toHaveLength(0);
+    expect(aiSends()).toHaveLength(0);
+    void w;
+  });
+
+  it("endpoint Graph = Meta ASLI: ai_simulation ditolak server walau baris DB menyala; Super Admin tidak dapat menyalakannya; tidak ada job/panggilan", async () => {
+    const w = await inboxWorld({ simulation: true }); // baris DB menyala
+    const sa = (await makeSuperAdminSession()).client;
+    const prev = process.env.META_GRAPH_BASE_URL;
+    process.env.META_GRAPH_BASE_URL = "https://graph.facebook.com"; resetEnvCacheForTests();
+    try {
+      const { isFeatureEnabled } = await import("@/modules/feature-flags");
+      expect(await isFeatureEnabled("ai_simulation")).toBe(false);
+      const r = await sa.put("/api/v1/feature-flags", { key: "ai_simulation", enabled: true });
+      expect(r.status).toBe(400);
+      expect(r.body.error.code).toBe("FLAG_FORBIDDEN_REAL_META");
+      await inbound({ text: "pesan saat endpoint asli" });
+      expect(await q("select 1 from automation_jobs")).toHaveLength(0);
+      expect(mock.calls).toHaveLength(0); // tak ada permintaan ke mock; dan (bila ada) tidak ke Meta nyata
+      // URL tak terbaca → dianggap NYATA (gagal-aman)
+      process.env.META_GRAPH_BASE_URL = "bukan-url"; resetEnvCacheForTests();
+    } finally { process.env.META_GRAPH_BASE_URL = prev; resetEnvCacheForTests(); }
+    void w;
+    // kontrol: terhadap mock lokal (non-production) tetap menyala seperti biasa
+    expect((await (await import("@/modules/feature-flags")).isFeatureEnabled("ai_simulation"))).toBe(true);
+  });
+});
+
 describe("@tahap-3 outbox durable (menutup T2-F15): event tidak hilang walau proses mati setelah commit; minimal-sekali + idempoten", () => {
   it("event ditulis dalam transaksi yang sama dengan pesan: 1 pesan pelanggan = 1 event; duplikat, history, dan echo TIDAK menulis event", async () => {
     const w = await inboxWorld();

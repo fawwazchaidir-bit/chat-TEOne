@@ -22,6 +22,8 @@
 | [`tahap-2/`](tahap-2/README.md) | Dokumen konektor WhatsApp (Tahap 2): arsitektur, konfigurasi staging, panduan uji, webhook, status pesan, coexistence |
 | [`reports/tahap-2.md`](reports/tahap-2.md) | Laporan Tahap 2 — **belum lulus penuh** (uji nyata Meta belum dilakukan) |
 | [`tahap-3/`](tahap-3/README.md) | Dokumen Tahap 3: panduan inbox, tim/antrian/routing (aturan akses percakapan yang dialihkan), alur AI–admin, kill switch, belum dibaca & penugasan |
+| [`gates/tindak-lanjut-gate-1-2-2026-11-25.md`](gates/tindak-lanjut-gate-1-2-2026-11-25.md) | **Laporan tindak lanjut Gate 1 & 2 (25 Nov 2026)**: rekonsiliasi staging↔repo, build/provenance image, matriks temuan G1/G2, T2-F15 diperiksa, rekomendasi (TAHAN / LANJUT TERBATAS) |
+| [`tahap-2/bukti-uji-staging-2026-11-25.md`](tahap-2/bukti-uji-staging-2026-11-25.md) · [`tahap-2/matriks-uji-coexistence.md`](tahap-2/matriks-uji-coexistence.md) | Catatan uji Meta nyata di staging (**KLAIM; bukti belum terlampir**) · matriks uji coexistence terkontrol (**belum dijalankan**) |
 | [`reports/tahap-3.md`](reports/tahap-3.md) | Laporan Tahap 3 — **belum lulus untuk integrasi langsung** (seluruh bukti = simulasi/mock; Gate 2 belum diterima) |
 
 ## Berkas yang disebut aturan proyek tetapi **belum ada di repository**

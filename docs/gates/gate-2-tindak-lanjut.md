@@ -36,7 +36,8 @@ Seluruhnya di `tests/integration/tahap2-gate2.test.ts` (**35 test**, tag `@tahap
 - **Konfirmasi:** benar — penggolongan ulang mengembalikan `inserted:true` sehingga jendela dan hook berjalan tanpa bukti umur.
 - **Perbaikan:** `insertMessage` mengembalikan `reclassified` (bukan `inserted`); kelayakan = bukti waktu + umur ≤ `AUTOMATION_MAX_AGE_MS` (10 menit, **ASUMSI**); berlaku juga untuk pesan langsung biasa yang sangat terlambat.
 - **Uji:** history→langsung baru (hook tepat sekali) ✔ · lama ✔ · tanpa cap waktu ✔ · langsung→history ✔ · langsung sangat terlambat ✔ · duplikat setelah "restart" ✔ · ingest dua transaksi ✔ · subscriber tiruan (`onCustomerMessage`) ✔.
-- **Belum selesai (jujur):** hook masih **dalam memori**; pemancaran durable (outbox) harus dirancang sebelum Tahap 3–6 menyambungkan otomatisasi → **T2-F15**. Ambang 10 menit dan keputusan bahwa event langsung bercap waktu terbukti ≤ 24 jam membuka jendela perlu **disetujui pemilik/Tahap 3–4**.
+- ****[Pembaruan 25 Nov 2026 — kode terbaru]** Hook kini lewat **outbox durable** (`domain_outbox`, ADR-0008; at-least-once, idempoten, uji crash/lease/backoff/failed — **simulasi**). Teks di atas dipertahankan sebagai catatan historis sesuai kondisi saat itu.**
+- **Belum selesai (jujur, kondisi saat itu):** hook masih **dalam memori**; pemancaran durable (outbox) harus dirancang sebelum Tahap 3–6 menyambungkan otomatisasi → **T2-F15**. Ambang 10 menit dan keputusan bahwa event langsung bercap waktu terbukti ≤ 24 jam membuka jendela perlu **disetujui pemilik/Tahap 3–4**.
 
 ### G2-A04 — balapan verifikasi (Tinggi)
 - **Konfirmasi:** benar sebagai analisis interleaving; kini **dikunci** dengan mock yang dapat menahan permintaan (`mock.hold("phone")`): mutan tanpa syarat versi → test gagal.

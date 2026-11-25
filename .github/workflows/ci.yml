@@ -27,6 +27,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - name: Konteks Docker (pemeriksaan tipe `next build` tanpa tests/ — mencegah build image gagal di server)
+        run: npm run check:docker-context
       - name: Guard nomor operasional (Admisi/Hotline tidak boleh muncul di non-production)
         run: npm run guard:operational
         env:
@@ -113,3 +115,54 @@ jobs:
       - run: npm ci
       - run: sudo apt-get update && sudo apt-get install -y postgresql-client-16 || sudo apt-get install -y postgresql-client
       - run: bash scripts/backup-restore-drill.sh
+
+  image:
+    name: Image Docker (build · migrasi · jalan · provenance)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres } # database uji sekali pakai di runner CI; bukan rahasia
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image runtime + tools (konteks bersih; .dockerignore berlaku)
+        run: |
+          docker build --build-arg "GIT_SHA=${GITHUB_SHA}" -t teone-app:ci .
+          docker build --target tools --build-arg "GIT_SHA=${GITHUB_SHA}" -t teone-tools:ci .
+      - name: Provenance & isi image (label = commit; tanpa tests/; non-root)
+        run: |
+          for img in teone-app:ci teone-tools:ci; do
+            rev="$(docker image inspect "$img" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+            echo "$img revision=$rev id=$(docker image inspect "$img" --format '{{.Id}}')"
+            test "$rev" = "$GITHUB_SHA"
+          done
+          docker run --rm --entrypoint sh teone-app:ci -c 'test ! -e /app/tests && test ! -e /app/playwright.config.ts && test ! -e /app/docs && test "$(id -u)" = 10001 && ls -ld /data/media'
+      - name: Validasi Caddyfile dan Compose staging
+        run: |
+          docker run --rm -e SITE_ADDRESS=staging-chat.example.invalid -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2 caddy validate --config /etc/caddy/Caddyfile
+          sudo mkdir -p /etc/teone && sudo touch /etc/teone/staging.env /etc/teone/pg_superuser.secret
+          TEONE_TAG=ci SITE_ADDRESS=staging-chat.example.invalid docker compose -f deploy/docker-compose.staging.yml config -q
+      - name: Migrasi dari DALAM image tools, lalu jalankan image app dan periksa health + header
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null
+          OWNER_PW="$(openssl rand -hex 12)"; APP_PW="$(openssl rand -hex 12)"; KEY="$(openssl rand -base64 32)"
+          echo "::add-mask::$OWNER_PW"; echo "::add-mask::$APP_PW"; echo "::add-mask::$KEY"
+          export PGPASSWORD=postgres
+          psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE teone_owner LOGIN PASSWORD '$OWNER_PW'" -c "CREATE ROLE teone_app LOGIN PASSWORD '$APP_PW' NOSUPERUSER NOCREATEDB NOCREATEROLE" -c "CREATE DATABASE teone_image OWNER teone_owner"
+          psql -h 127.0.0.1 -U postgres -d teone_image -v ON_ERROR_STOP=1 -c "REVOKE CREATE ON SCHEMA public FROM PUBLIC; ALTER SCHEMA public OWNER TO teone_owner; GRANT USAGE ON SCHEMA public TO teone_app;"
+          OWNER_URL="postgres://teone_owner:${OWNER_PW}@127.0.0.1:5432/teone_image"; APP_URL="postgres://teone_app:${APP_PW}@127.0.0.1:5432/teone_image"
+          ENVS=(-e APP_ENV=staging -e APP_BASE_URL=https://ci.example.invalid -e TRUST_PROXY=false -e "APP_ENCRYPTION_KEY=$KEY" -e "DATABASE_URL=$APP_URL" -e "DATABASE_MIGRATION_URL=$OWNER_URL")
+          docker run --rm --network host "${ENVS[@]}" teone-tools:ci npm run db:migrate
+          docker run -d --name teone-ci --network host "${ENVS[@]}" teone-app:ci
+          for i in $(seq 1 40); do curl -fsS http://127.0.0.1:3000/api/health >/tmp/health.json 2>/dev/null && break; sleep 1; done
+          cat /tmp/health.json; echo
+          test "$(cat /tmp/health.json)" = '{"status":"ok"}'
+          curl -sI http://127.0.0.1:3000/login | tee /tmp/headers.txt
+          grep -qi '^x-frame-options: DENY' /tmp/headers.txt && ! grep -qi '^x-powered-by' /tmp/headers.txt
+          test "$(docker exec teone-ci id -u)" = 10001
+          docker logs teone-ci 2>&1 | tail -5
+          docker rm -f teone-ci

@@ -125,3 +125,46 @@ describe("@tahap-1 backup & restore: aturan keselamatan (penjaga statis; perilak
     expect(d).not.toMatch(/printf 'X' \| dd/);
   });
 });
+
+describe("@tahap-1 build & deployment staging dapat direproduksi dan dikaitkan ke commit (tindak lanjut Gate 1–2)", () => {
+  it("build image tidak bergantung pada tests/: .dockerignore mengecualikan tests, dan tsconfig.build.json (dipakai next build) mengecualikan tests + konfigurasi uji", () => {
+    const di = read(".dockerignore").split("\n").map((l) => l.trim());
+    expect(di).toContain("tests");
+    expect(di).toContain("docs");
+    const tb = JSON.parse(read("tsconfig.build.json")) as { include: string[]; exclude: string[] };
+    expect(tb.exclude).toEqual(expect.arrayContaining(["tests", "playwright.config.ts", "vitest.config.mts"]));
+    for (const inc of tb.include) { expect(inc, inc).not.toMatch(/^tests(\/|$)/); expect(inc, inc).not.toBe("*.ts"); } // tidak menarik tests/ atau berkas .ts di akar (playwright/vitest config)
+    expect(read("next.config.ts")).toContain('tsconfigPath: "tsconfig.build.json"');
+    expect(JSON.parse(read("package.json")).scripts["check:docker-context"]).toBe("node scripts/check-docker-context.mjs");
+    expect(read(".github/workflows/ci.yml")).toContain("npm run check:docker-context");
+  });
+
+  it("domain staging tidak ditulis di Caddyfile (dibaca dari SITE_ADDRESS; bawaan .invalid), dan konfigurasi lokal operator tidak masuk git/image", () => {
+    const c = read("deploy/Caddyfile");
+    expect(c).toContain("{$SITE_ADDRESS:staging-chat.example.invalid}");
+    expect(c).not.toMatch(/trilogikaedutama|https?:\/\//);
+    const compose = read("deploy/docker-compose.staging.yml");
+    expect(compose).toContain("SITE_ADDRESS: ${SITE_ADDRESS:-staging-chat.example.invalid}");
+    expect(compose).toContain("teone-app:${TEONE_TAG:-staging}");
+    expect(compose.match(/teone-tools:\$\{TEONE_TAG:-staging\}/g)).toHaveLength(2);
+    expect(read("deploy/.env.example")).not.toMatch(/PASSWORD|SECRET|TOKEN|KEY\s*=/i); // hanya nilai non-rahasia
+    expect(read(".dockerignore")).toContain("deploy/.env");
+  });
+
+  it("image dikaitkan ke commit: label revision di kedua target, skrip build menolak pohon kotor, dan CI membangun + menjalankan image", () => {
+    const d = read("Dockerfile");
+    expect((d.match(/org\.opencontainers\.image\.revision="\$\{GIT_SHA\}"/g) ?? []).length).toBe(2);
+    expect((d.match(/^ARG GIT_SHA/gm) ?? []).length).toBe(2);
+    const b = read("scripts/build-staging-image.sh");
+    expect(b).toContain("git status --porcelain");
+    expect(b).toContain("ALLOW_DIRTY");
+    expect(b).toMatch(/exit 1/);
+    expect(b).toContain("GIT_SHA=$rev");
+    const ci = read(".github/workflows/ci.yml");
+    expect(ci).toMatch(/image:\n\s+name: Image Docker/);
+    expect(ci).toContain("docker run --rm --network host");
+    expect(ci).toContain("npm run db:migrate");
+    expect(ci).toContain("caddy validate");
+    expect(ci).not.toMatch(/PASSWORD:\s*\S*[A-Za-z0-9]{8,}.*\n.*teone_owner/); // sandi tidak ditulis literal di langkah image
+  });
+});

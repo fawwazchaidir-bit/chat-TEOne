@@ -15,7 +15,7 @@ services:
       interval: 10s
       retries: 10
   app:
-    image: teone-app:staging        # dibangun dari ./Dockerfile
+    image: teone-app:${TEONE_TAG:-staging}   # dibangun dari ./Dockerfile oleh scripts/build-staging-image.sh (tag staging-<sha7> = commit)
     restart: unless-stopped
     env_file: /etc/teone/staging.env
     depends_on: { db: { condition: service_healthy } }
@@ -25,7 +25,7 @@ services:
       MEDIA_DIR: /data/media        # media privat (Tahap 2) — volume persisten; HARUS ikut dibackup
     volumes: [media_data:/data/media]
   worker:                           # Tahap 2: pemroses antrean event webhook, rekonsiliasi, unduh media, retensi payload
-    image: teone-tools:staging      # BELUM DIUJI di server. Aman berdampingan dengan app (SKIP LOCKED + lease)
+    image: teone-tools:${TEONE_TAG:-staging}   # Aman berdampingan dengan app (SKIP LOCKED + lease)
     restart: unless-stopped
     user: "10001:10001"             # sama dengan pengguna image runtime agar menulis ke volume media yang sama
     command: ["npm", "run", "worker"]
@@ -36,7 +36,7 @@ services:
     depends_on: { db: { condition: service_healthy } }
     networks: [internal]
   tools:                            # tugas sekali-jalan: docker compose run --rm tools npm run db:migrate
-    image: teone-tools:staging      # dibangun: docker build --target tools -t teone-tools:staging .
+    image: teone-tools:${TEONE_TAG:-staging}   # dibangun oleh scripts/build-staging-image.sh (target tools)
     profiles: ["tools"]
     env_file: /etc/teone/staging.env
     depends_on: { db: { condition: service_healthy } }
@@ -45,6 +45,8 @@ services:
     image: caddy:2
     restart: unless-stopped
     ports: ["80:80", "443:443"]     # satu-satunya yang terbuka ke internet
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-staging-chat.example.invalid}   # dari deploy/.env (non-rahasia); dibaca Caddyfile sebagai {$SITE_ADDRESS}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
