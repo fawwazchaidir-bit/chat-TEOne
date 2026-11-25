@@ -78,11 +78,39 @@ Dokumen lama (`gate-2-tindak-lanjut.md`, `tahap-2.md`, `arsitektur-konektor.md`,
 
 ## 3. Hasil CI dan pengujian
 
-### 3.1 CI pada commit final
-*(Diisi setelah run GitHub Actions pada commit final selesai — tidak diisi sebelum ada bukti.)*
+### 3.1 CI pada commit final kode
+**Commit kode final:** `3928772689722d1e78c2425ab87bd3d0b00878f5` (branch `claude/lucid-carson-blf4x0`). **Run:** CI #20 — <https://github.com/fawwazchaidir-bit/chat-TEOne/actions/runs/45629132836> — kesimpulan **success** (25 Nov 2026, 13:59–14:02 UTC), percobaan ke-1, tanpa re-run.
+
+| Job | Hasil | Catatan terukur (dari langkah job) |
+|---|---|---|
+| Lint · Typecheck · Guard · Secret scan ([job](https://github.com/fawwazchaidir-bit/chat-TEOne/actions/runs/45629132836/job/139257334607)) | **success** | lint, typecheck, **Konteks Docker** (tipe `next build` tanpa `tests/`), guard nomor operasional, secret scan lokal, **gitleaks seluruh riwayat git**, audit dependensi produksi — semua langkah success |
+| Build · Test regresi · E2E ([job](https://github.com/fawwazchaidir-bit/chat-TEOne/actions/runs/45629132836/job/139257334582)) | **success** | Build; **Test regresi** (migrasi diuji pada DB kosong, ≈ 89 dtk); Chromium; **Golden E2E**; ringkasan per tag + **penjaga baseline** (jumlah test tidak boleh turun); unggah laporan |
+| Drill backup & restore nyata ([job](https://github.com/fawwazchaidir-bit/chat-TEOne/actions/runs/45629132836/job/139257333898)) | **success** | `bash scripts/backup-restore-drill.sh` ≈ 35 dtk (DB + media, kontrol negatif, mode aman) |
+| Image Docker — build · migrasi · jalan · provenance ([job](https://github.com/fawwazchaidir-bit/chat-TEOne/actions/runs/45629132836/job/139257334696)) | **success** | build image `runtime` + `tools` ≈ 36 dtk dengan `GIT_SHA` = commit; label revisi = commit; tanpa `/app/tests`; uid 10001; `caddy validate`; `docker compose config`; **migrasi dijalankan dari dalam image tools**; image app dijalankan, `/api/health` = `{"status":"ok"}`, `x-frame-options: DENY`, tanpa `x-powered-by` |
+
+**Hitungan test (CI, dari penjaga baseline):** `@tahap-1` 159 Vitest + 3 E2E · `@tahap-2` 138 + 3 · `@tahap-3` 86 + 3 — **total 383 Vitest, 0 gagal, 0 dilewati**. Golden E2E: 16 spesifikasi → **9 lulus, 7 dilewati** (placeholder **BELUM TERSEDIA**; bukan bukti, bukan kegagalan). Angka ini sama dengan hasil lokal (§3.2); rincian per tag tersimpan di artefak CI "laporan test".
+**Batas pembuktian CI:** (1) CI membuktikan **kode pada commit itu** lulus di lingkungan GitHub (data sintetis, Meta **simulasi**); **tidak** membuktikan staging, Meta nyata, atau coexistence. (2) Job *Image Docker* membuktikan bahwa **image dapat dibangun dari konteks bersih dan berjalan**; **tidak** membuktikan bahwa image di server staging dibangun dari commit ini — itu hanya dapat dibuktikan dengan `docker image inspect` di server (item G1 dan G4 di `daftar-tindakan-pemilik.md` §G). (3) Commit yang menambahkan laporan ini hanya mengubah dokumen; CI-nya berjalan sendiri dan **dicatat terpisah** di ringkasan akhir, bukan diklaim di sini. (4) Run lama: #17 (`71bce46`) dan #18 (`9c297d3`, commit staging) success; #19 (`2148cc2`) dibatalkan karena tersusul; commit `2148cc2` **gagal pada penjaga statis di verifikasi lokal** (literal host Graph di luar berkas yang diizinkan) dan diperbaiki di `3928772` — kegagalan ditemukan sebelum ada klaim hijau.
 
 ### 3.2 Pengujian lokal pembangun (`bash scripts/verify-all.sh`)
-*(Diisi dari hasil run pada pohon kerja final — lihat bagian akhir dokumen bila sudah ada.)*
+Dijalankan **oleh pembangun** pada pohon kerja bersih commit `3928772` (run bersih ke-5; run ke-4 gagal di langkah drill karena **kesalahan prosedur pembangun** — vitest dijalankan bersamaan di klaster DB yang sama; bukan cacat produk). Pustaka: gitleaks 8.24.3 (terpasang dari `scripts/install-gitleaks.sh`), Chromium via `PW_CHROMIUM_PATH`, PostgreSQL 16 pada **`localhost:5432`**.
+
+| # | Langkah | Hasil | Waktu |
+|---|---|---|---|
+| 1 | lint | LULUS | 3 dtk |
+| 2 | typecheck | LULUS | 2 dtk |
+| 3 | guard nomor operasional | LULUS | — |
+| 4 | secret scan lokal | LULUS | — |
+| 5 | gitleaks seluruh riwayat | LULUS | — |
+| 6 | npm audit (produksi) | LULUS — **0 kerentanan** | — |
+| 7 | build | LULUS | 9 dtk |
+| 8 | Vitest regresi + penjaga | LULUS — **383 test, 0 gagal, 0 dilewati** | 102 dtk |
+| 9 | E2E Playwright | LULUS — 9 lulus; 7 placeholder dilewati | 59 dtk |
+| 10 | penjaga akhir (dengan E2E) | LULUS | — |
+| 11 | drill backup/restore | LULUS | 36 dtk |
+
+**Drill (data sintetis):** 33 tabel; **48 baris** setelah restore (+1 kill switch global, +1 audit mode aman); media: 3 baris ↔ 3 berkas, ukuran + SHA-256 konsisten, pohon berkas identik; mode aman diverifikasi dengan `checkAutomation` nyata; kontrol negatif (arsip rusak, direktori tidak kosong, kebijakan media tak ditetapkan, berkas hilang/rusak) **ditolak sesuai harapan**; backup ≈ 1,55 dtk, restore ≈ 0,66 dtk (**volume sangat kecil, tidak representatif untuk RTO**).
+**Port tetap `localhost:5432` (G1-A02):** (a) **Penjaga statis** di suite (`architecture.test.ts`) melarang port tetap di `tests/` dan `scripts/` — ikut lulus dalam 383 test pada commit final (CI dan lokal). (b) Klaster **non-standar** dikonfigurasi lewat **satu** variabel, `TEST_ADMIN_DATABASE_URL` (lihat `docs/pengembangan.md`). Bukti jalan nyata di port **55432** (suite penuh dan `verify-all` 11/11) berasal dari **putaran perbaikan sebelumnya**, memakai klaster sandbox yang **sudah ada sebelumnya** (bukan dibuat pembangun); **tidak diulang pada commit final** — run final di atas memakai 5432. **Bukan bukti independen.**
+**Batas:** hasil di atas adalah **klaim pembangun yang dapat direproduksi** (perintah + hasil aktual di atas), **bukan** audit independen; CI harus diulang pada commit yang benar-benar diaudit.
 
 ### 3.3 Pengujian independen
 Satu-satunya yang **independen**: audit ulang Gate 1 (21 Nov) — 246 test Vitest lulus pada Node 22/PostgreSQL 16 di lingkungan auditor; lint/typecheck/build/guard lulus. **E2E browser dan drill backup/restore tidak dapat dijalankan** di lingkungan auditor (Chromium `socket() EPERM`; `psql`/`pg_dump` tidak ada). Setelah itu bertambah banyak kode (Tahap 3, perbaikan); **belum ada audit independen atas commit final**.
@@ -92,7 +120,7 @@ Satu-satunya yang **independen**: audit ulang Gate 1 (21 Nov) — 246 test Vites
 Lihat **`docs/tahap-2/bukti-uji-staging-2026-11-25.md`**. Ringkas: 8 butir **KLAIM** lulus (pemetaan, langganan, pesan masuk, karantina, teks keluar, status Diterima, error 10 teratasi, perbaikan App Secret); butir 9 (Dibaca, echo, history, media, coexistence) **BELUM DIUJI**. Naik menjadi **TERBUKTI** hanya setelah bukti disamarkan dilampirkan. Matriks uji berikutnya: `docs/tahap-2/matriks-uji-coexistence.md` (**disiapkan, belum dijalankan**; langkah berdampak ke akun memerlukan persetujuan tertulis pemilik).
 
 ## 5. Backup & restore, dan keputusan yang dibutuhkan pemilik
-**TERBUKTI (CI + lokal, data sintetis):** drill menguji DB dan media — 33 tabel, 6 migrasi; pohon berkas media identik; baris media ↔ berkas (ukuran + SHA-256); kontrol negatif (arsip rusak, direktori tidak kosong, kebijakan media tak ditetapkan, berkas hilang/rusak); **mode aman** (kill switch global menyala setelah restore; `checkAutomation` memblokir); waktu backup ≈ 0,3 dtk, restore ≈ 0,6 dtk (**data sangat kecil; tidak representatif**). **BELUM:** backup/restore **di server staging**, jadwal, **lokasi salinan terpisah**, **PIC pembuat dan pemeriksa**, kunci di brankas terpisah, uji volume nyata — **tidak boleh diklaim**. Checksum/ukuran/versi migrasi per run tercatat di `.test-results/backup-restore-drill.md` (artefak CI).
+**TERBUKTI (CI + lokal, data sintetis):** drill menguji DB dan media — 33 tabel, 6 migrasi; pohon berkas media identik; baris media ↔ berkas (ukuran + SHA-256); kontrol negatif (arsip rusak, direktori tidak kosong, kebijakan media tak ditetapkan, berkas hilang/rusak); **mode aman** (kill switch global menyala setelah restore; `checkAutomation` memblokir); waktu backup ≈ 1,55 dtk, restore ≈ 0,66 dtk pada run lokal commit final (**data sangat kecil; tidak representatif untuk RPO/RTO**). **BELUM:** backup/restore **di server staging**, jadwal, **lokasi salinan terpisah**, **PIC pembuat dan pemeriksa**, kunci di brankas terpisah, uji volume nyata — **tidak boleh diklaim**. Checksum/ukuran/versi migrasi per run tercatat di `.test-results/backup-restore-drill.md` (artefak CI).
 **Keputusan yang masih dibutuhkan (hanya pemilik):** D-12 (RPO/RTO — usulan RPO ≤ 1 jam / RTO ≤ 4 jam kerja = **target untuk dinilai, belum tercapai**; backup harian ≠ RPO 1 jam), D-18 (retensi/PDP — angka masih **usulan**), PIC backup, lokasi salinan, persetujuan langkah coexistence (M-11, M-12), D-02/D-03, D-05/D-16/D-22 (Tahap 3, **ASUMSI**), penanganan pesan terlambat (T3-F04).
 
 ## 6. Wajib selesai sebelum Tahap 3 dihubungkan ke Meta — dan pekerjaan terbatas yang boleh
