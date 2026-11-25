@@ -3,6 +3,7 @@
 > **DRAF UNTUK KEPUTUSAN PEMILIK. BELUM DIJALANKAN.** Disusun 25 November 2026 atas permintaan pemilik setelah operator melaporkan kondisi VPS staging dan nomor uji.
 > **Pembangun tidak melakukan apa pun** terhadap staging, akun Meta, atau ponsel uji. **Tidak ada** field webhook yang diaktifkan, **tidak ada** re-onboarding, **tidak ada** pendaftaran ulang nomor, **tidak ada** `git reset`/`pull`, **tidak ada** penggantian image. Dokumen ini hanya rencana; setiap langkah bertanda **[TUNGGU KEPUTUSAN]** hanya boleh dijalankan setelah formulir §10 diisi **tertulis oleh pemilik** (formulir sengaja dibiarkan **kosong**).
 > Admisi (…1119), Hotline (…0124), dan Halo AI **tidak** menjadi bagian prosedur ini sedikit pun. Hanya nomor uji **…6319** (penguji **…4062**).
+> **PEMBARUAN setelah laporan Fase 0 operator (26 Nov 03.59 WIB):** kondisi **STOP (a)** §4 **terpicu** — ponsel …6319 berisi **chat pelanggan nyata**. **M-11 dan perubahan subscription tidak boleh dilanjutkan** sampai pemilik memutuskan cara isolasi (§2.4, formulir **A-2c**). **Koreksi:** dugaan saya semula bahwa jendela sinkronisasi riwayat "hampir pasti sudah lewat" **salah** (onboarding ±16.00 WIB 25 Nov) — lihat §2.3 dan §2.4.
 
 ## 0. Label sumber — baca dulu
 
@@ -10,7 +11,7 @@
 |---|---|
 | **[OP]** | Dilaporkan operator/pemilik. Pembangun **tidak dapat memeriksanya**; bukti belum terlampir. |
 | **[KODE]** | Perilaku kode di repository (dibaca langsung; terbukti **simulasi** oleh tes/CI, bukan oleh Meta nyata). |
-| **[META-SEK]** | Dari ringkasan hasil pencarian web (termasuk sumber sekunder). **BELUM dibaca di dokumentasi resmi Meta**: `developers.facebook.com` tidak dapat dijangkau dari lingkungan pembangun (`ENOTFOUND`). Menurut AGENTS.md §7 ini **belum boleh menjadi dasar keputusan** — operator/pemilik harus mencocokkannya dengan halaman resmi sebelum menyetujui langkah yang berdampak ke akun (lihat §11, daftar cek V-1…V-7). |
+| **[META-SEK]** | Dari ringkasan hasil pencarian web (termasuk sumber sekunder). **BELUM dibaca di dokumentasi resmi Meta**: `developers.facebook.com` tidak dapat dijangkau dari lingkungan pembangun (`ENOTFOUND`). Menurut AGENTS.md §7 ini **belum boleh menjadi dasar keputusan** — operator/pemilik harus mencocokkannya dengan halaman resmi sebelum menyetujui langkah yang berdampak ke akun (lihat §11, daftar cek V-1…V-9). |
 | **[ASUMSI]** | Dugaan pembangun, tidak ada bukti. |
 
 ## 1. Kondisi yang dilaporkan operator (25 Nov 2026) **[OP]**
@@ -28,6 +29,10 @@
 | Sinkronisasi riwayat | pemilik mengonfirmasi **dipilih saat onboarding** |
 | Field webhook (pemeriksaan terakhir) | `messages` **aktif**; `smb_message_echoes` dan `history` **tidak aktif** (status `smb_app_state_sync` **tidak dilaporkan**) |
 | Persetujuan M-11 / M-12 | **belum diberikan** |
+| **Fase 0 (laporan operator, 26 Nov) [OP]** | Proyek Compose aktif bernama **`deploy`**; kontainer DB memakai volume **`deploy_pg_data`**, kontainer aplikasi memakai **`deploy_media_data`**; volume **`deploy_caddy_data`** ada |
+| Onboarding …6319 **[OP]** | dihubungkan **±16.00 WIB, 25 Nov 2026** (≈ 09.00 UTC) — **perkiraan ingatan pemilik, bukan catatan Meta (Q6); tidak boleh dipakai sendirian untuk menyimpulkan M-12** |
+| Isi ponsel …6319 **[OP]** | **memiliki chat pelanggan nyata** |
+| Keputusan operator **[OP]** | Sesuai kondisi STOP, **uji echo dan perubahan subscription terkait tidak dijalankan** |
 
 ## 2. Yang disimpulkan dari laporan itu
 
@@ -37,7 +42,7 @@
 3. **Asal-usul image `417b30f8…` tidak dapat dibuktikan.** Image tanpa label revisi dan dibangun dengan perubahan lokal; "dibangun dari `9c297d3` + dua edit itu" adalah **klaim [OP]**. Build Docker tidak *bit-reproducible*, jadi membangun ulang lalu membandingkan ID **tidak** membuktikan apa pun. Konsekuensi: **bukti uji 25 Nov tetap berstatus KLAIM**, dan bukti uji berikutnya **sebaiknya** dibuat pada image berlabel (§5).
 4. **Image yang berjalan belum memuat penjaga** `ai_simulation` terhadap Meta asli (ditambahkan di `3928772`). Flag mati → aman **secara konfigurasi**, bukan **secara penegakan**: satu klik Super Admin di halaman Kill switch & flag dapat menyalakannya, dan pesan `[SIMULASI]` akan lewat Graph API nyata ke penerima uji. Risiko kecil (mode uji membatasi penerima ke …4062), hilang setelah image dibangun ulang. **[KODE]**
 5. **Tidak ada migrasi/skema baru sejak `9c297d3`** (`git diff 9c297d3 HEAD -- src/db drizzle` kosong). Mengembalikan image lama (rollback) **aman terhadap skema DB**. **[KODE, terverifikasi di repository]**
-6. **JEBAKAN data (penting).** `deploy/docker-compose.staging.yml` **tidak** memuat `name:` proyek, dan volume `pg_data`, `media_data`, `caddy_data` adalah volume bernama biasa. Docker Compose memberi awalan volume dengan **nama proyek = nama direktori**. Menjalankan compose dari checkout bersih di direktori lain berarti **proyek baru dengan volume kosong = database kosong baru** — persis yang dilarang ("jangan membuat ulang database"). Semua perintah compose di §5 **wajib** memakai `-p <nama-proyek-yang-sudah-ada>` dan diverifikasi sebelum/sesudah. **[KODE: berkas compose; perilaku Compose: pengetahuan umum, periksa dengan `docker compose config`]**
+6. **JEBAKAN data (penting).** `deploy/docker-compose.staging.yml` **tidak** memuat `name:` proyek, dan volume `pg_data`, `media_data`, `caddy_data` adalah volume bernama biasa. Docker Compose memberi awalan volume dengan **nama proyek = nama direktori**. Menjalankan compose dari checkout bersih di direktori lain berarti **proyek baru dengan volume kosong = database kosong baru** — persis yang dilarang ("jangan membuat ulang database"). Semua perintah compose di §5 **wajib** memakai `-p deploy` dan diverifikasi sebelum/sesudah. **Pembaruan Fase 0 [OP]:** nama proyek aktif **`deploy`** (volume `deploy_pg_data`, `deploy_media_data`, `deploy_caddy_data`) — itu nama default dari direktori `deploy/` tempat berkas compose berada, sehingga checkout bersih yang berkas compose-nya juga di `…/deploy/` kemungkinan menghasilkan nama yang sama; **risiko lebih rendah dari dugaan awal, tetapi `-p deploy` tetap wajib** (eksplisit, tidak bergantung pada nama direktori). **[KODE: berkas compose; perilaku Compose: pengetahuan umum, periksa dengan `docker compose config`]**
 
 ### 2.2 Yang diketahui dari kode tentang echo dan history **[KODE]**
 | Perilaku | Echo (`smb_message_echoes`) | History (`history`) |
@@ -58,7 +63,24 @@
 - Setelah onboarding, bisnis hanya punya **24 jam** untuk menyinkronkan kontak dan riwayat; lewat itu, nomor harus di-*offboard* dan onboarding diulang. Sinkronisasi riwayat **sekali saja**.
 - Field yang dibutuhkan adalah `history`, `smb_app_state_sync`, `smb_message_echoes`; riwayat hanya dikirim bila bisnis setuju saat onboarding.
 - Seorang pengguna melaporkan **tidak ada cara meminta ulang** sinkronisasi setelah onboarding.
-- **Akibat bila benar:** karena `history` **tidak di-subscribe** saat onboarding …6319 **[OP]**, riwayat yang mungkin dikirim Meta saat itu tidak sampai ke TE One, dan jendela 24 jam hampir pasti **sudah lewat** (onboarding terjadi sebelum 25 Nov). Maka **mengaktifkan `history` sekarang kemungkinan besar tidak menghasilkan apa pun** — dan satu-satunya jalan mendapat riwayat nyata adalah **onboarding ulang**, yang dilarang tanpa keputusan tertulis. Ini hipotesis; **jam onboarding …6319 harus dipastikan operator (langkah 0.4)**.
+- **Akibat bila benar (DIKOREKSI 26 Nov):** `history` **tidak di-subscribe** saat onboarding …6319 **[OP]**, sehingga riwayat yang mungkin dikirim Meta tidak sampai ke TE One. Dugaan semula bahwa jendela "hampir pasti sudah lewat" **salah**: onboarding **±16.00 WIB 25 Nov** [OP] → bila aturan 24 jam benar, jendela baru berakhir **±16.00 WIB 26 Nov** (**hanya ilustrasi**: bila perkiraan onboarding ±16.00 WIB benar, saat laporan ini ditulis, 03.59 WIB, ± 12 jam tersisa — **tetapi waktu onboarding adalah perkiraan ingatan pemilik dan aturan 24 jam belum diverifikasi; keduanya tidak boleh dipakai sendirian untuk menyimpulkan M-12**, V-2/V-9). **Namun** jendela terbuka **tidak** berarti M-12 boleh dikerjakan: ponsel berisi **chat pelanggan nyata** (STOP a) — lihat §2.4.
+
+### 2.4 Pembaruan setelah laporan Fase 0 (26 Nov 03.59 WIB)
+**Fakta baru [OP]:** onboarding ±16.00 WIB 25 Nov; ponsel …6319 berisi **chat pelanggan nyata**; proyek Compose `deploy` (volume `deploy_*`). Nomor …6319 adalah kandidat nomor **Kemitraan** (AGENTS.md §1; D-03: "kandidat nomor uji dan nomor operasional pertama"), sehingga pelanggan nyata di dalamnya **sesuai harapan**, bukan anomali.
+
+**Konsekuensi (tegas):**
+1. **STOP (a) terpicu.** M-11 dan setiap perubahan subscription **tidak dilanjutkan**. Keputusan operator untuk berhenti **benar** menurut prosedur.
+2. **Kenyataan yang berlaku sejak ±16.00 WIB 25 Nov:** karena `messages` aktif pada nomor yang berisi pelanggan nyata, **setiap pesan masuk dari pelanggan nyata ke …6319 dikirim Meta ke webhook staging** (itu cara kerja langganan `messages`; **apakah sudah ada pelanggan yang benar-benar menulis sejak onboarding belum diketahui** — jawabannya ada di kueri 0.12). Rancangan menanganinya (D-03/mode uji): pengirim di luar daftar → **dikarantina**, audit hanya `kind`, **payload dibuang** setelah diproses **[KODE, terbukti simulasi]**; tetapi payload **sempat berada di antrean** dan **tiba di server staging**. Ini aliran data pelanggan nyata ke lingkungan non-production yang **perlu Anda sadari dan catat** (UU PDP; dokumentasi pihak ketiga D-18). **Periksa (baca-saja, teks saja):** jumlah karantina `pengirim_di_luar_daftar_uji` (kueri 0.12) dan pastikan **log Caddy tidak mencatat isi permintaan** (0.13). *Ini juga menjawab sebagian Q2/Q3 pernyataan pemilik.*
+3. **M-12 / H1 (subscribe `history`) DILARANG** selama ada chat pelanggan nyata: riwayat (hingga ±6 bulan, **[META-SEK]**) berisi **banyak percakapan sekaligus**; seluruh potongan tiba di staging. Jendela yang masih terbuka **tidak boleh menjadi alasan** — tidak ada tekanan waktu yang sah untuk memasukkan data pelanggan nyata ke staging. **Rekomendasi: H0.** Bila jendela lewat, M-12 tetap "belum dapat diuji" (sudah default); jalur bukti riwayat nyata ke depan = **nomor khusus uji yang bersih** (H2 pada nomor itu, bukan …6319).
+4. **M-11 pada …6319** hanya mungkin dengan **isolasi yang diputuskan pemilik** (formulir **A-2c**):
+
+| Opsi | Isi | Dampak | Catatan |
+|---|---|---|---|
+| **I-1** | **Tidak menguji echo di …6319** (tunggu nomor uji bersih). M-11 = "belum dapat diuji" | Nol ke akun/data | Aman; CCP 2.8 tetap belum terpenuhi. **Rekomendasi pembangun bila tidak ada nomor bersih dalam waktu dekat** |
+| **I-2** | Siapkan **nomor uji khusus** (bukan …1119/…0124/…6319) dengan ponsel bersih berisi chat sintetis; M-11 **dan** M-12 diuji di sana | Onboarding nomor **baru** (tindakan berdampak akun → persetujuan terpisah); riwayat nyata ada di nomor itu **hanya bila** `history` di-subscribe **sebelum** onboarding | **Satu-satunya jalan** ke CCP 2.8, 2.9 dan 2.10 tanpa data pelanggan nyata. Sebaiknya ditempuh sebelum Tahap 3 dihubungkan |
+| **I-3** | M-11 di …6319 dengan **pembekuan ponsel**: selama jendela uji (≤ 10 menit) **tidak ada** yang mengirim pesan ke pelanggan dari Business App (juga WhatsApp Web/perangkat tertaut, pesan otomatis/sapaan/di-luar-jam); hanya pesan uji ke …4062 | Hanya echo yang dikirim **setelah** subscribe yang tiba; pesan pelanggan nyata tidak ikut **bila** pembekuan dipatuhi. Risiko residual: pesan otomatis Business App atau staf yang lupa → echo ke nomor di luar daftar (dikarantina, payload dibuang) | **Risiko lebih tinggi** daripada I-1/I-2; butuh kepastian dari V-3 (cakupan echo termasuk pesan otomatis?) dan persetujuan tertulis A-2 + A-2c. Belum direkomendasikan |
+
+5. Tidak ada tindakan lain yang diminta dari Anda sekarang selain **keputusan A-2c** dan **tidak men-subscribe field apa pun**.
 
 ## 3. Peta fase, dampak, dan gerbang
 
@@ -80,15 +102,18 @@ Semua perintah **tidak mencetak rahasia**. **Jangan** menjalankan `docker inspec
 | 0.1 | Identitas checkout | `git -C <repo> rev-parse HEAD && git -C <repo> status --short` | SHA, daftar berkas berubah (sudah dilaporkan; catat ulang dengan jam) |
 | 0.2 | Diff lokal | `git -C <repo> diff -- .dockerignore deploy/Caddyfile > <folder-pemulihan>/local.diff` | berkas `local.diff` (simpan; **bukan** di Git) |
 | 0.3 | Image berjalan | `docker image inspect sha256:417b30f8… --format 'Id={{.Id}} Dibuat={{.Created}} Tag={{.RepoTags}} Revisi={{index .Config.Labels "org.opencontainers.image.revision"}}'` | `Revisi` diharapkan **kosong** (sesuai laporan) |
-| 0.4 | **Nama proyek compose & volume** | `docker compose ls` ; `docker volume ls --format '{{.Name}}' \| grep -E 'pg_data\|media_data\|caddy_data'` | **nama proyek** dan nama volume persis (dibutuhkan untuk `-p` di §5) |
+| 0.4 | **[DIJAWAB 26 Nov — [OP]: proyek `deploy`; `deploy_pg_data`, `deploy_media_data`, `deploy_caddy_data`]** **Nama proyek compose & volume** | `docker compose ls` ; `docker volume ls --format '{{.Name}}' \| grep -E 'pg_data\|media_data\|caddy_data'` | **nama proyek** dan nama volume persis (dibutuhkan untuk `-p` di §5) |
 | 0.5 | Kontainer | `docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}'` | semua `healthy` |
 | 0.6 | Flag | halaman **Kill switch & flag**: `inbox` mati, `ai_simulation` mati, `whatsapp_connector` aktif; catat **status kill switch global** | tangkapan layar disamarkan |
 | 0.7 | Diagnostik koneksi (**sudah ada**, baca-saja) | `npm run meta:check` di kontainer/tools (keluaran tidak memuat rahasia) | mode `NYATA`; nomor; "webhook berlangganan: ya/TIDAK" |
 | 0.8 | Status coexistence nyata nomor …6319 | Graph API `GET /<phone_number_id>?fields=is_on_biz_app,platform_type` memakai token dari server; **jangan** menampilkan token. **[META-SEK, V-6]** | `is_on_biz_app` dan `platform_type` |
-| 0.9 | **Jam onboarding …6319** | WhatsApp Manager / catatan onboarding | tanggal-jam onboarding (kunci untuk §7) |
-| 0.10 | **Isi ponsel uji** | Hitung jumlah chat di Business App ponsel …6319 (**tanpa menyalin isi**); tulis apakah ada chat dengan **pelanggan nyata** | jumlah chat; ya/tidak ada pelanggan nyata |
+| 0.9 | **[DIJAWAB 26 Nov — [OP]: perkiraan INGATAN pemilik ±16.00 WIB 25 Nov; BELUM diverifikasi dari catatan Meta (V-9)]** **Jam onboarding …6319** | WhatsApp Manager / catatan onboarding | tanggal-jam onboarding (kunci untuk §7) |
+| 0.10 | **[DIJAWAB 26 Nov — [OP]: ADA chat pelanggan nyata → STOP (a) TERPICU]** **Isi ponsel uji** | Hitung jumlah chat di Business App ponsel …6319 (**tanpa menyalin isi**); tulis apakah ada chat dengan **pelanggan nyata** | jumlah chat; ya/tidak ada pelanggan nyata |
 | 0.11 | Aplikasi TE One hanya berlangganan WABA uji | hasil 0.7 per channel; periksa di dashboard Meta (aplikasi **TE One**, bukan aplikasi Halo AI) | daftar WABA yang disubscribe |
-| 0.12 | **Baseline data** (SQL baca-saja, simpan angkanya) | lihat blok di bawah | angka sebelum uji |
+| 0.12 | **Baseline data** (SQL baca-saja, simpan angkanya) | lihat blok di bawah | angka sebelum uji; **terutama jumlah karantina `pengirim_di_luar_daftar_uji`** sejak onboarding |
+| 0.13 | **Log Caddy** (baru, baca-saja) | pastikan tidak ada blok debug/log yang mencatat **isi** permintaan webhook; `docker logs <caddy> --since 24h \| grep -c webhooks/whatsapp` hanya menghitung baris (jangan menempel isinya) | tingkat log; hitungan baris |
+| 0.14 | **Waktu pembuatan kontainer** (S-08; baca-saja, **tanpa** Env) | `sudo docker inspect --format '{{.Name}} dibuat={{.Created}} mulai={{.State.StartedAt}} image={{.Image}}' $(sudo docker ps -q)` | jam `deploy-app-1` dibuat ulang (belum tercatat, Q1); apakah `worker` **lebih tua** dari pembaruan token |
+| 0.15 | **Resolusi variabel compose** (S-09; baca-saja) | `sudo docker compose -p deploy --env-file /etc/teone/staging.env -f docker-compose.staging.yml config \| grep -E 'image:\|SITE_ADDRESS'` | nilai `image:` dan `SITE_ADDRESS` yang **benar-benar** dipakai (jangan menempel bagian Env lain) |
 
 ```sql
 -- 0.12 Baseline (baca-saja). Jalankan sebagai peran baca di database staging; catat angkanya + jam server (UTC).
@@ -105,7 +130,7 @@ SELECT c.id, c.last_customer_message_at, c.ai_status, c.ai_version FROM conversa
   JOIN contacts k ON k.id = c.contact_id; -- batasi ke percakapan …4062 di sisi operator
 ```
 
-**Hasil Fase 0 yang menghentikan rencana (STOP):** (a) ada chat pelanggan nyata di ponsel …6319 (0.10) → **jangan lanjut ke Fase 2** sebelum pemilik memutuskan cara mengisolasinya; (b) aplikasi TE One ternyata berlangganan WABA selain WABA uji (0.11); (c) flag `inbox`/`ai_simulation` ternyata menyala; (d) 0.8 menunjukkan keadaan yang berbeda dari laporan (mis. bukan coexistence).
+**Hasil Fase 0 yang menghentikan rencana (STOP):** (a) ada chat pelanggan nyata di ponsel …6319 (0.10) → **jangan lanjut ke Fase 2** sebelum pemilik memutuskan cara mengisolasinya — **TERPICU 26 Nov 2026**; (b) aplikasi TE One ternyata berlangganan WABA selain WABA uji (0.11); (c) flag `inbox`/`ai_simulation` ternyata menyala; (d) 0.8 menunjukkan keadaan yang berbeda dari laporan (mis. bukan coexistence).
 
 ## 5. Fase 1 — titik pemulihan, bangun ulang, pasang **[TUNGGU KEPUTUSAN A-1]**
 
@@ -130,17 +155,22 @@ Catat blok **PROVENANCE** (SHA, image id, label). Skrip menandai `teone-app:stag
 
 ### 5.3 Pasang (downtime singkat — lakukan saat penguji tidak mengirim)
 ```bash
-# WAJIB -p <nama-proyek-dari-0.4> agar volume pg_data/media_data/caddy_data YANG SAMA dipakai (lihat §2.1-6).
-# Berkas rahasia tetap di /etc/teone (jalur absolut di compose). Domain lewat deploy/.env (SITE_ADDRESS, TEONE_TAG) — bukan edit Caddyfile.
-docker compose -p <nama-proyek> -f /opt/teone-build/<sha7>/deploy/docker-compose.staging.yml config | grep -E 'name:|pg_data|media_data'   # PERIKSA volume sama
-docker volume ls --format '{{.Name}}' | grep -E 'pg_data|media_data'                                                                       # tidak boleh muncul volume baru
-TEONE_TAG=staging-<sha7> docker compose -p <nama-proyek> -f /opt/teone-build/<sha7>/deploy/docker-compose.staging.yml up -d app worker caddy
+# Gaya perintah operator: dari direktori deploy/, `sudo docker compose --env-file /etc/teone/staging.env -f docker-compose.staging.yml …`.
+# 1) WAJIB -p deploy (volume deploy_pg_data / deploy_media_data / deploy_caddy_data YANG SAMA; lihat §2.1-6).
+# 2) WAJIB menyediakan SITE_ADDRESS dan TEONE_TAG SECARA EKSPLISIT: --env-file menonaktifkan pembacaan otomatis deploy/.env (S-09).
+#    Pilih satu: (a) dua --env-file (di bawah), atau (b) `sudo env SITE_ADDRESS=… TEONE_TAG=… docker compose …`.
+BUILD=/home/TEAdmin/teone-build/<sha7>        # checkout BERSIH baru (bukan /home/TEAdmin/chat-TEOne)
+F="-p deploy --env-file /etc/teone/staging.env --env-file $BUILD/deploy/.env -f $BUILD/deploy/docker-compose.staging.yml"
+#    $BUILD/deploy/.env berisi HANYA SITE_ADDRESS=<domain staging> dan TEONE_TAG=staging-<sha7> (non-rahasia).
+sudo docker compose $F config | grep -E 'image:|SITE_ADDRESS|pg_data|media_data'    # PERIKSA: image=staging-<sha7>, domain benar, volume deploy_*
+sudo docker volume ls --format '{{.Name}}' | grep -E 'pg_data|media_data|caddy_data'  # tidak boleh muncul volume baru
+sudo docker compose $F up -d app worker caddy     # app DAN worker DAN caddy bersamaan (S-08: worker ikut membawa env terbaru)
 ```
 **Jangan** menjalankan `down -v`, menghapus volume, atau `db:migrate`/seed (tidak ada migrasi baru; jika tetap dijalankan, ia *no-op* karena forward-only).
 **Verifikasi sesudah:** `docker inspect <kontainer-app> --format '{{.Image}} {{index .Config.Labels "org.opencontainers.image.revision"}}'` = SHA final; `GET /api/health` = `{"status":"ok"}`; **flag tidak berubah** (disimpan di DB); `meta:check` (0.7) hasil sama; jumlah baris baseline (0.12) **tidak turun**.
 
 ### 5.4 Cara menghentikan / mundur Fase 1
-- **Gagal sehat atau data tampak kosong:** segera `TEONE_TAG=rollback-20261125-417b30f8 docker compose -p <nama-proyek> … up -d app worker` (image lama; skema DB identik → aman). Bila volume ternyata **baru/kosong**: hentikan, **jangan menulis apa pun**, kembalikan `-p` yang benar; data lama masih di volume lama.
+- **Gagal sehat atau data tampak kosong:** segera `TEONE_TAG=rollback-20261125-417b30f8 docker compose -p deploy … up -d app worker` (image lama; skema DB identik → aman). Bila volume ternyata **baru/kosong**: hentikan, **jangan menulis apa pun**, kembalikan `-p` yang benar; data lama masih di volume lama.
 - Caddy/domain: pulihkan dari salinan `deploy/Caddyfile` yang disimpan di 5.1.
 
 ## 6. Fase 2 — M-11 echo **[TUNGGU KEPUTUSAN A-2]**
@@ -148,7 +178,7 @@ TEONE_TAG=staging-<sha7> docker compose -p <nama-proyek> -f /opt/teone-build/<sh
 ### 6.1 Prasyarat (semua harus ya)
 - [ ] Fase 0 selesai tanpa kondisi STOP; hasil 0.10: ponsel …6319 **hanya** berisi chat uji, atau pemilik memutuskan tertulis cara mengisolasinya.
 - [ ] Fase 1 selesai (atau Opsi B dipilih tertulis).
-- [ ] Verifikasi dokumentasi resmi Meta oleh operator/pemilik: **V-1…V-7 (§11) terjawab** dan tidak bertentangan dengan rencana ini.
+- [ ] Verifikasi dokumentasi resmi Meta oleh operator/pemilik: **V-1…V-9 (§11) terjawab** dan tidak bertentangan dengan rencana ini.
 - [ ] **Kill switch global DINYALAKAN** untuk durasi uji (pengaman berlapis; echo tetap diproses, otomatisasi diblokir). Status awal dicatat dan **dikembalikan manual** sesudah uji (kill switch tidak menyala/mati sendiri).
 - [ ] `inbox` dan `ai_simulation` **mati**; mode uji channel **aktif**; daftar penerima uji **hanya …4062**.
 - [ ] Backup 5.1 ada, checksum tercatat; PIC & jam uji ditetapkan; **hanya satu orang** yang memegang ponsel …6319 selama uji.
@@ -200,7 +230,7 @@ Tangkapan layar field webhook sebelum/sesudah (S1, S6); hasil baseline sebelum/s
 - **Dampak:** akun 0; data 0; **biaya = status Tahap 2 tidak naik**.
 - **Kapan dipilih:** bila risiko akun/privasi dinilai lebih besar daripada nilai bukti history, atau menunggu nomor uji khusus.
 
-### Opsi H1 — Pengamatan pasif: subscribe `history` saja **[butuh A-3 + verifikasi V-2/V-4]**
+### Opsi H1 — Pengamatan pasif: subscribe `history` saja **[DILARANG pada …6319 selama ada chat pelanggan nyata — STOP (a) terpicu 26 Nov; hanya relevan pada nomor uji bersih]**
 - **Tindakan:** setelah 0.9 menunjukkan jam onboarding, dan **hanya bila** dokumentasi resmi menyatakan riwayat dapat/masih dikirim: aktifkan `history` **saja**, amati ≤ 24 jam, lalu cabut. **Tanpa** permintaan sinkronisasi, **tanpa** onboarding.
 - **Dampak akun:** konfigurasi subscription (dapat dibalik). **Dampak data:** bila Meta mengirim riwayat, payload berisi **banyak percakapan sekaligus**; TE One memfilter per pesan terhadap daftar uji dan membuang payload yang dikarantina, tetapi **seluruh potongan tiba di server dan sempat berada di antrean** — bila ponsel memuat chat pelanggan nyata, ini **data pelanggan nyata di staging** (AGENTS.md §3.5). **Syarat mutlak:** hasil 0.10 = tidak ada chat pelanggan nyata.
 - **Hasil yang paling mungkin [ASUMSI]:** tidak ada event (jendela lewat) → M-12 tetap **"belum dapat diuji"**; itu **bukan** kegagalan kode.
@@ -236,6 +266,7 @@ Tangkapan layar field webhook sebelum/sesudah (S1, S6); hasil baseline sebelum/s
 | **A-1b** | Bila A-1 ditolak: uji **Opsi B** pada image lama `417b30f8…` (bukti berstatus KLAIM-image) | ☐ | ☐ | | |
 | **A-2** | Jalankan M-11: subscribe **hanya** `smb_message_echoes` pada aplikasi TE One, uji S0–S9, lalu cabut | ☐ | ☐ | | |
 | **A-2b** | Sertakan kontrol negatif S4 (kirim ke satu nomor tim di luar daftar uji; orangnya setuju) | ☐ | ☐ | nama pihak: | |
+| **A-2c** | **Isolasi ponsel …6319 untuk M-11** (STOP a terpicu): pilih **satu** | ☐ I-1 (tidak menguji) | ☐ I-2 (nomor uji bersih) | ☐ I-3 (pembekuan ponsel; belum direkomendasikan) | |
 | **A-3** | M-12: pilih **satu** | ☐ H0 | ☐ H1 | ☐ H2 (dilarang sampai persetujuan terpisah tertulis) | |
 | **D-18/D-12** | Retensi/penghapusan data uji & RPO/RTO (masih **Terbuka**) | ☐ diputuskan | ☐ ditunda | | |
 
@@ -249,13 +280,15 @@ Pembangun **tidak dapat membuka** `developers.facebook.com`. Sebelum A-2/A-3 dis
 - **V-5** Apakah mengaktifkan/mencabut subscription field memengaruhi registrasi, tautan Business App, atau status coexistence.
 - **V-6** Nama field status nomor (`is_on_biz_app`, `platform_type`) dan artinya.
 - **V-7** Bentuk payload `smb_message_echoes` (kunci array pesan, field penerima).
+- **V-8** Kebijakan *retry* webhook Meta (berapa kali/berapa lama; kapan webhook dinonaktifkan) — dasar menilai S-02 dan jendela gangguan Q3.
+- **V-9** Di sisi Meta, **di mana** catatan waktu onboarding nomor dapat dilihat (WhatsApp Manager/Business Manager/log), agar jam onboarding tidak bergantung ingatan.
 
 **Usulan pembangun (BELUM dikerjakan; butuh persetujuan lingkup, idealnya masuk **sebelum** Fase 1 agar image yang dibangun sudah memuatnya):**
 - **R-1 (S-05)** *Perekam bentuk payload*: untuk event `unknown`/dikarantina-karena-bentuk, simpan **hanya struktur kunci** (nama kunci dan tipe, **tanpa nilai**, tanpa nomor/teks) di log aman/tabel kecil. Tujuannya agar uji pertama yang gagal-aman tetap menghasilkan data untuk memperbaiki normalizer tanpa menyimpan data pribadi. Ukuran kecil; dapat diuji dengan fixture.
-- **R-2** Tetapkan `name: teone-staging` di `deploy/docker-compose.staging.yml` **setelah** nama proyek lama diketahui (0.4) dan **dengan mempertahankan nama volume yang ada** (`external`/`name:` eksplisit), agar jebakan volume §2.1-6 tidak berulang.
+- **R-2** Tetapkan `name: deploy` di `deploy/docker-compose.staging.yml` (nama proyek aktif **diketahui sekarang: `deploy`**) sehingga volume yang ada (`deploy_pg_data`, `deploy_media_data`, `deploy_caddy_data`) tetap dipakai dan jebakan §2.1-6 tertutup permanen. Perubahan kecil; butuh persetujuan lingkup (G9).
 - **R-3** Koreksi pesan `meta:check` agar tidak terbaca sebagai "aktifkan keempat field": ubah menjadi "field yang dikenali; aktifkan **satu per satu** sesuai prosedur".
 
 ## 12. Batas dokumen ini
 - **Belum pernah dijalankan.** Perintah belum diuji terhadap server staging; operator menyesuaikan nama jalur/proyek. Pembangun tidak punya Docker daemon, server, akun Meta, atau ponsel.
-- Seluruh pernyataan tentang perilaku Meta adalah **[META-SEK]** sampai dicocokkan (V-1…V-7). Pernyataan tentang kode adalah **terbukti simulasi** (tes/CI), bukan terbukti nyata.
+- Seluruh pernyataan tentang perilaku Meta adalah **[META-SEK]** sampai dicocokkan (V-1…V-9). Pernyataan tentang kode adalah **terbukti simulasi** (tes/CI), bukan terbukti nyata.
 - Dokumen ini **bukan** keputusan, **bukan** persetujuan, dan **tidak** menyatakan Gate 1/2 diterima. Tidak ada tag yang dibuat.
