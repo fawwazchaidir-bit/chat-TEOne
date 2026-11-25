@@ -2,7 +2,8 @@
  * Tindak lanjut audit ulang Gate 1 (G1-A02 portabilitas, G1-A05 backup/restore): verifikasi media (fungsi murni) dan penjaga statis agar perbaikan
  * tidak mundur. Perilaku shell (backup/restore sungguhan) dibuktikan oleh drill `scripts/backup-restore-drill.sh` (job CI "Drill backup & restore nyata").
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
@@ -214,3 +215,132 @@ describe("@tahap-1 worker staging siap dijalankan dan nama proyek compose dikunc
     expect(read("src/modules/conversations-messages/worker-loop.ts")).toContain("runMaintenance"); // pemeliharaan (termasuk purge payload D-18) hidup di loop worker
   });
 });
+
+describe("@tahap-1 D-12 backup terjadwal: backup-rotate.sh (simpan 7, salinan di luar VPS, tanpa kredensial di repo)", () => {
+  const dirs: string[] = [];
+  afterEach(() => { while (dirs.length) rmSync(dirs.pop()!, { recursive: true, force: true }); });
+  const DB = "teone_uji";
+  // Backup.sh TIRUAN (tanpa DB/gpg): membuat set bernama sama dengan backup.sh sungguhan; kontrak stdout = jalur dump pada baris terakhir.
+  const FAKE = `#!/usr/bin/env bash
+set -euo pipefail
+: "\${BACKUP_DIR:?}" "\${PGDATABASE:?}" "\${FAKE_STAMP:?}"
+mkdir -p "$BACKUP_DIR"
+[ "\${FAKE_FAIL:-0}" = 1 ] && { echo "backup gagal (tiruan)" >&2; exit 1; }
+d="$BACKUP_DIR/$PGDATABASE-$FAKE_STAMP.dump.gpg"; m="$BACKUP_DIR/$PGDATABASE-$FAKE_STAMP.media.tar.gpg"
+printf 'dump-%s' "$FAKE_STAMP" > "$d"; printf 'media-%s' "$FAKE_STAMP" > "$m"
+( cd "$BACKUP_DIR" && sha256sum "$(basename "$d")" > "$(basename "$d").sha256" && sha256sum "$(basename "$m")" > "$(basename "$m").sha256" )
+[ "\${FAKE_BAD_SUM:-0}" = 1 ] && echo "0000000000000000000000000000000000000000000000000000000000000000  $(basename "$d")" > "$d.sha256"
+echo "$d"
+`;
+  function setup() {
+    const base = mkdtempSync(path.join(os.tmpdir(), "teone-rotate-"));
+    dirs.push(base);
+    const script = path.join(base, "fake-backup.sh");
+    writeFileSync(script, FAKE); chmodSync(script, 0o755);
+    const backups = path.join(base, "backups"); const offsite = path.join(base, "offsite");
+    return { base, script, backups, offsite };
+  }
+  const stampOf = (i: number) => `2026110${i}T020000Z`; // 1..8
+  const rotate = (e: ReturnType<typeof setup>, i: number, env: Record<string, string> = {}) => {
+    const r = spawnSync("bash", [path.join(root, "scripts/backup-rotate.sh")], {
+      encoding: "utf8", timeout: 60_000,
+      env: { PATH: process.env.PATH ?? "", BACKUP_DIR: e.backups, PGDATABASE: DB, BACKUP_SCRIPT: e.script, FAKE_STAMP: stampOf(i), OFFSITE: e.offsite, ...env },
+    });
+    return { code: r.status, out: `${r.stdout}${r.stderr}`, stdout: r.stdout.trim() };
+  };
+  const files = (dir: string) => (existsSync(dir) ? readdirSync(dir).filter((f) => !f.startsWith(".")).sort() : []);
+  const dumps = (dir: string) => files(dir).filter((f) => f.endsWith(".dump.gpg"));
+  const COPY = 'mkdir -p "$OFFSITE" && cp -p $BACKUP_FILES "$OFFSITE"/';
+
+  it("8 backup berturut-turut → TUJUH set tersisa (terbaru), set tertua beserta media dan checksumnya terhapus; berkas lain/DB lain tidak disentuh", () => {
+    const e = setup();
+    mkdirSync(e.backups, { recursive: true });
+    writeFileSync(path.join(e.backups, "catatan-operator.txt"), "jangan dihapus");
+    writeFileSync(path.join(e.backups, "lain_db-20260101T000000Z.dump.gpg"), "db lain");
+    for (let i = 1; i <= 8; i++) { const r = rotate(e, i, { BACKUP_OFFSITE_OPTIONAL: "1" }); expect(r.code, r.out).toBe(0); }
+    expect(dumps(e.backups).filter((f) => f.startsWith(DB))).toEqual([2, 3, 4, 5, 6, 7, 8].map((i) => `${DB}-${stampOf(i)}.dump.gpg`));
+    expect(files(e.backups).filter((f) => f.includes(stampOf(1)) && f.startsWith(DB))).toEqual([]); // dump, media, dan kedua .sha256 set-1 hilang
+    expect(files(e.backups).filter((f) => f.includes(stampOf(2)) && f.startsWith(DB))).toHaveLength(4); // set-2 utuh
+    expect(files(e.backups)).toEqual(expect.arrayContaining(["catatan-operator.txt", "lain_db-20260101T000000Z.dump.gpg"]));
+  });
+
+  it("BACKUP_KEEP dihormati (3) dan nilai berbahaya (0, 00, abc, negatif) DITOLAK sebelum apa pun dihapus", () => {
+    const e = setup();
+    for (let i = 1; i <= 5; i++) expect(rotate(e, i, { BACKUP_OFFSITE_OPTIONAL: "1", BACKUP_KEEP: "7" }).code).toBe(0);
+    const before = files(e.backups);
+    for (const bad of ["0", "00", "abc", "-1", "1.5"]) {
+      const r = rotate(e, 6, { BACKUP_OFFSITE_OPTIONAL: "1", BACKUP_KEEP: bad });
+      expect(r.code, `KEEP='${bad}': ${r.out}`).toBe(2);
+      expect(files(e.backups), `KEEP='${bad}'`).toEqual(before); // tidak ada yang berubah (bahkan tidak ada backup baru)
+    }
+    expect(rotate(e, 6, { BACKUP_OFFSITE_OPTIONAL: "1", BACKUP_KEEP: "3" }).code).toBe(0);
+    expect(dumps(e.backups)).toHaveLength(3);
+    expect(dumps(e.backups)[2]).toContain(stampOf(6)); // yang terbaru selalu bertahan
+  });
+
+  it("backup GAGAL → tidak ada rotasi: semua backup lama tetap ada (kegagalan tidak boleh menghapus riwayat)", () => {
+    const e = setup();
+    for (let i = 1; i <= 7; i++) rotate(e, i, { BACKUP_OFFSITE_OPTIONAL: "1" });
+    const before = files(e.backups);
+    const r = rotate(e, 8, { BACKUP_OFFSITE_OPTIONAL: "1", FAKE_FAIL: "1", BACKUP_KEEP: "2" });
+    expect(r.code).toBe(1);
+    expect(files(e.backups)).toEqual(before);
+  });
+
+  it("checksum backup BARU tidak cocok → kode 3 dan TIDAK ada yang dihapus", () => {
+    const e = setup();
+    for (let i = 1; i <= 3; i++) rotate(e, i, { BACKUP_OFFSITE_OPTIONAL: "1" });
+    const r = rotate(e, 4, { BACKUP_OFFSITE_OPTIONAL: "1", FAKE_BAD_SUM: "1", BACKUP_KEEP: "1" });
+    expect(r.code, r.out).toBe(3);
+    expect(dumps(e.backups).filter((f) => f.startsWith(DB)).length).toBeGreaterThanOrEqual(3); // set lama utuh
+    expect(files(e.backups).some((f) => f.includes(stampOf(1)))).toBe(true);
+  });
+
+  it("salinan di luar VPS BERHASIL: perintah menerima set baru (BACKUP_FILES/STAMP/DUMP_FILE), checksum salinan cocok, keluaran = jalur dump", () => {
+    const e = setup();
+    const r = rotate(e, 1, { BACKUP_OFFSITE_CMD: COPY });
+    expect(r.code, r.out).toBe(0);
+    expect(r.stdout.split("\n").pop()).toBe(path.join(e.backups, `${DB}-${stampOf(1)}.dump.gpg`));
+    expect(files(e.offsite)).toEqual(files(e.backups));
+    const chk = spawnSync("bash", ["-c", `cd "${e.offsite}" && sha256sum --check --status *.sha256`]);
+    expect(chk.status).toBe(0);
+  });
+
+  it("salinan di luar VPS GAGAL → kode keluar ≠ 0 (4) dan backup LOKAL (termasuk yang baru) tetap ada; offsite tak dikonfigurasi → kode 5, lokal tetap ada", () => {
+    const e = setup();
+    for (let i = 1; i <= 2; i++) rotate(e, i, { BACKUP_OFFSITE_OPTIONAL: "1" });
+    const gagal = rotate(e, 3, { BACKUP_OFFSITE_CMD: "echo 'tujuan tidak terjangkau' >&2; exit 7" });
+    expect(gagal.code, gagal.out).toBe(4);
+    expect(gagal.out).toContain("Backup LOKAL tetap ada");
+    expect(dumps(e.backups)).toContain(`${DB}-${stampOf(3)}.dump.gpg`);
+    expect(dumps(e.backups)).toHaveLength(3);
+    const kosong = rotate(e, 4, {});
+    expect(kosong.code, kosong.out).toBe(5);
+    expect(kosong.out).toContain("BACKUP_OFFSITE_CMD belum dikonfigurasi");
+    expect(dumps(e.backups)).toContain(`${DB}-${stampOf(4)}.dump.gpg`);
+  });
+
+  it("dua eksekusi bersamaan dicegah (flock): yang kedua keluar kode 6 tanpa menyentuh backup", async () => {
+    const e = setup();
+    mkdirSync(e.backups, { recursive: true });
+    const holder = spawn("bash", ["-c", `exec 9>"${e.backups}/.backup-rotate.lock"; flock 9; sleep 8`], { stdio: "ignore" });
+    try {
+      await new Promise((r) => setTimeout(r, 600));
+      const r = rotate(e, 1, { BACKUP_OFFSITE_OPTIONAL: "1" });
+      expect(r.code, r.out).toBe(6);
+      expect(dumps(e.backups)).toEqual([]);
+    } finally { holder.kill(); }
+  });
+
+  it("repository: skrip tanpa kredensial, memakai backup.sh yang sama, set -euo pipefail; crontab contoh + variabel terdokumentasi di docs/backup-restore.md; drill CI menjalankan rotasi nyata", () => {
+    const sh = read("scripts/backup-rotate.sh");
+    expect(sh).toContain("set -euo pipefail");
+    expect(sh).toContain('BACKUP_SCRIPT="${BACKUP_SCRIPT:-$here/backup.sh}"');
+    expect(sh).not.toMatch(/PGPASSWORD=|passphrase=|--passphrase |secret|token/i);
+    expect(statSyncMode("scripts/backup-rotate.sh") & 0o111).not.toBe(0);
+    const d = read("docs/backup-restore.md");
+    for (const needle of ["backup-rotate.sh", "BACKUP_OFFSITE_CMD", "BACKUP_KEEP", "/etc/cron.d/teone-backup", "D-12"]) expect(d, needle).toContain(needle);
+    expect(read("scripts/backup-restore-drill.sh")).toContain("backup-rotate.sh");
+  });
+});
+const statSyncMode = (f: string) => statSync(path.join(root, f)).mode;

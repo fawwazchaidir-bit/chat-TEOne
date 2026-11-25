@@ -141,5 +141,20 @@ mkdir -p .test-results
   echo "- PostgreSQL: $(admin_psql -c 'show server_version')"
   echo; echo '```'; cat "$WORK/verify.txt"; echo '```'
 } > .test-results/backup-restore-drill.md
+echo "== BACKUP TERJADWAL (backup-rotate.sh, D-12): backup.sh SUNGGUHAN, simpan 2, salinan di luar VPS lewat BACKUP_OFFSITE_CMD"
+ROT_ENV=(PGHOST=$HOST PGPORT=$PORT PGUSER=teone_owner PGPASSWORD=$OWNER_PW PGDATABASE=$SRC BACKUP_PASSPHRASE_FILE="$WORK/backup.pass" BACKUP_DIR="$WORK/sched" MEDIA_DIR="$MEDIA_SRC" BACKUP_REQUIRE_MEDIA=1 BACKUP_KEEP=2 OFFSITE="$WORK/offsite")
+for n in 1 2 3; do
+  env "${ROT_ENV[@]}" BACKUP_OFFSITE_CMD='mkdir -p "$OFFSITE" && cp -p $BACKUP_FILES "$OFFSITE"/' bash scripts/backup-rotate.sh >/dev/null
+  [ "$n" -lt 3 ] && sleep 1.2   # stamp backup berbasis detik: set berbeda
+done
+SETS=$(ls "$WORK/sched" | grep -c "dump.gpg$" || true)
+[ "$SETS" = "2" ] || { echo "GAGAL: rotasi nyata menyisakan $SETS set (harapan 2)"; exit 1; }
+echo "   3 backup nyata → 2 set tersisa di lokal (set tertua beserta media/checksum dihapus) ✔"
+LATEST="$(ls "$WORK/sched" | grep "dump.gpg$" | sort | tail -1)"
+( cd "$WORK/offsite" && sha256sum --check --status "$LATEST.sha256" && sha256sum --check --status "${LATEST%.dump.gpg}.media.tar.gpg.sha256" ) || { echo "GAGAL: salinan offsite tidak cocok checksum"; exit 1; }
+echo "   salinan di luar VPS (tiruan: direktori terpisah) lengkap; checksum DB + media cocok ✔"
+rc=0; env "${ROT_ENV[@]}" BACKUP_OFFSITE_CMD='exit 9' bash scripts/backup-rotate.sh >/dev/null 2>&1 || rc=$?
+{ [ "$rc" = "4" ] && [ "$(ls "$WORK/sched" | grep -c "dump.gpg$")" -ge 2 ]; } || { echo "GAGAL: offsite gagal harus kode 4 dan backup lokal tetap ada (kode=$rc)"; exit 1; }
+echo "   offsite gagal → kode keluar 4, backup lokal tetap ada ✔"
 echo; echo "== SELESAI: backup ${BK}s, restore ${RS}s — semua verifikasi lulus"
 for db in $SRC $DST; do admin_psql -c "DROP DATABASE IF EXISTS $db WITH (FORCE)"; done
