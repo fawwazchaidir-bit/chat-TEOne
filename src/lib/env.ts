@@ -52,3 +52,6 @@ export function resetEnvCacheForTests() {
 
 export const isNonProduction = () => getEnv().APP_ENV !== "production";
 export const isSecureCookies = () => ["staging", "production"].includes(getEnv().APP_ENV);
+
+/** Apakah URL basis Graph API menunjuk Meta ASLI (graph.facebook.com)? URL tak terbaca → dianggap NYATA (gagal-aman). Satu-satunya definisi untuk modul non-adapter. */
+export const isRealGraphBaseUrl = (url: string): boolean => { try { return new URL(url).hostname === "graph.facebook.com"; } catch { return true; } };
