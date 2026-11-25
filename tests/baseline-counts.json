@@ -1,1 +1,14 @@
-{ "@tahap-1": { "vitest": 159, "playwright": 3 }, "@tahap-2": { "vitest": 138, "playwright": 3 }, "@tahap-3": { "vitest": 86, "playwright": 3 } }
+{
+  "@tahap-1": {
+    "vitest": 180,
+    "playwright": 3
+  },
+  "@tahap-2": {
+    "vitest": 166,
+    "playwright": 3
+  },
+  "@tahap-3": {
+    "vitest": 86,
+    "playwright": 3
+  }
+}
