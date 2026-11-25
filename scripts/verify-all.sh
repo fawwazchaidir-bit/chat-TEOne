@@ -44,6 +44,9 @@ step() {
   local missing=""
   for need in "$@"; do
     if [ "$need" = "@db" ]; then db_up || missing="$missing PostgreSQL-terjangkau"
+    elif [ "$need" = "@chromium" ]; then
+      # Chromium harus benar-benar dapat dibuka (di sebagian sandbox gagal `socket() EPERM`): keterbatasan lingkungan ≠ kegagalan aplikasi ≠ lulus.
+      cr="$(node scripts/check-chromium.mjs 2>&1)" || missing="$missing Chromium-dapat-dijalankan(${cr})"
     else command -v "$need" >/dev/null 2>&1 || missing="$missing $need"; fi
   done
   if [ -n "$missing" ]; then
@@ -69,8 +72,8 @@ step "npm-audit-produksi" "npm audit --omit=dev --audit-level=high" npm
 step "build" "npm run build" npm
 # test:report = Vitest SUNGGUHAN + penjaga (exit code Vitest diteruskan; lihat scripts/run-test-report.mjs). Butuh PostgreSQL.
 step "vitest-regresi-dan-penjaga" "npm run test:report" npm @db
-step "e2e-playwright" "npm run e2e" npm @db
-step "penjaga-akhir-dengan-e2e" "node scripts/test-tag-report.mjs --require-e2e" node
+step "e2e-playwright" "npm run e2e" npm @db @chromium
+step "penjaga-akhir-dengan-e2e" "node scripts/test-tag-report.mjs --require-e2e" node @chromium
 step "drill-backup-restore" "bash scripts/backup-restore-drill.sh" @db psql pg_dump pg_restore gpg
 
 {

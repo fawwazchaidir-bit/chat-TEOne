@@ -12,14 +12,14 @@ export default defineConfig({
   webServer: [
     {
       // Mock Graph API (SIMULASI, bukan Meta) untuk uji kirim; spec memeriksa panggilannya lewat port kontrol.
-      command: "npx tsx tests/e2e/mock-graph-server.ts",
+      command: "node --import tsx tests/e2e/mock-graph-server.ts", // bukan `npx tsx`: tsx CLI membuat IPC socket yang diblokir di sebagian lingkungan terbatas (audit ulang Gate 1)
       url: `${E2E_CTL_URL}/health`,
       timeout: 30_000,
       reuseExistingServer: false,
     },
     {
       // Server produksi (hasil `npm run build`) terhadap database E2E.
-      command: "npx tsx tests/e2e/prepare-db.ts && npx next start -p 3100",
+      command: "node --import tsx tests/e2e/prepare-db.ts && npx next start -p 3100",
       url: `${E2E_BASE_URL}/api/health`,
       timeout: 90_000,
       reuseExistingServer: false,
