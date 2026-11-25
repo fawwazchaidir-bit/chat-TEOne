@@ -168,3 +168,49 @@ describe("@tahap-1 build & deployment staging dapat direproduksi dan dikaitkan k
     expect(ci).not.toMatch(/PASSWORD:\s*\S*[A-Za-z0-9]{8,}.*\n.*teone_owner/); // sandi tidak ditulis literal di langkah image
   });
 });
+
+describe("@tahap-1 worker staging siap dijalankan dan nama proyek compose dikunci (S-10/A-4, S-06/R-2)", () => {
+  const compose = read("deploy/docker-compose.staging.yml");
+  const lines = compose.split("\n");
+  const serviceBlock = (name: string) => {
+    const i = lines.findIndex((l) => l === `  ${name}:` || l.startsWith(`  ${name}:`));
+    expect(i, `service ${name}`).toBeGreaterThanOrEqual(0);
+    let j = i + 1;
+    while (j < lines.length && !/^  \S/.test(lines[j]!) && !/^\S/.test(lines[j]!)) j++;
+    return lines.slice(i, j).join("\n");
+  };
+
+  it("compose menetapkan `name: deploy` di puncak (sebelum services) sehingga volume deploy_* yang ada tetap dipakai dari direktori mana pun", () => {
+    const nameIdx = lines.findIndex((l) => /^name: deploy\s*$/.test(l));
+    const servicesIdx = lines.findIndex((l) => /^services:\s*$/.test(l));
+    expect(nameIdx).toBeGreaterThanOrEqual(0);
+    expect(servicesIdx).toBeGreaterThan(nameIdx);
+    expect(compose.match(/^name:/gm)).toHaveLength(1);
+  });
+
+  it("service worker: image tools bertag sama, perintah `npm run worker`, env sama dengan app (env_file + MEDIA_DIR + volume media), restart, shutdown halus", () => {
+    const w = serviceBlock("worker");
+    const a = serviceBlock("app");
+    expect(w).toContain("image: teone-tools:${TEONE_TAG:-staging}");
+    expect(w).toContain('command: ["npm", "run", "worker"]');
+    expect(w).toContain("env_file: /etc/teone/staging.env");
+    expect(a).toContain("env_file: /etc/teone/staging.env");
+    for (const needle of ["MEDIA_DIR: /data/media", "media_data:/data/media", "restart: unless-stopped", "stop_grace_period:", 'user: "10001:10001"']) {
+      expect(w, needle).toContain(needle);
+      if (needle.startsWith("MEDIA_DIR") || needle.startsWith("media_data")) expect(a, `app ${needle}`).toContain(needle); // sama dengan app
+    }
+    expect(w).toMatch(/depends_on:.*db.*service_healthy/);
+    expect(w).not.toMatch(/ports:/); // tidak dipublikasikan
+    expect(JSON.parse(read("package.json")).scripts.worker).toBe("node --import tsx scripts/worker.ts");
+  });
+
+  it("perintah menyalakan worker terdokumentasi (`-p deploy`, dua --env-file, --no-deps) dan scripts/worker.ts memakai loop yang diuji + mode --once", () => {
+    const d = read("docs/staging.md");
+    expect(d).toContain("-p deploy --env-file /etc/teone/staging.env --env-file deploy/.env");
+    expect(d).toContain("up -d --no-deps worker");
+    const w = read("scripts/worker.ts");
+    expect(w).toContain("runWorkerLoop");
+    expect(w).toContain('process.argv.includes("--once")');
+    expect(read("src/modules/conversations-messages/worker-loop.ts")).toContain("runMaintenance"); // pemeliharaan (termasuk purge payload D-18) hidup di loop worker
+  });
+});

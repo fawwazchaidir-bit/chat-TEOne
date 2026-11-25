@@ -1,6 +1,9 @@
 # Staging TE One — server TERSENDIRI (bukan VPS HRIS/keuangan). Semua nilai rahasia dari berkas env di server
 # (/etc/teone/staging.env, chmod 600, TIDAK di repository). Lihat docs/staging.md.
-# STATUS: dibuat, BELUM diuji pada server staging (Jalur 0 J0-03 belum tersedia). Tahap 2: + service worker dan volume media.
+# STATUS: dibuat; server staging berjalan (dilaporkan operator), BELUM terbukti di repository (docs/staging.md §6). Tahap 2: + service worker dan volume media.
+# Nama proyek DIKUNCI `deploy` (S-06/R-2): volume yang sudah ada (deploy_pg_data, deploy_media_data, deploy_caddy_data) tetap dipakai walau compose
+# dijalankan dari direktori lain; tanpa ini nama proyek mengikuti nama direktori dan bisa membuat volume KOSONG (database baru).
+name: deploy
 services:
   db:
     image: postgres:16
@@ -24,9 +27,13 @@ services:
     environment:
       MEDIA_DIR: /data/media        # media privat (Tahap 2) — volume persisten; HARUS ikut dibackup
     volumes: [media_data:/data/media]
-  worker:                           # Tahap 2: pemroses antrean event webhook, rekonsiliasi, unduh media, retensi payload
+  worker:                           # Tahap 2: pemroses antrean event webhook, rekonsiliasi, unduh media, retensi payload (D-18) — A-4 disetujui 26 Nov 2026
+    # Satu-satunya proses yang menjalankan PEMELIHARAAN berkala (runMaintenance: purge payload, penyapu `diproses`, rekonsiliasi, ulang media,
+    # fallback outbox). Mode inline di `app` (WORKER_INLINE=true) hanya memproses antrean saat ada webhook (S-10).
+    # Env SAMA dengan app (/etc/teone/staging.env + MEDIA_DIR + volume media). Perintah menyalakan: docs/staging.md §5b.
     image: teone-tools:${TEONE_TAG:-staging}   # Aman berdampingan dengan app (SKIP LOCKED + lease)
     restart: unless-stopped
+    stop_grace_period: 30s          # worker berhenti setelah batch yang sedang berjalan (SIGTERM)
     user: "10001:10001"             # sama dengan pengguna image runtime agar menulis ke volume media yang sama
     command: ["npm", "run", "worker"]
     env_file: /etc/teone/staging.env

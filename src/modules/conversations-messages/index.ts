@@ -15,3 +15,4 @@ export { setAiState, AI_OFF_REASONS, AI_OFF_LABEL, type AiChange, type AiState, 
 export { dispatchOutbox, enqueueCustomerMessage } from "./outbox";
 export { executeSend, validateSendInput, byKey, asResult, safeName, type ExecuteSendInput, type SendActor } from "./send";
 export { recipientAllowed } from "./recipients";
+export { runWorkerLoop, MAINTENANCE_INTERVAL_MS, IDLE_SLEEP_MS, type WorkerLoopOptions, type WorkerLoopResult } from "./worker-loop";
