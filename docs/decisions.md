@@ -14,7 +14,7 @@ Cara mengisi: ubah *Status*, tulis keputusan akhir di kolom *Keputusan akhir*, l
 |---|---|---|---|---|---|---|
 | D-01 | Kebutuhan grup WhatsApp lama | Opsi A (lihat rincian) | Tahap 3 dimulai (±22 Des 2026) | Terbuka | | |
 | D-02 | Jalur akses Meta untuk coexistence | Ajukan Tech Provider sendiri; jika belum disetujui per 15 Des 2026, pakai BSP resmi untuk uji | Tahap 2 (±1 Des 2026) | Terbuka | | |
-| D-03 | Nomor uji coexistence | Kemitraan, **tidak dipublikasikan** sampai GO; pesan dari pengirim di luar daftar uji tidak diproses otomatisasi dan dilaporkan | Tahap 2 (±1 Des 2026) | Terbuka | | |
+| D-03 | Nomor uji coexistence | Kemitraan, **tidak dipublikasikan** sampai GO; pesan dari pengirim di luar daftar uji tidak diproses otomatisasi dan dilaporkan | Tahap 2 (±1 Des 2026) | **Diputuskan** | Nomor uji = …6319 (channel Kemitraan Uji), satu-satunya nomor siap; pemilik menyatakan tidak ada chat masuk ke nomor ini. M-12 (history) hanya bila tidak ada chat pelanggan 180 hari terakhir — lihat `gates/keputusan-pemilik-fase-0-2026-11-26.md` §2 | Pemilik proyek / 26 Nov 2026 |
 | D-04 | Cakupan go-live dan jadwal | Lihat rincian | Gate 1 (±2 Des 2026) | Terbuka | | |
 | D-05 | Pesan keluar dari HP (WhatsApp Business App) mematikan AI | **Ya**, AI Off pada chat terkait | Tahap 3 | Terbuka | | |
 | D-06 | Waktu kirim FU-2 | Target T+23 jam; jika di luar jam kirim, kirim pada slot jam kirim terakhir sebelum (T+24 jam − 30 menit) | Tahap 6 | Terbuka | | |

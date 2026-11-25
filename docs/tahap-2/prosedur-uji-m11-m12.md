@@ -270,7 +270,7 @@ Tangkapan layar field webhook sebelum/sesudah (S1, S6); hasil baseline sebelum/s
 | **A-2b** | Sertakan kontrol negatif S4 (kirim ke satu nomor tim di luar daftar uji; orangnya setuju) | ☐ | ☐ | nama pihak: | |
 | **A-2c** | **[Pemilik mengizinkan M-11 pada …6319 dengan syarat satu operator/tanpa aktivitas lain = setara I-3; lihat persetujuan]** **Isolasi ponsel …6319 untuk M-11** (STOP a terpicu): pilih **satu** | ☐ I-1 (tidak menguji) | ☐ I-2 (nomor uji bersih) | ☐ I-3 (pembekuan ponsel; belum direkomendasikan) | |
 | **A-3** | M-12: pilih **satu** | ☐ H0 | ☐ H1 | ☐ H2 (dilarang sampai persetujuan terpisah tertulis) | |
-| **A-4** | **Jalankan worker terpisah** (opsi W1: `up -d --no-deps worker`) setelah kueri §5 di [`pemeliharaan-inline-vs-worker.md`](pemeliharaan-inline-vs-worker.md) ditinjau | ☐ | ☐ | | |
+| **A-4** | **Jalankan worker terpisah** (opsi W1: `up -d --no-deps worker`) setelah kueri §5 di [`pemeliharaan-inline-vs-worker.md`](pemeliharaan-inline-vs-worker.md) ditinjau | ☑ | ☐ | Jalankan setelah kueri §5 dicatat (angka saja), dengan `-p deploy` | Pemilik proyek · 26 Nov 2026 · pernyataan tertulis di sesi audit (`gates/keputusan-pemilik-fase-0-2026-11-26.md`) |
 | **D-18/D-12** | Retensi/penghapusan data uji & RPO/RTO (masih **Terbuka**) | ☐ diputuskan | ☐ ditunda | | |
 
 ## 11. Daftar cek verifikasi ke dokumentasi resmi Meta (operator/pemilik) dan usulan pembangun
