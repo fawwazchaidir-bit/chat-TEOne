@@ -15,7 +15,7 @@ Isi **YA/TIDAK**, jam (WIB), dan bukti teks. **Satu "TIDAK" = NO-GO**.
 |---|---|---|---|---|
 | **P1** | `inbox` dan `ai_simulation` mati; `whatsapp_connector` aktif; **mode uji aktif**; **daftar penerima uji benar** (hanya …4062 aktif) | SQL §2.1 | keluaran kueri + `jam_server_utc` | |
 | **P2** | **Kondisi worker dan antrean** diperiksa; cara menangani event tertunda dipahami (§6.3); **tidak ada** event `pending/processing/failed` yang tak dijelaskan | `sudo docker ps -a --filter name=deploy- --format '{{.Names}}\t{{.Image}}\t{{.Status}}'`; `sudo docker exec deploy-app-1 printenv WORKER_INLINE`; SQL §2.2 | daftar kontainer (**tanpa** Env), nilai `WORKER_INLINE`, hitungan antrean | |
-| **P3** | **Backup terenkripsi DB + media**, **salinan terpisah di luar VPS**, **bukti uji restore pada lingkungan terisolasi** | §3 | nama berkas, SHA-256, ukuran, versi migrasi, jam, lokasi salinan (jenis), PIC pembuat/pemeriksa, hasil restore | |
+| **P3** | **Backup terenkripsi DB + media**, **salinan terpisah di luar VPS**, **bukti uji restore pada lingkungan terisolasi** | §3 | nama berkas, SHA-256, ukuran, versi migrasi, jam, lokasi salinan (jenis), PIC pembuat/pemeriksa, hasil restore | **DINYATAKAN YA — pemilik, 26 Nov** (checksum berkas backup **cocok** menurut pemeriksaan manual pemilik; **uji restore terisolasi** dilakukan; kedua hasil **dinyatakan pemilik telah diverifikasi independen oleh auditor**). **Rincian teks BELUM diterima:** nama berkas/SHA-256/ukuran, versi migrasi, durasi; **apakah media ikut**; **apakah salinan di luar VPS dibuat dan checksum-nya cocok di sana**; perbandingan hitungan restore vs baseline; PIC pembuat/pemeriksa; identitas dan catatan auditor (§3.5). **Belum ada laporan auditor di repository.** Status **bersyarat** sampai rincian itu ada |
 | **P4** | **Dokumentasi resmi Meta** tentang field echo dan cakupan event Business App diverifikasi | **Dibaca pembangun 26 Nov** (`verifikasi-dokumentasi-meta-2026-11-26.md`): nama field ✔, payload ✔, cakupan ✔ (semua pesan + perangkat tertaut). **Operator mengonfirmasi** tiga hal di halaman resmi **saat ini**: (a) nama field `smb_message_echoes` masih sama, (b) kunci `message_echoes[]`/`to` masih sama, (c) kalimat cakupan masih sama; dan mencatat **V-5/V-6/V-9 = belum terjawab** sebagai risiko yang diterima | URL + tanggal baca + "sama/berbeda" | |
 | **P5** | **Kondisi awal subscription dan hitungan event** tercatat **sebagai teks** | §2.3–§2.4 + lembar §4 | lembar §4 terisi | |
 | **P6** | **Satu operator** memegang ponsel; **tidak ada aktivitas lain** pada ponsel selama jendela uji | Daftar cek §5 | inisial operator (tanpa nama lengkap), jam mulai/selesai jendela | |
@@ -23,7 +23,22 @@ Isi **YA/TIDAK**, jam (WIB), dan bukti teks. **Satu "TIDAK" = NO-GO**.
 | **P8** | **Jendela waktu pendek (≤ 10 menit)** dan **di luar jam ramai pelanggan** ditetapkan | rencana operator | jam rencana | |
 | **P9** | **Dua orang siaga** (atau satu orang dengan akses ketiganya): dashboard Meta (cabut field), akses DB baca-saja, ponsel | konfirmasi operator | ya/tidak | |
 
-**Keputusan GO/NO-GO:** ☐ GO ☐ NO-GO — operator (inisial): ____ — jam (WIB): ____
+**Keputusan GO/NO-GO:** ☐ GO ☐ NO-GO — operator (inisial): ____ — jam (WIB): ____ *(tidak diisi pembangun)*
+
+### 1.1 Rekap status prasyarat (dicatat pembangun dari pernyataan yang diterima; **bukan** pengisian gerbang)
+| # | Status per 26 Nov | Dasar |
+|---|---|---|
+| P1 flag / mode uji / penerima uji | **Belum ada pembaruan.** Flag `inbox`/`ai_simulation` mati dan `whatsapp_connector` aktif sudah dilaporkan **sebelumnya** (kueri 25 Nov, tanpa jam). Mode uji dan daftar penerima **belum dilaporkan** | Kirim keluaran §2.1 (dengan `jam_server_utc`) |
+| P2 worker dan antrean | **Belum ada pembaruan.** Diketahui sebelumnya: tidak ada container worker, `WORKER_INLINE=true`, 5 message + 6 status *processed*, 2 message *quarantined*, tanpa `pending/processing/failed` (pada saat kueri, tanpa jam) | Kirim keluaran §2.2 terbaru |
+| **P3 backup + salinan terpisah + restore terisolasi** | **Dinyatakan YA oleh pemilik (bersyarat)** — lihat sel P3 dan §3.5–§3.6 | Pernyataan pemilik 26 Nov |
+| P4 dokumentasi Meta | **Sebagian:** dibaca pembangun (`verifikasi-dokumentasi-meta-2026-11-26.md`); **konfirmasi operator** atas halaman saat ini **belum ada** | — |
+| P5 baseline teks | Belum | — |
+| P6 satu operator/ponsel | Belum | — |
+| P7 tanpa perubahan image/konfigurasi | Belum (pembandingan sebelum/sesudah dilakukan saat uji) | — |
+| P8 jendela waktu | Belum | — |
+| P9 siaga | Belum | — |
+
+> Catatan: pesan "update pada P1 & 2" **tidak disertai data baru** untuk P1 maupun P2, sehingga keduanya **tidak diubah**. Bila yang dimaksud **Fase 1 & Fase 2** di `prosedur-uji-m11-m12.md`: Fase 1 hanya **§5.1 (titik pemulihan)** yang dinyatakan selesai — **rebuild/penggantian image tidak dijalankan** (syarat 7 izin); Fase 2 (M-11) **belum dijalankan**.
 
 ## 2. Paket kueri baca-saja (tanpa isi pesan, tanpa nomor non-penguji)
 Jalankan memakai `sudo docker exec deploy-db-1 psql -U postgres -d <DB> -c "…"` (atau sesi `psql` interaktif). Bila diminta **kata sandi**, **berhenti** — jangan menaruh sandi di perintah; ajukan rencana terpisah. Catat `jam_server_utc` pada tiap blok.
@@ -118,6 +133,19 @@ sudo docker exec deploy-app-1 sh -c 'find /data/media -type f | wc -l'
 sudo docker rm -f teone-restore-pg; sudo docker network rm teone-restore-test
 ```
 **Lulus bila:** checksum OK; dekripsi OK; `pg_restore` selesai tanpa galat; hitungan `messages/inbound_events/conversations/audit_log` **sama dengan baseline** (selisih hanya bila ada event masuk antara backup dan hitungan — catat jam); `drizzle.__drizzle_migrations` = 6; jumlah berkas media di arsip = di volume; **durasi backup dan restore** tercatat. Bukti: teks angka (bukan isi). **Batas:** ini bukti **data+skema**, bukan seluruh verifikasi `restore-verify.ts` (role, trigger, hash sandi, konsistensi media ukuran/SHA-256) dan tidak menguji **mode aman**; `APP_ENCRYPTION_KEY` **tidak** ada di backup (TOTP tidak terpulihkan tanpa kunci).
+
+### 3.5 Catatan verifikasi auditor (template **kosong**; agar klaim "diverifikasi independen" dapat ditinjau)
+Pemilik menyatakan **auditor** memverifikasi secara independen (a) pencocokan checksum dan (b) uji restore terisolasi. **Pembangun tidak dapat memeriksa pernyataan itu**, dan **tidak ada nama, tanggal, atau dokumen auditor** yang diterima — tidak diisi dengan asumsi. Agar dapat ditinjau kelak, minta auditor menulis (teks) lalu tambahkan di sini atau di `docs/reports/bukti/`:
+| Hal | Isi (diisi auditor/pemilik) |
+|---|---|
+| Identitas auditor (inisial/peran; **bukan** kredensial) dan apakah **sama** dengan auditor Gate 1/2 | |
+| Tanggal-jam pemeriksaan; lokasi (VPS / lingkungan auditor) | |
+| (a) Checksum: berkas apa saja yang dicocokkan; hasil; **apakah** salinan di luar VPS ikut dicocokkan | |
+| (b) Restore: bagaimana dipastikan **terisolasi** (bukan DB staging); hitungan yang dibandingkan; versi migrasi; media (jumlah berkas) | |
+| Hasil dan batas pemeriksaan | |
+
+### 3.6 Rincian yang masih diminta untuk menutup P3 (teks saja, tanpa rahasia)
+(1) nama berkas backup (DB dan media) + **SHA-256** + ukuran; (2) **jam** dan **durasi** backup dan restore; (3) **versi migrasi** hasil restore (diharapkan 6); (4) **media ikut dicadangkan?** + jumlah berkas arsip vs volume; (5) **salinan di luar VPS**: **jenis** lokasi dan apakah checksum **cocok di sana**; (6) hitungan `messages/inbound_events/conversations/audit_log` hasil restore vs baseline (catat jam bila ada selisih karena event masuk di antara backup dan hitungan); (7) **PIC pembuat dan pemeriksa**; (8) **bahwa restore tidak dilakukan ke DB staging** dan lingkungan uji sudah dibersihkan; (9) **passphrase** disimpan di brankas terpisah (ya/tidak; tanpa nilai).
 
 ## 4. Lembar kondisi awal (isi sebelum uji; teks saja)
 | Hal | Nilai |

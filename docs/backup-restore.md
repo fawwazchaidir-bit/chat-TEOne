@@ -33,6 +33,9 @@ Dijalankan: `bash scripts/backup-restore-drill.sh` (DB sumber dari **nol** → m
 
 **Batas bukti (jujur):** data sangat kecil — waktu **tidak representatif** untuk produksi; dijalankan di mesin pengembang/CI, **bukan di server staging**; salinan di lokasi terpisah belum dibuktikan; media sintetis. RPO/RTO: **D-12 belum dinilai** (usulan RPO ≤ 1 jam, RTO ≤ 4 jam kerja) — angka itu **bukan prestasi yang sudah terbukti**.
 
+## 2b. Backup & restore di server staging — dinyatakan pemilik, 26 Nov 2026 (rincian belum diterima)
+Pemilik menyatakan: backup server dibuat, **checksum berkas cocok** (pemeriksaan manual), dan **uji restore terisolasi** dilakukan; keduanya diverifikasi **secara independen oleh auditor** (menurut pemilik). **Belum ada** di repository: nama berkas/SHA/ukuran/versi migrasi/durasi, cakupan media, salinan di luar VPS, PIC, dan catatan auditor — lihat `docs/tahap-2/runbook-uji-m11.md` §3.5–§3.6. Status: **Dinyatakan pemilik — bukan "Terbukti nyata"**. Tidak mengubah D-12 (RPO/RTO) dan D-18 (retensi), yang tetap Terbuka.
+
 ## 3. Rancangan lokasi terpisah (belum dipasang — butuh server)
 - **Jadwal:** harian + sebelum setiap migrasi; usulan retensi 7 harian / 4 mingguan / 6 bulanan (selaras D-18, perlu diputuskan).
 - **Salinan di luar server:** salin berkas `.dump.gpg` + `.sha256` ke penyimpanan terpisah (provider/lokasi berbeda) dengan kredensial tulis-saja; passphrase dan kunci aplikasi di brankas berbeda dari keduanya.

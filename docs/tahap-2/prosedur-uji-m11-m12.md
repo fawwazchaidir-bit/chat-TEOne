@@ -139,6 +139,7 @@ SELECT c.id, c.last_customer_message_at, c.ai_status, c.ai_version FROM conversa
 Bukti M-11 hanya bernilai bila dapat **diikat ke commit** yang diaudit. Image berjalan tidak berlabel (§2.1-3) dan belum memuat penjaga `ai_simulation` (§2.1-4). Mengujinya apa adanya akan menghasilkan bukti yang **tidak dapat dikaitkan ke commit** dan menambah utang audit. **Opsi B** (uji pada image lama) tetap dimungkinkan bila pemilik memilihnya di §10, dengan konsekuensi bukti berstatus KLAIM-image.
 
 ### 5.1 Titik pemulihan (**sebelum** menyentuh apa pun)
+> **Status 26 Nov (dinyatakan pemilik):** backup dibuat, **checksum cocok** (pemeriksaan manual), dan **uji restore terisolasi** dilakukan; keduanya dinyatakan **diverifikasi independen oleh auditor**. **Rincian teks dan catatan auditor belum diterima** (lihat `runbook-uji-m11.md` §3.5–§3.6). Yang **dinyatakan selesai hanya titik pemulihan ini**; **rebuild/penggantian image (§5.2–§5.3) tidak dijalankan** (syarat 7 izin M-11).
 1. Folder pemulihan di luar repo, mis. `/root/pemulihan-2026-11-25/` (mode 700).
 2. Simpan: `local.diff` (0.2), salinan `deploy/Caddyfile` aktif, keluaran 0.1–0.5.
 3. **Tag cadangan image berjalan** (tidak menghapus apa pun): `docker tag sha256:417b30f8… teone-app:rollback-20261125-417b30f8` (dan untuk `teone-tools` bila ada). Catat bahwa kontainer **tetap** memakai image lama sampai langkah 5.3.
