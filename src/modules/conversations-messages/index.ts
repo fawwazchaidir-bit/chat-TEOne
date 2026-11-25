@@ -3,7 +3,7 @@ export { onCustomerMessage, emitCustomerMessage, automationEligible, AUTOMATION_
 export { evaluateWindow, provenCustomerTime, WINDOW_MS, type WindowState } from "./window";
 export { deriveStatus, applyStatusesToMessage, recordStatusEvent, PROVIDER_STATUS, type MessageStatus } from "./status";
 export { ingestEvent, type IngestOutcome } from "./ingest";
-export { processInboundBatch, kickProcessing, runMaintenance, type BatchResult } from "./worker";
+export { processInboundBatch, kickProcessing, waitForKickIdle, createKicker, KICK_BATCHES_PER_ROUND, runMaintenance, type BatchResult, type KickDeps } from "./worker";
 export { sendOutbound, classifyFailure, type SendInput, type SendResult } from "./send";
 export { reconcileUncertain, expireStaleProcessing, processingStaleMs, resolveUncertainManually } from "./reconcile";
 export { fetchInboundMedia, readMediaForUser, retryPendingMedia, sniffMime, MEDIA_LIMITS, ALLOWED_MIME } from "./media";
