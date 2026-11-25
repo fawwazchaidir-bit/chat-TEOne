@@ -33,12 +33,12 @@ Diuji: 90 varian (payload diubah setelah ditandatangani, tanda tangan diubah 1 k
 | `channel_tidak_dikenal` (phone_number_id belum dipetakan) | disimpan sebagai `quarantined`; dapat diproses ulang **hanya** setelah pemetaan ada |
 | `waba_tidak_cocok` (WABA di payload ≠ WABA channel) | karantina; tidak pernah memakai channel lain |
 | `bentuk_tidak_dikenal` | karantina; hanya field/alasan yang disimpan |
-| `pengirim_di_luar_daftar_uji` (mode uji D-03) | **payload dibuang**; hanya hitungan, jenis, dan alasan; dilaporkan di alat uji |
+| `pengirim_di_luar_daftar_uji` (mode uji, D-03 Diputuskan) | **payload dibuang**; hanya hitungan, jenis, dan alasan; dilaporkan di alat uji |
 | `identitas_bentrok` (G2-A01: identitas pesan menunjuk ≥ 2 kontak berbeda) | karantina; **payload dipertahankan** (dibatasi retensi) untuk ditinjau; tidak ada kontak/pesan/identitas ditulis; audit tanpa nomor; belum dapat diproses ulang lewat alat uji |
 | `pengirim_tanpa_identitas`, `echo_tanpa_penerima`, `history_tanpa_pelanggan` | karantina |
 
 ## 6. Data yang disimpan, retensi, log
-- `inbound_events.payload` (mentah): dibuang saat sudah tidak diperlukan (`dropPayload`) dan dibersihkan oleh worker setelah **30 hari** — **ASUMSI (D-18)**, usulan belum diputuskan.
+- `inbound_events.payload` (mentah): dibuang saat sudah tidak diperlukan (`dropPayload`) dan dibersihkan oleh **worker** (`runMaintenance`) setelah **30 hari** — **D-18 Diputuskan** (26 Nov 2026, staging). Pada penyebaran inline-saja pembersihan **tidak berjalan** (S-10): worker terpisah wajib (`docs/staging.md` §5b). Log akses Caddy: tanpa header/body, query verify-token disamarkan, rotasi 720 jam (`deploy/Caddyfile`).
 - **Tidak ada** payload, isi pesan, token, tanda tangan, atau URL media sementara di log aplikasi. Galat dicatat lewat `safeErrorLabel` (nama kelas + kode), karena pesan galat driver DB memuat parameter kueri.
 - Audit log: aksi (simpan koneksi, verifikasi, kirim uji, penyelesaian manual, ulang event) tanpa isi chat.
 

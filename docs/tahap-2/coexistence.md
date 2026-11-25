@@ -45,7 +45,7 @@ Dampak echo terhadap status AI (D-05) diatur di **Tahap 3**, bukan di sini.
 ## 4. Implikasi per nomor — HIPOTESIS yang harus dibuktikan (bukan kesimpulan)
 | Nomor | Kondisi yang diketahui (AGENTS.md §1) | Implikasi yang perlu dibuktikan | Aturan sekarang |
 |---|---|---|---|
-| **Kemitraan** (nomor 3) | Sudah terhubung ke Meta Business; kandidat nomor uji (D-03) | Layak/tidaknya coexistence (versi app, negara, status Meta Business, jalur D-02); perilaku echo & riwayat; pengirim di luar daftar uji dikarantina (D-03) | **Satu-satunya** kandidat uji; **belum** diuji |
+| **Kemitraan** (nomor 3) | Sudah terhubung ke Meta Business; nomor uji (D-03 **Diputuskan** 26 Nov 2026: …6319) | Layak/tidaknya coexistence (versi app, negara, status Meta Business, jalur D-02); perilaku echo & riwayat; pengirim di luar daftar uji dikarantina (D-03) | **Satu-satunya** kandidat uji; **belum** diuji |
 | **Admisi** (…1119) | Coexistence di layanan lama (Halo AI) | Apakah nomor yang sudah coexistence di layanan lama dapat ditautkan ke aplikasi Meta TE One tanpa memutus yang lama; kemungkinan harus memutus provider sebelumnya; riwayat tersimpan di Halo AI **tidak ikut** pindah dan tidak boleh dijanjikan; risiko gangguan lead iklan → butuh runbook, observasi, dan rollback (Tahap 8) | **Tidak boleh disentuh** sebelum Tahap 9 dan GO tertulis |
 | **Hotline** (…0124) | Centang biru; di Halo AI berlabel "WhatsApp On-premise" + menu "WAHA to WABA Migration"; **diduga WAHA, belum terverifikasi** (J0-04) | Bila benar WAHA: konektor tidak resmi (dilarang TE One, AGENTS.md §3.3) → perlu onboarding ulang ke jalur resmi, kemungkinan memutus WAHA, kemungkinan perubahan status verifikasi/centang biru yang **harus dipastikan**; grup (D-01) tidak ikut | **Tidak boleh disentuh** sebelum Tahap 9; teknologi nomor harus diverifikasi dulu (J0-04) |
 
@@ -56,7 +56,7 @@ Dampak echo terhadap status AI (D-05) diatur di **Tahap 3**, bukan di sini.
 
 ## 6. Skenario uji coexistence (dijalankan di nomor uji setelah akses tersedia)
 1. Catat sebelum onboarding: versi WhatsApp Business App, perangkat tertaut, status verifikasi dua langkah (tangkapan layar **disamarkan**).
-2. Onboarding nomor uji lewat jalur D-02; catat langkah, PIN, pemutusan perangkat, dan waktu.
+2. Onboarding nomor uji lewat jalur D-02 (**Diputuskan**: aplikasi Meta milik sendiri); catat langkah, PIN, pemutusan perangkat, dan waktu.
 3. Setujui berbagi riwayat → amati `history` (fase, chunk, progres, media tidak tersedia); ulangi dengan menolak.
 4. Kirim pesan dari HP → amati `smb_message_echoes`; pastikan tercatat sebagai keluar/*WhatsApp Business App*, tidak menggandakan, dan jendela layanan **tidak** terbuka karenanya.
 5. Pesan pelanggan masuk → jendela terbuka; balas via alat uji dalam/di luar jendela.

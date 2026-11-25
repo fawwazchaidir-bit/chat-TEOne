@@ -13,7 +13,7 @@ import type { NormalizedEvent } from "./normalize";
 
 export type StoreResult = { received: number; stored: number; duplicates: number; quarantined: number };
 export const MAX_ATTEMPTS = 5;
-export const RAW_PAYLOAD_RETENTION_DAYS = 30; // ASUMSI (D-18): usulan, belum diputuskan
+export const RAW_PAYLOAD_RETENTION_DAYS = 30; // D-18 (Diputuskan 26 Nov 2026): payload mentah ≤ 30 hari (staging; production: arah sama, final setelah tinjauan penasihat hukum)
 
 export async function storeEvents(events: NormalizedEvent[]): Promise<StoreResult> {
   return getDb().transaction(async (tx) => {
@@ -105,7 +105,7 @@ export async function requeueEvent(id: number): Promise<{ ok: true } | { ok: fal
   return { ok: true };
 }
 
-/** Retensi payload mentah (D-18, ASUMSI ≤ 30 hari): payload di-NULL-kan, baris & status tetap untuk jejak. */
+/** Retensi payload mentah (D-18 Diputuskan: ≤ 30 hari): payload di-NULL-kan, baris & status tetap untuk jejak. Dijalankan oleh WORKER lewat runMaintenance (tidak oleh mode inline). */
 export async function purgeRawPayloads(days = RAW_PAYLOAD_RETENTION_DAYS): Promise<number> {
   const res = await getDb().execute(sql`
     UPDATE inbound_events SET payload = NULL

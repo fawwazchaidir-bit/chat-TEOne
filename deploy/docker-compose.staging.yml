@@ -4,10 +4,18 @@
 # Nama proyek DIKUNCI `deploy` (S-06/R-2): volume yang sudah ada (deploy_pg_data, deploy_media_data, deploy_caddy_data) tetap dipakai walau compose
 # dijalankan dari direktori lain; tanpa ini nama proyek mengikuti nama direktori dan bisa membuat volume KOSONG (database baru).
 name: deploy
+# Log kontainer (stdout/stderr) dibatasi UKURAN (10 MB x 10 berkas per kontainer). Driver json-file TIDAK membatasi umur (hari): batas 30 hari
+# D-18 untuk log kontainer = dilaporkan sebagai butir berikutnya (penjadwal/driver log); Caddy punya pemangkasan 720 jam sendiri (Caddyfile).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "10"
 services:
   db:
     image: postgres:16
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_superuser
     secrets: [pg_superuser]
@@ -20,6 +28,7 @@ services:
   app:
     image: teone-app:${TEONE_TAG:-staging}   # dibangun dari ./Dockerfile oleh scripts/build-staging-image.sh (tag staging-<sha7> = commit)
     restart: unless-stopped
+    logging: *logging
     env_file: /etc/teone/staging.env
     depends_on: { db: { condition: service_healthy } }
     networks: [internal]
@@ -33,6 +42,7 @@ services:
     # Env SAMA dengan app (/etc/teone/staging.env + MEDIA_DIR + volume media). Perintah menyalakan: docs/staging.md §5b.
     image: teone-tools:${TEONE_TAG:-staging}   # Aman berdampingan dengan app (SKIP LOCKED + lease)
     restart: unless-stopped
+    logging: *logging
     stop_grace_period: 30s          # worker berhenti setelah batch yang sedang berjalan (SIGTERM)
     user: "10001:10001"             # sama dengan pengguna image runtime agar menulis ke volume media yang sama
     command: ["npm", "run", "worker"]
@@ -51,6 +61,7 @@ services:
   caddy:
     image: caddy:2
     restart: unless-stopped
+    logging: *logging
     ports: ["80:80", "443:443"]     # satu-satunya yang terbuka ke internet
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-staging-chat.example.invalid}   # dari deploy/.env (non-rahasia); dibaca Caddyfile sebagai {$SITE_ADDRESS}

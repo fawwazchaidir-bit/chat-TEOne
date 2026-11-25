@@ -3,7 +3,7 @@
  * penandaan event `processed` ⇒ atomik; idempoten (UNIQUE provider_message_id / event_key) ⇒ aman diulang.
  *
  * Kontrak inti #3: `history` dan `echo` ditandai, TIDAK memperbarui jendela layanan, dan TIDAK memicu hook otomatisasi.
- * D-03 (ASUMSI): pada channel mode-uji, pengirim/penerima di luar daftar uji → event dikarantina seminimal mungkin
+ * D-03 (Diputuskan 26 Nov 2026: nomor uji …6319, channel Kemitraan Uji; perilaku kode tidak berubah): pada channel mode-uji, pengirim/penerima di luar daftar uji → event dikarantina seminimal mungkin
  * (payload dibuang, tidak ada kontak/pesan), tidak diproses otomatisasi, dan DILAPORKAN (audit + hitungan di alat uji).
  */
 import { and, eq, sql } from "drizzle-orm";

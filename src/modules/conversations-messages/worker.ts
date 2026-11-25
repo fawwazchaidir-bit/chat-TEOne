@@ -125,7 +125,7 @@ export const kickProcessing = (): void => inlineKicker.kick();
 /** Hanya untuk uji. */
 export const waitForKickIdle = (): Promise<void> => inlineKicker.idle();
 
-/** Pemeliharaan berkala: retensi payload (D-18, ASUMSI), rekonsiliasi hasil belum pasti, ulangi unduhan media tertunda. */
+/** Pemeliharaan berkala: retensi payload (D-18 Diputuskan), rekonsiliasi hasil belum pasti, ulangi unduhan media tertunda. Hanya dipanggil oleh worker-loop (scripts/worker.ts). */
 export async function runMaintenance(): Promise<{ purged: number; reconciled: number; expired: number; mediaRetried: number; outbox: number; jobs: number }> {
   const purged = await purgeRawPayloads();
   const rec = await reconcileUncertain(); // juga menandai `diproses` yang tertahan sebagai `belum_pasti` (G2-A06)

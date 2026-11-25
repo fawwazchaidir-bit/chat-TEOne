@@ -244,7 +244,7 @@ echo "$d"
   const rotate = (e: ReturnType<typeof setup>, i: number, env: Record<string, string> = {}) => {
     const r = spawnSync("bash", [path.join(root, "scripts/backup-rotate.sh")], {
       encoding: "utf8", timeout: 60_000,
-      env: { PATH: process.env.PATH ?? "", BACKUP_DIR: e.backups, PGDATABASE: DB, BACKUP_SCRIPT: e.script, FAKE_STAMP: stampOf(i), OFFSITE: e.offsite, ...env },
+      env: { PATH: process.env.PATH ?? "", BACKUP_DIR: e.backups, PGDATABASE: DB, BACKUP_SCRIPT: e.script, FAKE_STAMP: stampOf(i), OFFSITE: e.offsite, ...env } as unknown as NodeJS.ProcessEnv, // sengaja TANPA NODE_ENV dll.: lingkungan minimal agar skrip tidak bergantung pada variabel proses uji
     });
     return { code: r.status, out: `${r.stdout}${r.stderr}`, stdout: r.stdout.trim() };
   };
@@ -344,3 +344,48 @@ echo "$d"
   });
 });
 const statSyncMode = (f: string) => statSync(path.join(root, f)).mode;
+
+describe("@tahap-1 D-18 staging: log akses aman 30 hari, retensi payload dijalankan worker, penanda keputusan (P6/P7)", () => {
+  const caddy = read("deploy/Caddyfile");
+  const compose = read("deploy/docker-compose.staging.yml");
+
+  it("Caddyfile: log akses ke berkas bergulir 720 jam, tanpa header apa pun (Cookie/Authorization/X-Hub-Signature), tanpa header respons, query verify-token disamarkan; tanpa mode debug", () => {
+    for (const needle of ["output file /data/log/access.log", "roll_keep_for 720h", "format filter", "wrap json", "request>headers delete", "resp_headers delete", "replace hub.verify_token REDACTED", "replace hub.challenge REDACTED", "level INFO"]) {
+      expect(caddy, needle).toContain(needle);
+    }
+    expect(caddy).not.toMatch(/^\s*debug\b/m); // opsi global `debug`
+    expect(caddy).not.toMatch(/level\s+DEBUG/i);
+    expect(caddy).not.toMatch(/log_credentials|log_append|request>body|\bbody\b.*log/i); // tidak ada pencatatan kredensial/body
+    expect(caddy).not.toMatch(/trilogikaedutama|https?:\/\//); // domain tetap dari SITE_ADDRESS (tes lain menjaga ini juga)
+  });
+
+  it("compose: setiap service (db, app, worker, caddy) memakai logging json-file ber-batas ukuran; keterbatasan umur log kontainer dinyatakan jujur", () => {
+    expect(compose).toMatch(/x-logging: &logging\n\s+driver: json-file\n\s+options:\n\s+max-size: "10m"\n\s+max-file: "10"/);
+    expect(compose.match(/^ {4}logging: \*logging$/gm)).toHaveLength(4);
+    expect(compose).toContain("TIDAK membatasi umur");
+  });
+
+  it("retensi payload mentah 30 hari = keputusan D-18 dan DIJALANKAN worker: RAW_PAYLOAD_RETENTION_DAYS → purgeRawPayloads → runMaintenance → worker-loop → scripts/worker.ts → service worker", () => {
+    const store = read("src/modules/whatsapp-adapter/inbound-store.ts");
+    expect(store).toMatch(/RAW_PAYLOAD_RETENTION_DAYS = 30; \/\/ D-18 \(Diputuskan 26 Nov 2026\)/);
+    expect(store).toContain("purgeRawPayloads(days = RAW_PAYLOAD_RETENTION_DAYS)");
+    expect(read("src/modules/conversations-messages/worker.ts")).toMatch(/runMaintenance[\s\S]*await purgeRawPayloads\(\)/);
+    expect(read("src/modules/conversations-messages/worker-loop.ts")).toContain("await runMaintenance()");
+    expect(read("scripts/worker.ts")).toContain("runWorkerLoop");
+    expect(compose).toContain('command: ["npm", "run", "worker"]');
+  });
+
+  it("penanda ASUMSI untuk D-02/D-03/D-12/D-18 diganti rujukan keputusan di kode dan dokumen hidup; nilai yang berbeda dari keputusan dinyatakan eksplisit (tidak diubah diam-diam)", () => {
+    const walk = (dir: string): string[] => readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+    const targets = [...walk("src").filter((f) => /\.(ts|tsx)$/.test(f)), "tests/integration/tahap2-migration-retention.test.ts",
+      "docs/tahap-2/webhook-dan-keamanan.md", "docs/tahap-2/konfigurasi-staging.md", "docs/klasifikasi-data-dan-retensi.md", "docs/backup-restore.md"];
+    const bad = /ASUMSI[^\n]{0,30}D-(02|03|12|18)\b|D-(02|03|12|18)\b[^\n]{0,30}ASUMSI/;
+    for (const f of targets) expect(read(f).split("\n").filter((l) => bad.test(l)), f).toEqual([]);
+    const k = read("docs/tahap-2/konfigurasi-staging.md");
+    expect(k).toContain("**Diputuskan 26 Nov 2026** — aplikasi Meta milik sendiri");
+    expect(k).toMatch(/D-03\): \*\*Diputuskan 26 Nov 2026\*\* — …6319/);
+    const kl = read("docs/klasifikasi-data-dan-retensi.md");
+    expect(kl).toContain("Nilai yang BERBEDA — tidak diubah diam-diam");
+    expect(kl).toContain("D-18 Diputuskan");
+  });
+});

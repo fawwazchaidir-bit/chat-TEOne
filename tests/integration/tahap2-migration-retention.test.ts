@@ -114,7 +114,7 @@ describe("@tahap-2 migrasi 0002: maju-saja, diuji pada snapshot data Tahap 1 (GA
   });
 });
 
-describe("@tahap-2 retensi payload mentah (D-18, ASUMSI ≤ 30 hari)", () => {
+describe("@tahap-2 retensi payload mentah (D-18 Diputuskan: ≤ 30 hari)", () => {
   beforeEach(resetDb);
   it("payload event yang selesai/gagal/terkarantina lebih tua dari 30 hari di-NULL-kan; yang pending & yang baru tidak disentuh; pesan tetap utuh", async () => {
     await world();
