@@ -3,8 +3,8 @@
  * Identitas = identitas WhatsApp dalam digit internasional. Nomor lokal "08…" otomatis menjadi "628…" (konteks Indonesia).
  * Nilai lengkap tidak pernah dikembalikan ke UI/audit — hanya disamarkan.
  */
-import { eq } from "drizzle-orm";
-import { testRecipients } from "@/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
+import { contactIdentities, testRecipients } from "@/db/schema";
 import { getDb, type Executor } from "@/db/client";
 import { badRequest, forbidden, notFound } from "@/lib/errors";
 import { auditFor, writeAudit } from "@/modules/audit";
@@ -23,6 +23,20 @@ export const maskIdentity = (d: string) => `••••${d.slice(-4)}`;
 export async function isListedRecipient(ex: Executor, identity: string): Promise<boolean> {
   const [r] = await ex.select({ active: testRecipients.active }).from(testRecipients).where(eq(testRecipients.identityValue, identity));
   return r?.active === true;
+}
+
+/**
+ * Penerima yang HANYA dikenal lewat BSUID (Meta menghilangkan nomor bila tidak tersedia): terdaftar bila kontak yang SUDAH dikenal dengan
+ * BSUID itu memiliki nomor (wa_id) yang ada di daftar uji. BSUID tak dikenal → tidak terdaftar (daftar uji berbasis nomor; tidak menebak).
+ */
+export async function isListedByKnownUserId(ex: Executor, userId: string): Promise<boolean> {
+  const owners = await ex.select({ contactId: contactIdentities.contactId }).from(contactIdentities)
+    .where(and(eq(contactIdentities.provider, "whatsapp"), eq(contactIdentities.identityType, "user_id"), eq(contactIdentities.identityValue, userId)));
+  if (owners.length === 0) return false;
+  const phones = await ex.select({ value: contactIdentities.identityValue }).from(contactIdentities)
+    .where(and(eq(contactIdentities.provider, "whatsapp"), eq(contactIdentities.identityType, "wa_id"), inArray(contactIdentities.contactId, owners.map((o) => o.contactId))));
+  for (const ph of phones) if (await isListedRecipient(ex, ph.value)) return true;
+  return false;
 }
 
 /**

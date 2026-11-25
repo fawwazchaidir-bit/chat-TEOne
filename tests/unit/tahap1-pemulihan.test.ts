@@ -176,7 +176,7 @@ describe("@tahap-1 worker staging siap dijalankan dan nama proyek compose dikunc
     const i = lines.findIndex((l) => l === `  ${name}:` || l.startsWith(`  ${name}:`));
     expect(i, `service ${name}`).toBeGreaterThanOrEqual(0);
     let j = i + 1;
-    while (j < lines.length && !/^  \S/.test(lines[j]!) && !/^\S/.test(lines[j]!)) j++;
+    while (j < lines.length && !/^ {2}\S/.test(lines[j]!) && !/^\S/.test(lines[j]!)) j++;
     return lines.slice(i, j).join("\n");
   };
 

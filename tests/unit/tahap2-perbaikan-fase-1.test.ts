@@ -5,6 +5,8 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { KICK_BATCHES_PER_ROUND, createKicker } from "@/modules/conversations-messages";
+import { normalizePayload } from "@/modules/whatsapp-adapter/normalize";
+import { BUSINESS_DISPLAY, CUSTOMER, echoChange, envelope } from "../helpers/whatsapp";
 
 const deferred = <T>() => {
   let resolve!: (v: T) => void;
@@ -88,5 +90,41 @@ describe("@tahap-2 G2-B03 pemicu inline tidak boleh meninggalkan event pending",
     k.kick();
     await k.idle();
     expect(calls).toBe(4);
+  });
+});
+
+describe("@tahap-2 G2-B04/S-11 normalizer echo: penerima dari `to`, `to_user_id`, dan contacts[] yang terbukti", () => {
+  const echo = (fields: Record<string, unknown>, contacts?: Record<string, unknown>[]) =>
+    normalizePayload(envelope([echoChange([{ from: BUSINESS_DISPLAY, id: "wamid.uji.n1", timestamp: "1700255121", type: "text", text: { body: "x" }, ...fields }], undefined, contacts)]));
+  const first = (evs: ReturnType<typeof normalizePayload>) => {
+    const e = evs[0];
+    if (!e || e.kind !== "echo") throw new Error(`bukan echo: ${e?.kind}`);
+    return e;
+  };
+
+  it("`to` saja → nomor (digit) tanpa BSUID; bentuk resmi Meta (from/to/id/timestamp/type/text.body) terbaca", () => {
+    const e = first(echo({ to: `+${CUSTOMER}` }));
+    expect(e).toMatchObject({ to: CUSTOMER, toUserId: null, contact: null });
+    expect(e.message).toMatchObject({ id: "wamid.uji.n1", from: BUSINESS_DISPLAY, type: "text", text: "x" });
+    expect(e.eventKey).toBe("echo:wamid.uji.n1");
+  });
+  it("`to_user_id` saja (nomor dihilangkan Meta) → BSUID terbaca, nomor null", () => {
+    expect(first(echo({ to_user_id: "BSUID.UJI.A" }))).toMatchObject({ to: null, toUserId: "BSUID.UJI.A", contact: null });
+  });
+  it("keduanya → keduanya terbaca", () => {
+    expect(first(echo({ to: CUSTOMER, to_user_id: "BSUID.UJI.A" }))).toMatchObject({ to: CUSTOMER, toUserId: "BSUID.UJI.A" });
+  });
+  it("tidak ada keduanya → null/null (ingest yang memutuskan karantina); event tetap dikenali sebagai echo, tidak hilang", () => {
+    expect(first(echo({}))).toMatchObject({ to: null, toUserId: null, contact: null });
+  });
+  it("contacts[] dipakai HANYA bila terbukti milik echo itu (pengenal sama, tidak bertentangan); tanpa fallback ke entri pertama", () => {
+    const proven = { wa_id: CUSTOMER, user_id: "BSUID.UJI.B", profile: { username: "peserta.uji" } };
+    expect(first(echo({ to_user_id: "BSUID.UJI.B" }, [proven])).contact).toMatchObject({ waId: CUSTOMER, userId: "BSUID.UJI.B" });
+    expect(first(echo({ to: CUSTOMER }, [proven])).contact).toMatchObject({ userId: "BSUID.UJI.B" });
+    expect(first(echo({ to_user_id: "BSUID.UJI.B" }, [{ wa_id: "15550007777", user_id: "BSUID.LAIN" }, proven])).contact).toMatchObject({ userId: "BSUID.UJI.B" }); // bukan entri pertama
+    expect(first(echo({ to_user_id: "BSUID.UJI.B" }, [{ wa_id: CUSTOMER, user_id: "BSUID.LAIN" }])).contact).toBeNull(); // bertentangan → tidak dipakai
+    expect(first(echo({ to_user_id: "BSUID.UJI.B" }, [{ wa_id: CUSTOMER }])).contact).toBeNull(); // tanpa pengenal yang sama → tidak terbukti
+    expect(first(echo({ to_user_id: "BSUID.UJI.B" }, [proven, { wa_id: "15550007777", user_id: "BSUID.UJI.B" }])).contact).toBeNull(); // ambigu → tidak ada
+    expect(first(echo({}, [proven])).contact).toBeNull(); // tanpa penerima, contacts[] sendirian bukan bukti
   });
 });
