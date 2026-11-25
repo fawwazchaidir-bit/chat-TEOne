@@ -30,9 +30,9 @@ Isi di `/etc/teone/staging.env` (root, `chmod 600`, di luar repository). Nama sa
 | `META_GRAPH_BASE_URL` | tidak | default `https://graph.facebook.com` | selain Meta **hanya** untuk mock lokal/uji; di production ditolak |
 | `META_HTTP_TIMEOUT_MS` | tidak | default 10000 | timeout ⇒ pesan `belum_pasti` |
 | `MEDIA_DIR` | tidak | default `.data/media` | folder privat, di luar webroot, **harus di volume persisten** + dibackup (T2-F11) |
-| `WORKER_INLINE` | tidak | default `true` | `true` = webhook memicu pemrosesan di proses web; worker terpisah tetap aman |
+| `WORKER_INLINE` | tidak | default `true` | `true` = webhook memicu **pemrosesan event** di proses web (berbasis kejadian, tanpa timer). **Pemeliharaan berkala — retensi payload, penyapu `diproses` tertahan, rekonsiliasi `belum_pasti`, ulang media, fallback outbox, job otomatisasi — HANYA berjalan di worker terpisah**; tanpa worker semuanya mati (S-10, `pemeliharaan-inline-vs-worker.md`). Worker terpisah aman berdampingan |
 
-Rahasia **tidak** disimpan di database dan tidak pernah dicatat/ditampilkan. Rotasi token/secret: ganti nilai di file env lalu restart `app` dan `worker`.
+Rahasia **tidak** disimpan di database dan tidak pernah dicatat/ditampilkan. Rotasi token/secret: ganti nilai di file env lalu buat ulang `app` (dan `worker` bila dijalankan).
 
 ## 3. Menyalakan konektor
 1. `npm run db:migrate` (migrasi `0002` menambah 10 tabel; maju-saja).

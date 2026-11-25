@@ -112,7 +112,7 @@ Semua perintah **tidak mencetak rahasia**. **Jangan** menjalankan `docker inspec
 | 0.11 | Aplikasi TE One hanya berlangganan WABA uji | hasil 0.7 per channel; periksa di dashboard Meta (aplikasi **TE One**, bukan aplikasi Halo AI) | daftar WABA yang disubscribe |
 | 0.12 | **Baseline data** (SQL baca-saja, simpan angkanya) | lihat blok di bawah | angka sebelum uji; **terutama jumlah karantina `pengirim_di_luar_daftar_uji`** sejak onboarding |
 | 0.13 | **Log Caddy** (baru, baca-saja) | pastikan tidak ada blok debug/log yang mencatat **isi** permintaan webhook; `docker logs <caddy> --since 24h \| grep -c webhooks/whatsapp` hanya menghitung baris (jangan menempel isinya) | tingkat log; hitungan baris |
-| 0.14 | **Waktu pembuatan kontainer** (S-08; baca-saja, **tanpa** Env) | `sudo docker inspect --format '{{.Name}} dibuat={{.Created}} mulai={{.State.StartedAt}} image={{.Image}}' $(sudo docker ps -q)` | jam `deploy-app-1` dibuat ulang (belum tercatat, Q1); apakah `worker` **lebih tua** dari pembaruan token |
+| 0.14 | **Waktu pembuatan kontainer** (Q1; baca-saja, **tanpa** Env) | `sudo docker inspect --format '{{.Name}} dibuat={{.Created}} mulai={{.State.StartedAt}} image={{.Image}}' $(sudo docker ps -q)` | jam `deploy-app-1` dibuat ulang (belum tercatat, Q1); **S-08 dicabut** (tidak ada worker) — baris ini kini hanya mencatat jam recreate |
 | 0.15 | **Resolusi variabel compose** (S-09; baca-saja) | `sudo docker compose -p deploy --env-file /etc/teone/staging.env -f docker-compose.staging.yml config \| grep -E 'image:\|SITE_ADDRESS'` | nilai `image:` dan `SITE_ADDRESS` yang **benar-benar** dipakai (jangan menempel bagian Env lain) |
 
 ```sql
@@ -164,7 +164,7 @@ F="-p deploy --env-file /etc/teone/staging.env --env-file $BUILD/deploy/.env -f 
 #    $BUILD/deploy/.env berisi HANYA SITE_ADDRESS=<domain staging> dan TEONE_TAG=staging-<sha7> (non-rahasia).
 sudo docker compose $F config | grep -E 'image:|SITE_ADDRESS|pg_data|media_data'    # PERIKSA: image=staging-<sha7>, domain benar, volume deploy_*
 sudo docker volume ls --format '{{.Name}}' | grep -E 'pg_data|media_data|caddy_data'  # tidak boleh muncul volume baru
-sudo docker compose $F up -d app worker caddy     # app DAN worker DAN caddy bersamaan (S-08: worker ikut membawa env terbaru)
+sudo docker compose $F up -d app caddy            # TANPA worker: menyalakan worker = keputusan terpisah A-4 (pemeliharaan-inline-vs-worker.md §7)
 ```
 **Jangan** menjalankan `down -v`, menghapus volume, atau `db:migrate`/seed (tidak ada migrasi baru; jika tetap dijalankan, ia *no-op* karena forward-only).
 **Verifikasi sesudah:** `docker inspect <kontainer-app> --format '{{.Image}} {{index .Config.Labels "org.opencontainers.image.revision"}}'` = SHA final; `GET /api/health` = `{"status":"ok"}`; **flag tidak berubah** (disimpan di DB); `meta:check` (0.7) hasil sama; jumlah baris baseline (0.12) **tidak turun**.
@@ -268,6 +268,7 @@ Tangkapan layar field webhook sebelum/sesudah (S1, S6); hasil baseline sebelum/s
 | **A-2b** | Sertakan kontrol negatif S4 (kirim ke satu nomor tim di luar daftar uji; orangnya setuju) | ☐ | ☐ | nama pihak: | |
 | **A-2c** | **Isolasi ponsel …6319 untuk M-11** (STOP a terpicu): pilih **satu** | ☐ I-1 (tidak menguji) | ☐ I-2 (nomor uji bersih) | ☐ I-3 (pembekuan ponsel; belum direkomendasikan) | |
 | **A-3** | M-12: pilih **satu** | ☐ H0 | ☐ H1 | ☐ H2 (dilarang sampai persetujuan terpisah tertulis) | |
+| **A-4** | **Jalankan worker terpisah** (opsi W1: `up -d --no-deps worker`) setelah kueri §5 di [`pemeliharaan-inline-vs-worker.md`](pemeliharaan-inline-vs-worker.md) ditinjau | ☐ | ☐ | | |
 | **D-18/D-12** | Retensi/penghapusan data uji & RPO/RTO (masih **Terbuka**) | ☐ diputuskan | ☐ ditunda | | |
 
 ## 11. Daftar cek verifikasi ke dokumentasi resmi Meta (operator/pemilik) dan usulan pembangun
