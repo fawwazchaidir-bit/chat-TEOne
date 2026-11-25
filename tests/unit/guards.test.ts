@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -94,6 +94,78 @@ describe("@tahap-1 guard nomor operasional (CI)", () => {
       "src/n.ts": "const n = 20261119; const y = 2027;",
     });
     expect(run(GUARD, dir).code, run(GUARD, dir).out).toBe(0);
+  });
+});
+
+describe("@tahap-1 G1-B04 guard nomor operasional: aturan G5 (ID Meta operasional) dan peringatan bila daftar hash kosong", () => {
+  // ID sintetis dibangun saat runtime (berkas test ini tidak memuat deretan 15 digit); bukan ID Meta sungguhan.
+  const metaId = ["1000", "0000", "0000", "123"].join("");
+  const metaHash = createHash("sha256").update(metaId).digest("hex");
+  const otherHash = createHash("sha256").update(["9000", "0000", "0000", "321"].join("")).digest("hex");
+
+  it("G5: hash ID Meta operasional dari secret CI dikenali di JSON, URL Graph, dan nama variabel (`waba_<id>`); keluaran tanpa ID mentah", () => {
+    const dir = tmp({
+      "config/meta.json": `{"phone_number_id":"${metaId}"}`,
+      "docs/graph.md": `GET /v23.0/${metaId}/messages`,
+      "src/x.ts": `const waba_${metaId} = 1;`,
+    });
+    const r = run(GUARD, dir, { OPERATIONAL_META_ID_HASHES: `${otherHash},${metaHash}` });
+    expect(r.code, r.out).toBe(1);
+    expect(r.out.match(/\[G5\]/g)).toHaveLength(3);
+    expect(r.out).toContain("config/meta.json:1");
+    expect(r.out).not.toContain(metaId);
+    expect(r.out).not.toContain(metaId.slice(0, 12));
+  });
+
+  it("G5: ID lain (hash tidak terdaftar) dan angka biasa tidak ditandai; hash terdaftar tetapi tidak muncul → lulus dan jumlah hash dilaporkan", () => {
+    const dir = tmp({ "config/meta.json": `{"phone_number_id":"${["7000", "0000", "0000", "777"].join("")}","tahun":2027,"rp":10000000000}` });
+    const r = run(GUARD, dir, { OPERATIONAL_META_ID_HASHES: metaHash, OPERATIONAL_NUMBER_HASHES: otherHash });
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).toContain("1 hash ID Meta diperiksa");
+    expect(r.out).not.toContain("PERINGATAN");
+  });
+
+  it("daftar hash KOSONG → PERINGATAN jelas menyebut kedua variabel dan aturan yang tidak aktif (anotasi ::warning di GitHub Actions); tetap lulus", () => {
+    const dir = tmp({ "src/a.ts": "export const a = 1;\n" });
+    const r = run(GUARD, dir, { OPERATIONAL_NUMBER_HASHES: "", OPERATIONAL_META_ID_HASHES: "" });
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).toContain("PERINGATAN GUARD NOMOR OPERASIONAL");
+    expect(r.out).toContain("OPERATIONAL_NUMBER_HASHES kosong");
+    expect(r.out).toContain("aturan G4");
+    expect(r.out).toContain("OPERATIONAL_META_ID_HASHES kosong");
+    expect(r.out).toContain("aturan G5");
+    expect(r.out).not.toContain("::warning");
+    const ci = run(GUARD, dir, { OPERATIONAL_NUMBER_HASHES: "", OPERATIONAL_META_ID_HASHES: "", GITHUB_ACTIONS: "true" });
+    expect(ci.out).toContain("::warning title=Guard nomor operasional tidak penuh::");
+    expect(ci.out.match(/::warning/g)).toHaveLength(2);
+  });
+
+  it("hanya satu daftar terisi → peringatan HANYA untuk yang kosong; entri bukan sha256 diabaikan dengan peringatan TANPA mencetak nilainya (bisa nomor/ID mentah)", () => {
+    const dir = tmp({ "src/a.ts": "export const a = 1;\n" });
+    const mentah = ["6281", "2345", "0001"].join(""); // salah tempel: nomor mentah (dibangun saat runtime agar berkas ini tidak memuat pola terlarang)
+    const r = run(GUARD, dir, { OPERATIONAL_NUMBER_HASHES: metaHash, OPERATIONAL_META_ID_HASHES: mentah });
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).not.toContain("OPERATIONAL_NUMBER_HASHES kosong");
+    expect(r.out).toContain("OPERATIONAL_META_ID_HASHES kosong/tidak valid");
+    expect(r.out).toContain("1 entri bukan sha256 hex 64 karakter dan DIABAIKAN");
+    expect(r.out).not.toContain(mentah);
+  });
+
+  it("GUARD_REQUIRE_HASHES=1: daftar hash tidak lengkap → GAGAL; lengkap → lulus (untuk dipakai setelah branch protection aktif)", () => {
+    const dir = tmp({ "src/a.ts": "export const a = 1;\n" });
+    const gagal = run(GUARD, dir, { GUARD_REQUIRE_HASHES: "1", OPERATIONAL_NUMBER_HASHES: metaHash });
+    expect(gagal.code).toBe(1);
+    expect(gagal.out).toContain("GUARD_REQUIRE_HASHES=1");
+    const ok = run(GUARD, dir, { GUARD_REQUIRE_HASHES: "1", OPERATIONAL_NUMBER_HASHES: otherHash, OPERATIONAL_META_ID_HASHES: metaHash });
+    expect(ok.code, ok.out).toBe(0);
+  });
+
+  it("repository ini lulus dengan kedua daftar terisi (hash sembarang) dan CI meneruskan KEDUA secret ke langkah guard", () => {
+    const r = run(GUARD, root, { OPERATIONAL_NUMBER_HASHES: otherHash, OPERATIONAL_META_ID_HASHES: otherHash });
+    expect(r.code, r.out).toBe(0);
+    const ci = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
+    expect(ci).toContain("OPERATIONAL_NUMBER_HASHES: ${{ secrets.OPERATIONAL_NUMBER_HASHES }}");
+    expect(ci).toContain("OPERATIONAL_META_ID_HASHES: ${{ secrets.OPERATIONAL_META_ID_HASHES }}");
   });
 });
 
