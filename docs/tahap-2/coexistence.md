@@ -1,6 +1,8 @@
 # Catatan coexistence dan implikasinya per nomor (Tahap 2)
 
-> ## STATUS: **BELUM TERVERIFIKASI — bukan "catatan terverifikasi"**
+> **PEMBARUAN 26 Nov 2026:** sebagian butir kini **diverifikasi ke halaman resmi Meta** (nama field `history`/`smb_app_state_sync`/`smb_message_echoes`, jendela sinkronisasi 24 jam dan sekali saja, cakupan echo = semua pesan dari Business App **dan perangkat tertaut**, bentuk payload echo, retry webhook hingga 7 hari, history dipicu Step 2 ke SMB App Data API) — lihat [`verifikasi-dokumentasi-meta-2026-11-26.md`](verifikasi-dokumentasi-meta-2026-11-26.md). Klaim di bawah bahwa host tidak terjangkau hanya benar untuk alat fetch subagen; `curl` lewat proxy sesi berhasil. **Belum terverifikasi:** V-5 (efek subscribe/cabut field terhadap registrasi), V-6 (`is_on_biz_app`/`platform_type`), V-9, dan **semua pembuktian pada nomor** (hasil uji M-11).
+>
+> ## STATUS (teks asli, 19 Nov): **BELUM TERVERIFIKASI — bukan "catatan terverifikasi"**
 > Spesifikasi Tahap 2 (§4, §15) meminta catatan coexistence **terverifikasi** dari dokumentasi Meta terbaru **dan dibuktikan pada nomor uji**. Pada pembangunan ini:
 > 1. host dokumentasi resmi Meta (`developers.facebook.com`) **tidak dapat dijangkau** dari lingkungan pembangun (DNS/jaringan diblokir; percobaan melalui subagen gagal), dan
 > 2. **tidak ada** aplikasi Meta milik TE One, token, ataupun nomor uji — jadi **tidak ada** pembuktian pada nomor.

@@ -3,6 +3,7 @@
 > **DRAF UNTUK KEPUTUSAN PEMILIK. BELUM DIJALANKAN.** Disusun 25 November 2026 atas permintaan pemilik setelah operator melaporkan kondisi VPS staging dan nomor uji.
 > **Pembangun tidak melakukan apa pun** terhadap staging, akun Meta, atau ponsel uji. **Tidak ada** field webhook yang diaktifkan, **tidak ada** re-onboarding, **tidak ada** pendaftaran ulang nomor, **tidak ada** `git reset`/`pull`, **tidak ada** penggantian image. Dokumen ini hanya rencana; setiap langkah bertanda **[TUNGGU KEPUTUSAN]** hanya boleh dijalankan setelah formulir §10 diisi **tertulis oleh pemilik** (formulir sengaja dibiarkan **kosong**).
 > Admisi (…1119), Hotline (…0124), dan Halo AI **tidak** menjadi bagian prosedur ini sedikit pun. Hanya nomor uji **…6319** (penguji **…4062**).
+> **PEMBARUAN 26 Nov (izin M-11):** pemilik **mengizinkan tertulis** uji echo M-11 pada …6319 ([`persetujuan-pemilik-m11-2026-11-26.md`](persetujuan-pemilik-m11-2026-11-26.md)). **Pelaksanaan kini mengikuti [`runbook-uji-m11.md`](runbook-uji-m11.md)** (gerbang GO/NO-GO, kueri, kondisi berhenti, lembar teks). **Berubah karena batas izin:** S4 dan S7 **dibatalkan**; bukti **teks**, bukan tangkapan layar; **tanpa** rebuild image dan **tanpa** worker. §6 di bawah dipertahankan sebagai riwayat rancangan. Dokumentasi resmi Meta **dibaca** ([`verifikasi-dokumentasi-meta-2026-11-26.md`](verifikasi-dokumentasi-meta-2026-11-26.md)).
 > **PEMBARUAN setelah laporan Fase 0 operator (26 Nov 03.59 WIB):** kondisi **STOP (a)** §4 **terpicu** — ponsel …6319 berisi **chat pelanggan nyata**. **M-11 dan perubahan subscription tidak boleh dilanjutkan** sampai pemilik memutuskan cara isolasi (§2.4, formulir **A-2c**). **Koreksi:** dugaan saya semula bahwa jendela sinkronisasi riwayat "hampir pasti sudah lewat" **salah** (onboarding ±16.00 WIB 25 Nov) — lihat §2.3 dan §2.4.
 
 ## 0. Label sumber — baca dulu
@@ -11,7 +12,7 @@
 |---|---|
 | **[OP]** | Dilaporkan operator/pemilik. Pembangun **tidak dapat memeriksanya**; bukti belum terlampir. |
 | **[KODE]** | Perilaku kode di repository (dibaca langsung; terbukti **simulasi** oleh tes/CI, bukan oleh Meta nyata). |
-| **[META-SEK]** | Dari ringkasan hasil pencarian web (termasuk sumber sekunder). **BELUM dibaca di dokumentasi resmi Meta**: `developers.facebook.com` tidak dapat dijangkau dari lingkungan pembangun (`ENOTFOUND`). Menurut AGENTS.md §7 ini **belum boleh menjadi dasar keputusan** — operator/pemilik harus mencocokkannya dengan halaman resmi sebelum menyetujui langkah yang berdampak ke akun (lihat §11, daftar cek V-1…V-9). |
+| **[META-SEK]** | Dari ringkasan hasil pencarian web (termasuk sumber sekunder), **belum dibaca di halaman resmi**. **Sejak 26 Nov** sebagian besar butir sudah **diverifikasi ke halaman resmi** dan diberi label **[META-RESMI]** di [`verifikasi-dokumentasi-meta-2026-11-26.md`](verifikasi-dokumentasi-meta-2026-11-26.md); yang masih **[META-SEK]**/**TIDAK DITEMUKAN**: V-5 (efek subscribe/cabut field terhadap registrasi), V-6, V-9. Catatan: klaim lama "host tidak terjangkau" hanya benar untuk alat fetch subagen; `curl` lewat proxy sesi berhasil. |
 | **[ASUMSI]** | Dugaan pembangun, tidak ada bukti. |
 
 ## 1. Kondisi yang dilaporkan operator (25 Nov 2026) **[OP]**
@@ -173,7 +174,7 @@ sudo docker compose $F up -d app caddy            # TANPA worker: menyalakan wor
 - **Gagal sehat atau data tampak kosong:** segera `TEONE_TAG=rollback-20261125-417b30f8 docker compose -p deploy … up -d app worker` (image lama; skema DB identik → aman). Bila volume ternyata **baru/kosong**: hentikan, **jangan menulis apa pun**, kembalikan `-p` yang benar; data lama masih di volume lama.
 - Caddy/domain: pulihkan dari salinan `deploy/Caddyfile` yang disimpan di 5.1.
 
-## 6. Fase 2 — M-11 echo **[TUNGGU KEPUTUSAN A-2]**
+## 6. Fase 2 — M-11 echo **[IZIN DITERIMA 26 Nov — pelaksanaan: `runbook-uji-m11.md`; S4 dan S7 di tabel di bawah DIBATALKAN]**
 
 ### 6.1 Prasyarat (semua harus ya)
 - [ ] Fase 0 selesai tanpa kondisi STOP; hasil 0.10: ponsel …6319 **hanya** berisi chat uji, atau pemilik memutuskan tertulis cara mengisolasinya.
@@ -230,7 +231,7 @@ Tangkapan layar field webhook sebelum/sesudah (S1, S6); hasil baseline sebelum/s
 - **Dampak:** akun 0; data 0; **biaya = status Tahap 2 tidak naik**.
 - **Kapan dipilih:** bila risiko akun/privasi dinilai lebih besar daripada nilai bukti history, atau menunggu nomor uji khusus.
 
-### Opsi H1 — Pengamatan pasif: subscribe `history` saja **[DILARANG pada …6319 selama ada chat pelanggan nyata — STOP (a) terpicu 26 Nov; hanya relevan pada nomor uji bersih]**
+### ~~Opsi H1 — Pengamatan pasif: subscribe `history` saja~~ **[DIHAPUS 26 Nov: tidak akan menghasilkan event — dokumentasi resmi: webhook `history` dipicu oleh permintaan Step 2 ke SMB App Data API, bukan oleh subscription; TE One tidak punya pemicu itu (S-12). Juga dilarang pada …6319 selama ada chat pelanggan nyata]**
 - **Tindakan:** setelah 0.9 menunjukkan jam onboarding, dan **hanya bila** dokumentasi resmi menyatakan riwayat dapat/masih dikirim: aktifkan `history` **saja**, amati ≤ 24 jam, lalu cabut. **Tanpa** permintaan sinkronisasi, **tanpa** onboarding.
 - **Dampak akun:** konfigurasi subscription (dapat dibalik). **Dampak data:** bila Meta mengirim riwayat, payload berisi **banyak percakapan sekaligus**; TE One memfilter per pesan terhadap daftar uji dan membuang payload yang dikarantina, tetapi **seluruh potongan tiba di server dan sempat berada di antrean** — bila ponsel memuat chat pelanggan nyata, ini **data pelanggan nyata di staging** (AGENTS.md §3.5). **Syarat mutlak:** hasil 0.10 = tidak ada chat pelanggan nyata.
 - **Hasil yang paling mungkin [ASUMSI]:** tidak ada event (jendela lewat) → M-12 tetap **"belum dapat diuji"**; itu **bukan** kegagalan kode.
@@ -264,16 +265,16 @@ Tangkapan layar field webhook sebelum/sesudah (S1, S6); hasil baseline sebelum/s
 |---|---|---|---|---|---|
 | **A-1** | Bangun ulang image dari commit bersih `<SHA>` dan ganti image app/worker staging **setelah** titik pemulihan 5.1 | ☐ | ☐ | | |
 | **A-1b** | Bila A-1 ditolak: uji **Opsi B** pada image lama `417b30f8…` (bukti berstatus KLAIM-image) | ☐ | ☐ | | |
-| **A-2** | Jalankan M-11: subscribe **hanya** `smb_message_echoes` pada aplikasi TE One, uji S0–S9, lalu cabut | ☐ | ☐ | | |
+| **A-2** | **[Persetujuan tertulis pemilik diterima 26 Nov — lihat `persetujuan-pemilik-m11-2026-11-26.md`; kotak di bawah tidak diisi pembangun]** Jalankan M-11: subscribe **hanya** `smb_message_echoes` pada aplikasi TE One, uji S0–S9, lalu cabut | ☐ | ☐ | | |
 | **A-2b** | Sertakan kontrol negatif S4 (kirim ke satu nomor tim di luar daftar uji; orangnya setuju) | ☐ | ☐ | nama pihak: | |
-| **A-2c** | **Isolasi ponsel …6319 untuk M-11** (STOP a terpicu): pilih **satu** | ☐ I-1 (tidak menguji) | ☐ I-2 (nomor uji bersih) | ☐ I-3 (pembekuan ponsel; belum direkomendasikan) | |
+| **A-2c** | **[Pemilik mengizinkan M-11 pada …6319 dengan syarat satu operator/tanpa aktivitas lain = setara I-3; lihat persetujuan]** **Isolasi ponsel …6319 untuk M-11** (STOP a terpicu): pilih **satu** | ☐ I-1 (tidak menguji) | ☐ I-2 (nomor uji bersih) | ☐ I-3 (pembekuan ponsel; belum direkomendasikan) | |
 | **A-3** | M-12: pilih **satu** | ☐ H0 | ☐ H1 | ☐ H2 (dilarang sampai persetujuan terpisah tertulis) | |
 | **A-4** | **Jalankan worker terpisah** (opsi W1: `up -d --no-deps worker`) setelah kueri §5 di [`pemeliharaan-inline-vs-worker.md`](pemeliharaan-inline-vs-worker.md) ditinjau | ☐ | ☐ | | |
 | **D-18/D-12** | Retensi/penghapusan data uji & RPO/RTO (masih **Terbuka**) | ☐ diputuskan | ☐ ditunda | | |
 
 ## 11. Daftar cek verifikasi ke dokumentasi resmi Meta (operator/pemilik) dan usulan pembangun
 
-Pembangun **tidak dapat membuka** `developers.facebook.com`. Sebelum A-2/A-3 disetujui, jawab dari halaman resmi **terbaru** (catat URL dan tanggal halaman):
+**Status 26 Nov:** V-1…V-4, V-7, V-8 **terjawab dari halaman resmi** (dibaca pembangun lewat `curl`; lihat `verifikasi-dokumentasi-meta-2026-11-26.md`); **V-5, V-6, V-9 belum terjawab**. Operator tetap mengonfirmasi halaman yang sama **saat ini** (runbook P4). Daftar asli (catat URL dan tanggal halaman):
 - **V-1** Nama persis dan fungsi `smb_message_echoes`, `history`, `smb_app_state_sync`; mana yang wajib.
 - **V-2** Jendela sinkronisasi riwayat/kontak setelah onboarding (apakah 24 jam, sekali saja); apa yang terjadi bila terlewat; apakah riwayat dapat diminta ulang tanpa onboarding ulang.
 - **V-3** Cakupan echo: semua pesan dari Business App ke **siapa pun**, atau terbatas?
@@ -291,5 +292,5 @@ Pembangun **tidak dapat membuka** `developers.facebook.com`. Sebelum A-2/A-3 dis
 
 ## 12. Batas dokumen ini
 - **Belum pernah dijalankan.** Perintah belum diuji terhadap server staging; operator menyesuaikan nama jalur/proyek. Pembangun tidak punya Docker daemon, server, akun Meta, atau ponsel.
-- Seluruh pernyataan tentang perilaku Meta adalah **[META-SEK]** sampai dicocokkan (V-1…V-9). Pernyataan tentang kode adalah **terbukti simulasi** (tes/CI), bukan terbukti nyata.
+- Pernyataan tentang perilaku Meta berlabel **[META-RESMI]** (dibaca di halaman resmi 26 Nov) atau **[META-SEK]** (belum dibaca resmi: V-5, V-6, V-9). Pernyataan tentang kode adalah **terbukti simulasi** (tes/CI), bukan terbukti nyata.
 - Dokumen ini **bukan** keputusan, **bukan** persetujuan, dan **tidak** menyatakan Gate 1/2 diterima. Tidak ada tag yang dibuat.
