@@ -90,3 +90,11 @@ Usulan: **terima cakupan default** (`decisions.md` §D-04) tanpa perubahan. Jadw
 2. **D-14 bertentangan:** usulan default memindahkan Kemitraan dulu, observasi ≥ 5 hari kerja, baru Admisi. Bila Admisi tetap 15 Jan, Kemitraan perlu live paling lambat ±6 Jan (sebelum freeze), atau D-14 diubah. **D-14 tetap Terbuka.**
 3. **Cakupan:** daftar wajib default (AI agent + Kartu Program + simulator + set uji, pipeline, follow-up FU-1/FU-2) tidak realistis untuk tanggal ini bila semua lewat gate. Usulan auditor untuk diputuskan pemilik: **go-live 15 Jan = inbox tim + routing + balasan cepat + template manual + izin/audit/kill switch** (Tahap 1–3 + template), **AI dan follow-up menyusul** di balik flag mati setelah Gate 4/6. Halo AI tetap berjalan untuk fungsi yang belum ada sampai parity (D-24).
 4. Larangan AGENTS.md §3.1 tetap berlaku: Admisi tidak boleh disentuh sebelum Tahap 9 + keputusan GO tertulis.
+
+## 7. Cakupan go-live dan bukti teks (26 Nov 2026)
+
+Pernyataan pemilik (verbatim): "go live 15 januari tanpa ai sesuai saranmu".
+- **D-04 cakupan Diputuskan** sesuai usulan §6 butir 3: inbox tim, routing, balasan cepat, catatan internal, template manual, izin/audit/kill switch. AI, label otomatis, pipeline/laporan, dan follow-up menyusul di balik flag mati.
+- Gate yang wajib lulus untuk go-live ini: **Gate 1, 2, 3**, ditambah template manual (bagian Gate 6) dan **Gate 7–9** (audit terpadu/UAT, pilot, GO per nomor). Gate 4–5 dan sisa Gate 6 tidak menghalangi tanggal 15 Jan.
+- **D-14 tetap Terbuka:** perlu ditetapkan apakah Kemitraan (…6319) live lebih dulu (paling lambat ±6 Jan) atau Admisi menjadi nomor pertama.
+- Bukti teks staging diterima → `docs/reports/bukti/staging-j2-2026-11-26.md`.
