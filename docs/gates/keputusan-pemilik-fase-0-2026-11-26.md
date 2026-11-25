@@ -72,3 +72,21 @@ Usulan: **terima cakupan default** (`decisions.md` §D-04) tanpa perubahan. Jadw
 | G2-B02 (data pelanggan ke staging) | **Risiko diterima pemilik** dengan mitigasi karantina + syarat §2; tetap terbuka sampai D-18 staging diputuskan |
 | G2-B03 / S-10 (tanpa worker) | Tertutup setelah worker berjalan dan kueri §5 dicatat |
 | G2-B05 (bukti tanpa artefak) | Terbuka sampai bukti teks §3 ditempel |
+
+## 6. Keputusan lanjutan (26 Nov 2026) — pernyataan pemilik (verbatim)
+
+> "BUKTI UJI sudah saya jalankan, kemudian d-12 setuju, d-18 setuju, kemudian d-02 menggunakan aplikasi meta milik sendiri Triogika Edutama TE-One (sudah dikoneksikan dan berhasil), kemudian d-04 nomor admisi utama akan live pada 15 januari, freeze 7-14 januari 2027"
+
+| Kode | Dicatat sebagai | Catatan auditor |
+|---|---|---|
+| D-12 | **Diputuskan** sesuai §4 | — |
+| D-18 | **Diputuskan untuk staging**; arah production disetujui, final setelah tinjauan penasihat hukum | — |
+| D-02 | **Diputuskan:** aplikasi Meta milik sendiri "Trilogika Edutama TE-One" | Admisi berada di layanan lama (coexistence via Halo AI). Kebutuhan Tech Provider/Embedded Signup dan pemutusan provider sebelumnya **wajib diverifikasi** (AGENTS.md §7) sebelum perpindahan |
+| D-04 | **Diubah:** Admisi live **15 Jan 2027**, freeze **7–14 Jan 2027**. Cakupan tidak dinyatakan → daftar wajib default = **ASUMSI** | Lihat dampak di bawah |
+| Bukti uji | Pemilik menyatakan perintah §3 sudah dijalankan | **Keluarannya belum diterima** di sesi ini → status tetap "Dinyatakan pemilik". Naik ke "Terbukti nyata" setelah teks keluaran ditempel |
+
+### Dampak D-04 (wajib dibaca sebelum Gate 1)
+1. **Jadwal maju ±2 bulan** (semula nomor pertama 16 Mar 2027). Dari Gate 1 (±Des 2026) sampai 15 Jan tersisa ±6–7 minggu untuk Gate 2–8 (konektor nyata, inbox nyata, AI, label/pipeline, template/follow-up, UAT, pilot), termasuk libur akhir tahun.
+2. **D-14 bertentangan:** usulan default memindahkan Kemitraan dulu, observasi ≥ 5 hari kerja, baru Admisi. Bila Admisi tetap 15 Jan, Kemitraan perlu live paling lambat ±6 Jan (sebelum freeze), atau D-14 diubah. **D-14 tetap Terbuka.**
+3. **Cakupan:** daftar wajib default (AI agent + Kartu Program + simulator + set uji, pipeline, follow-up FU-1/FU-2) tidak realistis untuk tanggal ini bila semua lewat gate. Usulan auditor untuk diputuskan pemilik: **go-live 15 Jan = inbox tim + routing + balasan cepat + template manual + izin/audit/kill switch** (Tahap 1–3 + template), **AI dan follow-up menyusul** di balik flag mati setelah Gate 4/6. Halo AI tetap berjalan untuk fungsi yang belum ada sampai parity (D-24).
+4. Larangan AGENTS.md §3.1 tetap berlaku: Admisi tidak boleh disentuh sebelum Tahap 9 + keputusan GO tertulis.
