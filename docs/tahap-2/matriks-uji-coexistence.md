@@ -5,6 +5,7 @@
 > **Aturan keras:** hanya **data sintetis** dan **nomor uji yang disetujui** (penguji **…4062**, nomor bisnis uji **…6319**). **Jangan** menyentuh Admisi (…1119), Hotline (…0124), maupun Halo AI. **Jangan** mengaktifkan history/echo, melakukan re-onboarding, mendaftarkan ulang nomor, atau mengubah konfigurasi coexistence yang berdampak pada akun **tanpa persetujuan tertulis pemilik atas langkah dan dampaknya** (kolom *Gerbang* di bawah).
 
 ## 0. Kondisi awal yang HARUS dicatat operator sebelum menjalankan apa pun (pembangun tidak mengetahuinya)
+> **Pembaruan 25 Nov:** label **[OP]** di tabel ini kini berasal dari **[pernyataan tertulis langsung pemilik](pernyataan-pemilik-uji-staging-2026-11-25.md)** (butir 8–11; flag diperiksa **langsung di database**). Sumber lebih kuat, status pembuktian **sama**: artefak belum terlampir.
 | Hal | Nilai | Dicatat oleh / tanggal |
 |---|---|---|
 | Apakah …6319 terhubung sebagai **coexistence** (WhatsApp Business App **dan** Cloud API aktif bersama) atau **Cloud API saja**? | **Dilaporkan operator 25 Nov: aktif di keduanya** (**[OP]** — belum diperiksa pembangun; ada langkah baca-saja `is_on_biz_app`/`platform_type`, `prosedur-uji-m11-m12.md` 0.8) | operator, 25 Nov |
@@ -19,11 +20,11 @@ Hasil hanya boleh: **lulus** · **gagal** · **belum dapat diuji** (dengan alasa
 
 | ID | Skenario | Hasil yang diharapkan (kriteria lulus) | Gerbang pemilik | Dampak ke akun | Status | Bukti / batas |
 |---|---|---|---|---|---|---|
-| M-01 | Pesan **teks masuk** dari …4062 | Tersimpan di channel Kemitraan Uji, satu kali; jendela layanan terbuka dari **waktu provider** | Tidak perlu | Tidak ada | **Dilaporkan lulus** (25 Nov) | Bukti belum terlampir |
-| M-02 | **Teks keluar** dari TE One ke …4062 | Diterima penerima; tercatat `te_one`; AI/otomatisasi **tidak** terlibat | Tidak perlu | Tidak ada | **Dilaporkan lulus** (25 Nov) | Bukti belum terlampir |
-| M-03 | Status **Diterima** (`delivered`) | Status pesan keluar berubah via webhook | Tidak perlu | Tidak ada | **Dilaporkan lulus** (25 Nov) | Bukti belum terlampir |
+| M-01 | Pesan **teks masuk** dari …4062 | Tersimpan di channel Kemitraan Uji, satu kali; jendela layanan terbuka dari **waktu provider** | Tidak perlu | Tidak ada | **Dinyatakan lulus oleh pemilik** (25 Nov; [pernyataan](pernyataan-pemilik-uji-staging-2026-11-25.md)) | Bukti belum terlampir |
+| M-02 | **Teks keluar** dari TE One ke …4062 | Diterima penerima; tercatat `te_one`; AI/otomatisasi **tidak** terlibat | Tidak perlu | Tidak ada | **Dinyatakan lulus oleh pemilik** (25 Nov; [pernyataan](pernyataan-pemilik-uji-staging-2026-11-25.md)) | Bukti belum terlampir |
+| M-03 | Status **Diterima** (`delivered`) | Status pesan keluar berubah via webhook | Tidak perlu | Tidak ada | **Dinyatakan lulus oleh pemilik** (25 Nov; [pernyataan](pernyataan-pemilik-uji-staging-2026-11-25.md)) | Bukti belum terlampir |
 | M-04 | Status **Dibaca** (`read`) | Status → Dibaca setelah penerima membuka pesan (tanda baca aktif) | Tidak perlu | Tidak ada | **Belum dapat diuji** — belum dicoba | Perlu penerima membuka pesan |
-| M-05 | Pengirim **di luar daftar uji** | Dikarantina, tidak membuat kontak/percakapan, hanya dihitung | Tidak perlu (pakai nomor tim lain yang disetujui) | Tidak ada | **Dilaporkan lulus** (25 Nov) | Identitas pengirim uji belum dicatat |
+| M-05 | Pengirim **di luar daftar uji** | Dikarantina, tidak membuat kontak/percakapan, hanya dihitung | Tidak perlu (pakai nomor tim lain yang disetujui) | Tidak ada | **Dinyatakan lulus oleh pemilik** (25 Nov; [pernyataan](pernyataan-pemilik-uji-staging-2026-11-25.md)) | Identitas pengirim uji belum dicatat |
 | M-06 | Webhook **ditolak** (tanda tangan salah) | HTTP 401; **tidak ada** data tersimpan; tidak ada kebocoran isi | Tidak perlu | Tidak ada | **Dilaporkan terjadi** (App Secret keliru, butir 8) lalu diperbaiki | Disengaja dengan secret salah **hanya di staging** bila ingin bukti terencana |
 | M-07 | **Webhook duplikat** dari Meta (retry nyata) | Tidak menggandakan pesan | Tidak perlu | Tidak ada | **Belum dapat diuji** — tidak dapat dipicu sesuka hati; amati bila terjadi (simulasi: terbukti) | Cari event ID ganda di log |
 | M-08 | Kirim **di luar jendela 24 jam** | Ditolak server dengan alasan; **0** panggilan Meta | Tidak perlu | Tidak ada | **Belum dapat diuji** — butuh menunggu >24 jam sejak pesan terakhir …4062 | Simulasi: terbukti |
