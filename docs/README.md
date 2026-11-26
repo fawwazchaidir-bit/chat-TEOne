@@ -7,6 +7,9 @@
 | [`prompts/tahap-1.md`](prompts/tahap-1.md) · [`prompts/tahap-2.md`](prompts/tahap-2.md) · [`prompts/tahap-3.md`](prompts/tahap-3.md) | Prompt Tahap 1, 2, dan 3 |
 | [`gates/GATE-CHECKLIST.md`](gates/GATE-CHECKLIST.md) | Checklist gate CCP + prompt auditor independen |
 | [`gates/daftar-tindakan-pemilik.md`](gates/daftar-tindakan-pemilik.md) | **Daftar tindakan pemilik Tahap 1 & 2** (keputusan, akses, server, gate) · [`jalur-0.md`](jalur-0.md) = draf daftar kerja prasyarat |
+| [`prompts/perbaikan-fase-1.md`](prompts/perbaikan-fase-1.md) | **Perintah pengerjaan Perbaikan Fase 1** (P1–P7) untuk sesi developer + tugas operator Fase 2 |
+| [`gates/keputusan-pemilik-fase-0-2026-11-26.md`](gates/keputusan-pemilik-fase-0-2026-11-26.md) | **Keputusan pemilik Fase 0 (26 Nov 2026)**: D-03 = …6319, A-4 worker disetujui, …6319 tetap tersambung; draf siap-putus D-02/D-04/D-12/D-18 |
+| [`gates/audit-gate-1-2-2026-11-25.md`](gates/audit-gate-1-2-2026-11-25.md) | **Audit independen Gate 1 & 2 putaran ke-3 (25 Nov 2026)**: verify-all 11/11 independen pada `d0c4842`; temuan G1-B01…B05, G2-B01…B05; urutan penyelesaian Fase 0–4 |
 | [`gates/gate-1-audit-ulang.md`](gates/gate-1-audit-ulang.md) | Audit ulang Gate 1 (21 Nov 2026; TAHAN untuk penerimaan penuh) |
 | [`gates/gate-2.md`](gates/gate-2.md) · [`gates/gate-2-tindak-lanjut.md`](gates/gate-2-tindak-lanjut.md) | **Audit independen Gate 2 (rekomendasi TAHAN; keputusan pemilik belum diisi)** · tanggapan & perbaikan pembangun |
 | [`gates/gate-1.md`](gates/gate-1.md) · [`gates/gate-1-tindak-lanjut.md`](gates/gate-1-tindak-lanjut.md) | **Audit independen Gate 1 (rekomendasi TAHAN; keputusan pemilik belum diisi)** · tanggapan & perbaikan pembangun |

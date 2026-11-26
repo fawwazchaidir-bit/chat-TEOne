@@ -32,7 +32,8 @@ export type StatusFragment = { id: string; status: string; ts: string | null; re
 export type NormalizedEvent = { eventKey: string; meta: EventMeta; providerTs: string | null } & (
   | { kind: "message"; contact: ContactInfo | null; message: MessageFragment }
   | { kind: "status"; status: StatusFragment }
-  | { kind: "echo"; to: string | null; message: MessageFragment }
+  /** `to` = nomor penerima (dihilangkan Meta bila tidak tersedia); `toUserId` = BSUID penerima; `contact` = entri `contacts[]` yang TERBUKTI milik penerima. Dua bidang terakhir opsional: event lama di antrean tidak memilikinya. */
+  | { kind: "echo"; to: string | null; toUserId?: string | null; contact?: ContactInfo | null; message: MessageFragment }
   | { kind: "history"; direction: "masuk" | "keluar"; customer: string | null; historyStatus: string | null; message: MessageFragment }
   | { kind: "history"; progress: { phase: number | null; chunk: number | null; progress: number | null; errorCode: number | null; errorTitle: string | null }; message?: undefined; direction?: undefined; customer?: undefined; historyStatus?: undefined }
   | { kind: "contact_sync"; count: number }
@@ -106,6 +107,19 @@ function pickContact(contacts: Obj[], msg: MessageFragment): ContactInfo | null 
   return distinct.size === 1 ? (matches[0] as ContactInfo) : null;
 }
 
+/**
+ * Entri `contacts[]` pada echo = penerima. Dipakai HANYA bila terbukti milik echo itu (pengenal yang sama, tidak bertentangan — aturan G2-A01
+ * yang sama dengan pesan masuk); tanpa fallback ke "entri pertama". Ambigu (beberapa entri berbeda cocok) → tidak ada yang dipakai.
+ */
+function pickEchoContact(contacts: Obj[], to: string | null, toUserId: string | null): ContactInfo | null {
+  if (!to && !toUserId) return null;
+  const matches = contacts
+    .map((x): ContactInfo => ({ waId: digits(str(x.wa_id)), userId: str(x.user_id), name: str(obj(x.profile).name) }))
+    .filter((ct) => contactMatchesMessage({ from: to, userId: toUserId }, ct));
+  const distinct = new Set(matches.map((m) => `${m.waId ?? ""}|${m.userId ?? ""}`));
+  return distinct.size === 1 ? (matches[0] as ContactInfo) : null;
+}
+
 function unknownEvent(meta: EventMeta, reason: string, field: string | null, basis: unknown): NormalizedEvent {
   return { kind: "unknown", eventKey: `unk:${sha(basis)}`, meta, providerTs: null, reason, field };
 }
@@ -146,10 +160,15 @@ export function normalizePayload(body: unknown): NormalizedEvent[] {
           }
         } else if (field === "smb_message_echoes") {
           const list = arr(v.message_echoes).length ? arr(v.message_echoes) : arr(v.messages);
+          const echoContacts = arr(v.contacts).map(obj);
           for (const raw of list) {
             const msg = parseMessage(obj(raw));
             if (!msg) { out.push(unknownEvent(meta, "echo_tanpa_id", field, raw)); continue; }
-            out.push({ kind: "echo", eventKey: `echo:${msg.id}`, meta, providerTs: msg.ts, to: digits(str(obj(raw).to) ?? str(obj(raw).recipient_id)), message: msg });
+            const r = obj(raw);
+            // Bentuk resmi (dokumentasi Meta, dibaca 26 Nov): `to` dihilangkan bila nomor penerima tidak tersedia; `to_user_id` = BSUID (G2-B04/S-11).
+            const to = digits(str(r.to) ?? str(r.recipient_id));
+            const toUserId = str(r.to_user_id);
+            out.push({ kind: "echo", eventKey: `echo:${msg.id}`, meta, providerTs: msg.ts, to, toUserId, contact: pickEchoContact(echoContacts, to, toUserId), message: msg });
           }
         } else if (field === "history") {
           for (const item of arr(v.history)) {
