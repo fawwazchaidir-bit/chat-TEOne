@@ -144,3 +144,11 @@ Pemilik menyetujui (26 Nov 2026):
 2. **Status batch dihitung sistem**: batch boleh ditawarkan hanya bila Status = Buka **dan** cut-off belum lewat (Asia/Jakarta). Status manual hanya dipakai untuk menutup lebih awal (mis. kuota penuh). Sesuai AGENTS.md §8 (validasi tanggal oleh kode, bukan model).
 
 Dampak Tahap 4 (spesifikasi untuk developer): modul `program-cards` menyimpan baris jadwal terstruktur (kode program, kode batch, tanggal mulai/selesai, cut-off bertimestamp WIB, harga, DP, link, status manual); fungsi `statusEfektif(batch, now)` diuji unit termasuk kasus batas (cut-off tepat 23.59 WIB, H-1, hari H); hanya batch efektif-terbuka yang dikirim ke model. Set uji v0.4 menghapus label ASUMSI pada SE-001 dan menandai T22/T24 diputuskan.
+
+## 15. Konfirmasi identitas nomor operasional (26 Nov 2026)
+
+Pemilik mengonfirmasi: **…196319 = Admisi**, **…246319 = Hotline** (keduanya nomor operasional — larangan AGENTS.md §3.1 berlaku sampai Tahap 9 + GO tertulis); **…186319 = Kemitraan/cadangan** (staging). Status §13 berubah dari "menunggu konfirmasi" menjadi **terkonfirmasi**. Dokumen yang memakai kata "diduga" sudah diperbarui.
+
+**AGENTS.md §1 dan §3.1** diubah di branch ini agar memakai 6 digit terakhir. Sesuai AGENTS.md (header), perubahan ini **baru berlaku setelah PR disetujui dan di-merge pemilik**.
+
+**Temuan G2-B08 (Tinggi) — untuk developer, bukan auditor:** aturan guard **G2** (`scripts/guard-operational.mjs`, `OP_SUFFIX = ["1119","0124"]`) memeriksa 4 digit akhir yang **salah**; nomor operasional sebenarnya berakhiran 6319, sehingga G2 tidak pernah menangkapnya. Perlindungan efektif saat ini datang dari G3 (nomor lengkap dilarang) dan G4 (hash 3 nomor, CI #43). Perbaikan yang diminta: G2 memakai akhiran **6 digit** `196319` dan `246319` (bukan 4 digit `6319`, karena Kemitraan …186319 sah dipakai di staging), plus test yang membuktikan …186319 lolos dan …196319/…246319 ditolak. Masuk PR developer berikutnya (mis. bersama S-12) dengan tag `@tahap-1`.

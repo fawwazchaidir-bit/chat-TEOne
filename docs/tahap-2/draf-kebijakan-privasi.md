@@ -125,7 +125,7 @@ Kebijakan Privasi ini disusun untuk memberikan informasi yang jelas dan mudah di
 ## Catatan untuk pemilik (tidak dipublikasikan)
 1. **Salah ketik di halaman lama:** "troilogikaedutama.id" → "trilogikaedutama.id".
 2. **Bagian 10 lama ("dianggap menyetujui")** diganti: UU PDP mensyaratkan persetujuan yang jelas; "dianggap setuju" berisiko ditolak penasihat hukum.
-3. **Nomor kontak di halaman lama berakhiran …246319** — diduga nomor **Hotline** (koreksi 26 Nov). Pastikan nomor ini memang yang ingin dipakai untuk permintaan data.
+3. **Nomor kontak di halaman lama berakhiran …246319** — nomor **Hotline** (dikonfirmasi pemilik 26 Nov). Pastikan nomor ini memang yang ingin dipakai untuk permintaan data.
 4. **Untuk App Review Meta:** isi kolom *Privacy Policy URL* di App settings dengan URL halaman ini; bagian 8 dapat dipakai juga sebagai *Data Deletion Instructions URL* (tautkan ke `#bagian-8` bila website mendukung anchor).
 5. Bagian bertanda "perlu ditinjau penasihat hukum": transfer data ke luar Indonesia dan angka retensi (D-18 production masih arah, belum final).
 6. Bila nanti menggunakan AI (Tahap 4, D-09/D-10), bagian 3 dan 4 wajib diperbarui **sebelum** AI aktif.

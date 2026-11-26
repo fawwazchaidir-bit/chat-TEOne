@@ -12,7 +12,7 @@ Disusun auditor 26 Nov 2026 setelah Gate 2 **LANJUT TERBATAS** dan tag `tahap-1-
 | P1 | Gate 2 LANJUT TERBATAS tercatat; tag ada | ✅ (26 Nov) |
 | P2 | Flag **`inbox` = menyala**, **`ai_simulation` = mati**, `whatsapp_connector` = menyala | Halaman Kill switch & flag; kueri `feature_flag_overrides` |
 | P3 | Channel …186319 `test_mode = true` | kueri §6 |
-| P4 | Daftar penerima uji: …4062 **+ satu nomor tim lain yang BUKAN nomor bisnis** (mis. HP pribadi staf) sebagai "pelanggan B". **DILARANG memakai …196319 atau …246319** — diduga nomor Admisi dan Hotline (koreksi auditor 26 Nov) | Halaman Integrasi → penerima uji |
+| P4 | Daftar penerima uji: …4062 **+ satu nomor tim lain yang BUKAN nomor bisnis** (mis. HP pribadi staf) sebagai "pelanggan B". **DILARANG memakai …196319 atau …246319** — nomor **Admisi** dan **Hotline** (dikonfirmasi pemilik 26 Nov) | Halaman Integrasi → penerima uji |
 | P5 | Channel kedua **"Uji B"** dibuat **tanpa koneksi** Meta (hanya untuk uji visibilitas) | Halaman Channel |
 | P6 | Pengguna uji: **Admin Kemitraan** (cakupan channel Kemitraan, Tim Kemitraan), **Admin Admisi** (cakupan channel Uji B saja, Tim Admisi), Super Admin (Anda) — semua dengan 2FA | Halaman Pengguna / Peran / Tim |
 | P7 | Backup sebelum uji: `backup-rotate.sh` kode 0, `offsite=ok` | VPS |

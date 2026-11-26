@@ -30,7 +30,7 @@ Sumber (dibaca auditor 26 Nov 2026, developers.facebook.com): *Become a Tech Pro
 - [ ] Facebook Login for Business → Client OAuth settings (HTTPS, JS SDK, domain staging/production di *Allowed domains* & *Valid OAuth redirect URIs*).
 - [ ] Buat **konfigurasi Embedded Signup** → catat `config_id`.
 - [ ] Bangun tombol "Hubungkan nomor WhatsApp" (JS SDK, versi terbaru, alur Business app / coexistence) + panggil SMB App Data (PR S-12) ≤ 24 jam setelah onboarding.
-- [ ] Uji pada **nomor uji baru yang bersih** (bukan …186319 yang sudah tersambung). **…196319 dan …246319 DILARANG** — diduga Admisi dan Hotline (koreksi auditor 26 Nov; AGENTS.md §3.1). Admisi baru di Tahap 9 setelah GO tertulis.
+- [ ] Uji pada **nomor uji baru yang bersih** (bukan …186319 yang sudah tersambung). **…196319 dan …246319 DILARANG** — nomor Admisi dan Hotline (dikonfirmasi pemilik 26 Nov). Admisi baru di Tahap 9 setelah GO tertulis.
 
 ## E. Paralel hari ini
 - [ ] Tiket dukungan Meta: "WABiz: Cloud API" → "Coexistence Data Synchronization APIs and Webhooks" — SMB App Data ditolak `131000/10` untuk nomor yang terhubung langsung ke aplikasi TE-One; minta konfirmasi syaratnya. Sertakan App ID + phone_number_id, **tanpa token**.

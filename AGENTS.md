@@ -19,9 +19,9 @@
 
 | Channel | Fungsi | Kondisi yang diketahui | Aturan sampai Tahap 9 |
 |---|---|---|---|
-| **Admisi** (…1119) | Lead iklan sampai pembayaran | Coexistence pada layanan lama (Halo AI) | Tidak boleh disentuh |
-| **Hotline** (…0124) | Peserta: grup, materi, link kelas, keluhan | Centang biru. Di Halo AI berlabel "WhatsApp On-premise" dengan menu "WAHA to WABA Migration"; diduga WAHA, **belum terverifikasi** | Tidak boleh disentuh |
-| **Kemitraan** (nomor 3) | B2B / in-house training; cadangan Admisi | Sudah terhubung ke Meta Business | Kandidat nomor uji dan nomor operasional pertama (D-03) |
+| **Admisi** (…196319; dulu ditulis "…1119") | Lead iklan sampai pembayaran | Coexistence pada layanan lama (Halo AI) | Tidak boleh disentuh |
+| **Hotline** (…246319; dulu ditulis "…0124") | Peserta: grup, materi, link kelas, keluhan | Centang biru. Di Halo AI berlabel "WhatsApp On-premise" dengan menu "WAHA to WABA Migration"; diduga WAHA, **belum terverifikasi** | Tidak boleh disentuh |
+| **Kemitraan** (…186319) | B2B / in-house training; cadangan Admisi | Sudah terhubung ke Meta Business | Kandidat nomor uji dan nomor operasional pertama (D-03) |
 | **Finance**, **Operator** | Disiapkan kemudian | — | Slot cadangan |
 
 Jumlah channel maksimal adalah **pengaturan organisasi** (default 5), bukan konstanta di kode.
@@ -43,7 +43,7 @@ Jumlah channel maksimal adalah **pengaturan organisasi** (default 5), bukan kons
 
 Pelanggaran salah satu poin berikut adalah **temuan kritis**.
 
-1. Jangan menghubungkan, memutus, memindahkan, atau mengubah konfigurasi nomor **Admisi (…1119)** dan **Hotline (…0124)** sebelum Tahap 9 dan keputusan GO tertulis untuk nomor tersebut.
+1. Jangan menghubungkan, memutus, memindahkan, atau mengubah konfigurasi nomor **Admisi (…196319)** dan **Hotline (…246319)** sebelum Tahap 9 dan keputusan GO tertulis untuk nomor tersebut.
 2. Jangan mengubah koneksi, webhook, atau aplikasi Meta yang dipakai Halo AI. TE One memakai aplikasi Meta miliknya sendiri.
 3. Jangan memakai WAHA, Baileys, whatsapp-web.js, atau konektor WhatsApp tidak resmi apa pun, kecuali `docs/decisions.md` D-01 memutuskan sebaliknya secara eksplisit beserta isolasinya.
 4. Jangan memasukkan rahasia (token Meta, app secret, API key AI, password, OTP, secret session, kunci enkripsi) ke repository, log, screenshot, issue, atau laporan.
