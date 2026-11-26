@@ -127,7 +127,7 @@ describe("@tahap-1 G1-B04 guard nomor operasional: aturan G5 (ID Meta operasiona
 
   it("daftar hash KOSONG → PERINGATAN jelas menyebut kedua variabel dan aturan yang tidak aktif (anotasi ::warning di GitHub Actions); tetap lulus", () => {
     const dir = tmp({ "src/a.ts": "export const a = 1;\n" });
-    const r = run(GUARD, dir, { OPERATIONAL_NUMBER_HASHES: "", OPERATIONAL_META_ID_HASHES: "" });
+    const r = run(GUARD, dir, { OPERATIONAL_NUMBER_HASHES: "", OPERATIONAL_META_ID_HASHES: "", GITHUB_ACTIONS: "" }); // eksplisit: CI sungguhan mewariskan GITHUB_ACTIONS=true ke proses guard
     expect(r.code, r.out).toBe(0);
     expect(r.out).toContain("PERINGATAN GUARD NOMOR OPERASIONAL");
     expect(r.out).toContain("OPERATIONAL_NUMBER_HASHES kosong");
