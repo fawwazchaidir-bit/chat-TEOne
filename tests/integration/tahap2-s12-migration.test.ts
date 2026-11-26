@@ -15,6 +15,8 @@ import { TEST_ADMIN_URL, TEST_DB_HOST } from "../test-env";
 
 afterAll(closeDb);
 const SNAP = "teone_snap6";
+/** Jumlah migrasi = isi jurnal (semua migrasi harus terterap; tes ini tidak perlu diubah setiap ada migrasi baru). */
+const JOURNAL_COUNT: number = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")).entries.length;
 const url = (user: string, pw: string) => `postgres://${user}:${pw}@${TEST_DB_HOST}/${SNAP}`;
 
 describe("@tahap-2 S-12 migrasi 0006: database kosong", () => {
@@ -68,7 +70,7 @@ describe("@tahap-2 S-12 migrasi 0006: snapshot data tahap sebelumnya (0000–000
     const o = new Client({ connectionString: url("teone_owner", "owner_test_pw") });
     await o.connect();
     try {
-      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(7);
+      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(JOURNAL_COUNT);
       // data lama utuh; nilai tak berubah
       expect((await o.query("select count(*)::int n from channels")).rows[0].n).toBe(2);
       expect((await o.query("select count(*)::int n from contacts")).rows[0].n).toBe(1);
@@ -95,7 +97,7 @@ describe("@tahap-2 S-12 migrasi 0006: snapshot data tahap sebelumnya (0000–000
       expect((await o.query("update audit_log set action = 'x'").catch((e) => e)).code).toBe("42501");
       expect((await o.query("update channels set status = 'terhubung'").catch((e) => e)).code).toBe("23514");
       await runMigrations(url("teone_owner", "owner_test_pw"), { quiet: true }); // idempoten
-      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(7);
+      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(JOURNAL_COUNT);
     } finally {
       await o.end();
     }

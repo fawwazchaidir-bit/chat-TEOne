@@ -10,5 +10,9 @@
   "@tahap-3": {
     "vitest": 86,
     "playwright": 3
+  },
+  "@tahap-4": {
+    "vitest": 25,
+    "playwright": 0
   }
 }
