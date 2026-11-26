@@ -97,4 +97,5 @@ Pernyataan pemilik (verbatim): "go live 15 januari tanpa ai sesuai saranmu".
 - **D-04 cakupan Diputuskan** sesuai usulan §6 butir 3: inbox tim, routing, balasan cepat, catatan internal, template manual, izin/audit/kill switch. AI, label otomatis, pipeline/laporan, dan follow-up menyusul di balik flag mati.
 - Gate yang wajib lulus untuk go-live ini: **Gate 1, 2, 3**, ditambah template manual (bagian Gate 6) dan **Gate 7–9** (audit terpadu/UAT, pilot, GO per nomor). Gate 4–5 dan sisa Gate 6 tidak menghalangi tanggal 15 Jan.
 - **D-14 tetap Terbuka:** perlu ditetapkan apakah Kemitraan (…6319) live lebih dulu (paling lambat ±6 Jan) atau Admisi menjadi nomor pertama.
+- **Pembaruan:** pemilik memilih **D-14 opsi A** ("D-14 pilih A, Kemitraan live dulu"): Kemitraan ≤ ±6 Jan 2027 → observasi ≥ 5 hari kerja → Admisi 15 Jan 2027. Konsekuensi: Gate 1–3, template manual, dan Gate 7–9 untuk Kemitraan harus selesai **sebelum ±6 Jan 2027**; Kemitraan go-live **sebelum freeze 7–14 Jan**.
 - Bukti teks staging diterima → `docs/reports/bukti/staging-j2-2026-11-26.md`.

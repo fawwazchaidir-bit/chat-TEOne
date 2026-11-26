@@ -25,7 +25,7 @@ Cara mengisi: ubah *Status*, tulis keputusan akhir di kolom *Keputusan akhir*, l
 | D-11 | Pipeline, status, dan kolom tambahan | Lihat rincian | Tahap 5 | Terbuka | | |
 | D-12 | Target RPO / RTO | Usulan awal: RPO ≤ 1 jam, RTO ≤ 4 jam kerja (perlu dinilai biayanya) | Tahap 7 (desain sejak Tahap 1) | **Diputuskan** | Staging: RPO ≤ 24 jam, RTO ≤ 1 hari kerja, backup harian terenkripsi (DB+media), simpan 7 hari, salinan di luar VPS, uji restore bulanan + tiap migrasi. Production: RPO ≤ 1 jam (harian + arsip WAL), RTO ≤ 4 jam kerja, diuji sebelum go-live. Pembuat ≠ pemeriksa; kunci terpisah dari VPS | Pemilik proyek / 26 Nov 2026 |
 | D-13 | Target performa | p95 buka inbox/chat < 1 detik pada 10 pengguna bersamaan | Tahap 7 | Terbuka | | |
-| D-14 | Urutan & jadwal perpindahan nomor | Kemitraan → Admisi → Hotline; tidak ada perpindahan 4–15 Mar 2027; observasi ≥ 5 hari kerja antar nomor | Tahap 8 | Terbuka | | |
+| D-14 | Urutan & jadwal perpindahan nomor | Kemitraan → Admisi → Hotline; tidak ada perpindahan 4–15 Mar 2027; observasi ≥ 5 hari kerja antar nomor | Tahap 8 | **Diputuskan** | Opsi A: **Kemitraan (…6319) live dulu paling lambat ±6 Jan 2027**, observasi ≥ 5 hari kerja, lalu **Admisi 15 Jan 2027**; freeze 7–14 Jan 2027 (tidak ada rilis baru; observasi Kemitraan berjalan). Hotline menyusul setelah D-01 dan J0-04. GO tertulis per nomor tetap wajib (Gate 9) | Pemilik proyek / 26 Nov 2026 |
 | D-15 | Janji waktu respons eskalasi & jam kerja tim | Pesan eskalasi **tanpa** janji waktu sampai disetujui | Tahap 4 | Terbuka | | |
 | D-16 | Status belum dibaca | Per pengguna | Tahap 3 | Terbuka | | |
 | D-17 | Label otomatis saat AI Off | Mati | Tahap 5 | Terbuka | | |

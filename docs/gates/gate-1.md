@@ -103,3 +103,10 @@ Tag `tahap-1-diterima`: belum dibuat. Backup titik-kembali: belum dibuktikan. Re
 2. Sediakan lingkungan uji terisolasi setara CI (Node 22, PostgreSQL 16, Chromium, pg_dump/gpg); jalankan lint, typecheck, build, guard, scan seluruh riwayat, seluruh Vitest, G1 E2E, dan drill restore pada commit yang sama. Catat jumlah, exit code, log, dan link run.
 3. Periksa G1 di staging/HTTPS bila tersedia; bila tidak, catat tertunda dan batas penggunaannya secara eksplisit.
 4. Dokumentasikan keputusan pemilik, asumsi D-xx, prasyarat dan PIC; buat tag dan backup titik-kembali hanya setelah penerimaan gate.
+
+---
+
+## Keputusan pemilik — 26 November 2026
+**Gate 1: LANJUT** (pernyataan tertulis pemilik di sesi audit). Dasar: audit ulang independen [`audit-ulang-gate-1-2026-11-26.md`](audit-ulang-gate-1-2026-11-26.md) — A 10/10, B 5/6 (+2 N/A), C 9/9, temuan kritis/tinggi 0 — pada commit `046355936dc44b62f2281166fe9ef15c95527138` (= `main` = staging).
+Syarat ringan (tenggat 28 Nov 2026): log cron pertama `offsite=ok`; salinan passphrase backup di luar VPS; branch protection `main` aktif.
+Tag `tahap-1-diterima` dan backup titik-kembali: dibuat setelah pencatatan ini (lihat audit ulang, "Setelah keputusan LANJUT"). Commit ini juga memuat kode Tahap 2–3 di balik flag mati; **Gate 2 dan Gate 3 belum diterima**.
