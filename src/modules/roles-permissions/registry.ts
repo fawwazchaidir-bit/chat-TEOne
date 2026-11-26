@@ -29,6 +29,20 @@ export const PERMISSIONS = [
   { key: "chat.assign", label: "Ubah penugasan & tim chat", channelScoped: true, available: true },
   { key: "chat.note", label: "Tulis catatan internal", channelScoped: true, available: true },
   { key: "killswitch.channel", label: "Jeda otomatisasi channel", channelScoped: true, available: true },
+  // Tahap 4 (ADR-0010; prompt §17) — STRUKTUR: izin didaftarkan, fiturnya BELUM ada (`available: false` → UI wajib menandai "Belum tersedia"). Registri hanya bertambah.
+  // Pemetaan prompt → izin: lihat agent=`agent.view` · ubah agent=`agent.manage` (sudah ada) · terbitkan agent=`agent.publish` · tempatkan di channel=`agent.place` ·
+  // kelola/terbitkan Kartu Program=`programcard.manage`/`programcard.publish` · kelola/terbitkan knowledge=`knowledge.manage` (sudah ada)/`knowledge.publish` ·
+  // simulator=`ai.simulator` · set uji=`ai.testset` · AI On/Off=`ai.toggle` (sudah ada) · lihat audit AI=`ai.audit` · kill switch AI=`killswitch.channel`/`killswitch.manage` (sudah ada).
+  // Operasi bersifat GLOBAL (buat/ubah/terbitkan agent, kartu, knowledge) memerlukan cakupan SEMUA channel; hanya `agent.place` benar-benar per channel.
+  { key: "agent.view", label: "Lihat agent", channelScoped: true, available: false },
+  { key: "agent.publish", label: "Terbitkan agent", channelScoped: true, available: false },
+  { key: "agent.place", label: "Tempatkan agent di channel", channelScoped: true, available: false },
+  { key: "programcard.manage", label: "Kelola Kartu Program", channelScoped: true, available: false },
+  { key: "programcard.publish", label: "Terbitkan Kartu Program", channelScoped: true, available: false },
+  { key: "knowledge.publish", label: "Terbitkan knowledge", channelScoped: true, available: false },
+  { key: "ai.simulator", label: "Gunakan simulator AI", channelScoped: true, available: false },
+  { key: "ai.testset", label: "Jalankan set uji AI", channelScoped: true, available: false },
+  { key: "ai.audit", label: "Lihat audit AI", channelScoped: true, available: false },
   // Hanya Super Admin yang dapat memberikan izin ini (UI kill switch khusus Super Admin — Tahap 1 §12).
   { key: "killswitch.manage", label: "Kelola kill switch", channelScoped: false, available: true, superAdminOnlyGrant: true },
 ] as const satisfies readonly PermissionMeta[];
