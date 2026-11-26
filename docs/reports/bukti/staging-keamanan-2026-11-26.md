@@ -2,6 +2,21 @@
 
 Ditempel/dinyatakan pemilik di sesi audit. Teks; tanpa rahasia.
 
+## 8a — Dari luar (laptop pemilik, Windows PowerShell)
+```
+http://staging-chat.trilogikaedutama.id  → HTTP/1.1 308 Permanent Redirect, Location: https://staging-chat.trilogikaedutama.id/
+https://…/login → HTTP/1.1 200 OK
+  Content-Security-Policy: default-src 'self'; … frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+  Referrer-Policy: same-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  (tidak ada X-Powered-By)
+Port dari internet: 443 TERBUKA · 80 TERBUKA · 5432 tertutup · 3000 tertutup · 22 TERBUKA
+```
+- ✅ HTTP → HTTPS (308); HSTS ada; header keamanan lengkap; `X-Powered-By` tidak ada.
+- ✅ 5432 dan 3000 tertutup dari internet (konsisten dengan 8b). 22 terbuka → F2-02.
+
 ## 8b — Port yang mendengarkan & firewall (di VPS)
 ```
 0.0.0.0:22   sshd        [::]:22   sshd
