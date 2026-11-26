@@ -36,3 +36,13 @@ Restore + baris yang dibuat setelah backup = staging asli, untuk semua tabel yan
 - Restore terisolasi backup baru: messages 9 · inbound_events 14 · audit_log 18 · migrasi 6 — **identik** dengan staging (tanpa selisih).
 
 **Penilaian:** alur backup yang akan dipakai cron (pembungkus docker exec, format nama `teone_staging-<stamp>` + `.sha256`) **terbukti nyata** di server, termasuk restore. Titik pemulihan sebelum rebuild **lengkap**.
+
+## Salinan di luar VPS + backup terjadwal (26 Nov 2026, ±10.10 WIB)
+- Tujuan: Google Drive (akun terpisah dari VPS), remote `gdrive`, scope `drive.file` (rclone hanya melihat berkas buatannya), folder `teone-staging-backup`; konfigurasi `/etc/teone/rclone.conf` chmod 600.
+- Salin set `20261126T023029Z` → unduh balik → `sha256sum --check`: `dump.gpg: OK`, `media.tar.gpg: OK`.
+- `/etc/teone/backup.env` (chmod 600): `BACKUP_KEEP=7`, `BACKUP_SCRIPT=/usr/local/sbin/teone-backup-docker.sh`, offsite = `rclone copy … --include "*-$BACKUP_STAMP.*" && rclone delete … --min-age 8d`.
+- Uji `scripts/backup-rotate.sh` (persis perintah cron): `rotasi: set disimpan=2 berkas-dihapus=0`, `backup-rotate selesai: stamp=20261126T031055Z offsite=ok`, **kode keluar 0**; Google Drive berisi 2 set (8 berkas).
+- Cron `/etc/cron.d/teone-backup`: `15 2 * * * root … backup-rotate.sh >> /var/log/teone-backup.log` (waktu server WIB).
+- Kapasitas akun Drive: 15 GiB, terpakai 10,9 GiB, sisa 2,5 GiB — cukup untuk staging (±25 KB/set); **perlu ruang lebih besar sebelum production** (butir prasyarat Tahap 7).
+
+**Penilaian:** D-12 staging **terbukti nyata** untuk: backup harian terenkripsi (DB + media), simpan 7, salinan di luar VPS terverifikasi checksum, uji restore di server. **Menunggu:** baris log cron pertama (`/var/log/teone-backup.log`, 27 Nov 02.15 WIB) sebagai bukti jadwal berjalan sendiri; konfirmasi salinan passphrase tersimpan di luar VPS.
