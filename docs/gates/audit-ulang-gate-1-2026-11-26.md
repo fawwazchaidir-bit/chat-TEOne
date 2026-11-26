@@ -69,7 +69,7 @@ Semua CCP Gate 1 lulus; temuan kritis dan tinggi = 0. Tiga butir di bawah tidak 
 **C: 9/9.**
 
 ## Catatan yang dibawa ke Gate 2
-- **WABA bersama?** Belum dijawab apakah WABA ID Kemitraan (…6319) sama dengan WABA Admisi/Hotline. Bila sama, webhook TE One dapat menerima event nomor operasional (dikarantina `channel_tidak_dikenal` **dengan payload tersimpan**). Jawab sebelum Gate 2.
+- **WABA bersama? — Dijawab pemilik 26 Nov: TIDAK.** WABA Kemitraan (…6319) berbeda dari WABA Admisi dan Hotline, sehingga langganan webhook TE One (per WABA) tidak menerima event nomor operasional. Silang-cek otomatis: hash WABA ketiganya ada di `OPERATIONAL_META_ID_HASHES` (6 entri unik diperiksa CI #43).
 - Kode Tahap 2–3 ikut berada di `0463559` di balik flag mati. Tag `tahap-1-diterima` pada commit ini **tidak** berarti Gate 2/3 diterima.
 
 ## Setelah keputusan LANJUT (pemilik)
