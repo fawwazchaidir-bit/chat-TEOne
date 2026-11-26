@@ -137,7 +137,7 @@ sudo rclone --config /etc/teone/rclone.conf copy $B gdrive:teone-staging-backup 
 # verifikasi di sisi tujuan: unduh balik lalu cek checksum
 TMP=$(sudo mktemp -d); sudo rclone --config /etc/teone/rclone.conf copy gdrive:teone-staging-backup $TMP && sudo bash -c "cd $TMP && sha256sum --check *.sha256"; sudo rm -rf $TMP
 ```
-📋 Harapan: semua `OK`. Atur retensi 7 hari di sisi Google Drive secara manual/berkala (skrip hanya memangkas salinan lokal).
+📋 Harapan: semua `OK`. Retensi 7 hari di Google Drive diurus perintah offsite di Langkah 7 (`rclone delete --min-age 8d`).
 
 ## Langkah 7 — Backup terjadwal harian (D-12)
 ```bash
@@ -147,7 +147,7 @@ BACKUP_DIR=$B
 BACKUP_PASSPHRASE_FILE=/etc/teone/backup.pass
 BACKUP_KEEP=7
 BACKUP_SCRIPT=/usr/local/sbin/teone-backup-docker.sh
-BACKUP_OFFSITE_CMD='rclone --config /etc/teone/rclone.conf copy "\$BACKUP_DIR" gdrive:teone-staging-backup --include "\$(basename "\$BACKUP_DUMP_FILE" .dump.gpg)*"'
+BACKUP_OFFSITE_CMD='rclone --config /etc/teone/rclone.conf copy "\$BACKUP_DIR" gdrive:teone-staging-backup --include "*-\$BACKUP_STAMP.*" && rclone --config /etc/teone/rclone.conf delete gdrive:teone-staging-backup --min-age 8d'
 EOF
 sudo chmod 600 /etc/teone/backup.env
 echo "15 2 * * * root set -a; . /etc/teone/backup.env; set +a; $BUILD/scripts/backup-rotate.sh >> /var/log/teone-backup.log 2>&1" | sudo tee /etc/cron.d/teone-backup
