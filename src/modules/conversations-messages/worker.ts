@@ -1,7 +1,8 @@
 /**
  * Pemroses antrean event (ADR-0002). Aman dijalankan oleh >1 proses sekaligus (SKIP LOCKED) dan tahan restart (lease).
- * `kickProcessing()` = pemicu opsional di proses web (WORKER_INLINE=true) agar penyebaran satu-kontainer tetap berjalan;
- * `scripts/worker.ts` = proses terpisah yang disarankan di staging/production.
+ * `kickProcessing()` = pemicu opsional di proses web (WORKER_INLINE=true): HANYA memproses antrean event, berbasis kejadian (tanpa timer).
+ * Pemeliharaan berkala (`runMaintenance`: retensi payload D-18, penyapu/rekonsiliasi, ulang media, fallback outbox) HANYA berjalan di
+ * `scripts/worker.ts` — proses terpisah yang diperlukan di staging/production (S-10, A-4).
  */
 import { getDb } from "@/db/client";
 import { getEnv } from "@/lib/env";
@@ -42,22 +43,89 @@ export async function processInboundBatch(opts: { limit?: number; leaseMs?: numb
   return r;
 }
 
-let kicking = false;
-export function kickProcessing(): void {
-  if (getEnv().WORKER_INLINE !== "true" || kicking) return;
-  kicking = true;
-  void (async () => {
+/** Satu putaran kick memproses paling banyak segini batch berurutan (20 event/batch ⇒ 200 event). Bila tercapai, putaran berikutnya dijalankan. */
+export const KICK_BATCHES_PER_ROUND = 10;
+const KICK_RETRY_DELAY_MS = 5_000;
+const KICK_MAX_ERROR_RETRIES = 5;
+
+export type KickDeps = {
+  enabled: () => boolean;
+  processBatch: () => Promise<{ claimed: number }>;
+  /** Menyerahkan giliran ke event loop di antara putaran penuh agar permintaan web lain tidak terblokir. */
+  yieldNow?: () => Promise<void>;
+  log?: (msg: string) => void;
+  retryDelayMs?: number;
+  maxErrorRetries?: number;
+};
+
+/**
+ * Pemicu pemrosesan inline (G2-B03). Prinsip: kick yang datang saat putaran berjalan TIDAK boleh hilang — ia menandai `dirty`
+ * ("ada kerja baru") dan putaran yang sedang berjalan mengulang sebelum selesai. Pemeriksaan `dirty`, keluar loop, dan `running = null`
+ * terjadi tanpa `await` di antaranya, sehingga tidak ada celah di mana kick terbaru terlewat. Bila batas putaran tercapai dan masih
+ * mungkin ada event (batch terakhir tidak kosong), putaran berikutnya dijadwalkan setelah menyerahkan giliran ke event loop.
+ * Galat sementara (mis. DB terputus) dicoba ulang tertunda maksimal `maxErrorRetries` kali berturut-turut, lalu menunggu kick berikutnya.
+ */
+export function createKicker(deps: KickDeps) {
+  const yieldNow = deps.yieldNow ?? (() => new Promise<void>((r) => setImmediate(r)));
+  const retryDelayMs = deps.retryDelayMs ?? KICK_RETRY_DELAY_MS;
+  const maxErrorRetries = deps.maxErrorRetries ?? KICK_MAX_ERROR_RETRIES;
+  let running: Promise<void> | null = null;
+  let dirty = false;
+  let errorRetries = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  async function loop(): Promise<void> {
     try {
-      for (let i = 0; i < 10; i++) if ((await processInboundBatch()).claimed === 0) break;
+      while (dirty) {
+        dirty = false;
+        let drained = false;
+        for (let i = 0; i < KICK_BATCHES_PER_ROUND; i++) {
+          if ((await deps.processBatch()).claimed === 0) { drained = true; break; }
+        }
+        if (!drained) { dirty = true; await yieldNow(); }
+      }
+      errorRetries = 0;
     } catch (e) {
-      console.error(`[worker] kick gagal: ${safeErrorLabel(e)}`);
+      deps.log?.(`[worker] kick gagal: ${safeErrorLabel(e)}`);
+      dirty = false;
+      if (errorRetries < maxErrorRetries && !retryTimer) {
+        errorRetries++;
+        retryTimer = setTimeout(() => { retryTimer = null; kick(); }, retryDelayMs);
+        retryTimer.unref?.();
+      } else if (errorRetries >= maxErrorRetries) {
+        errorRetries = 0; // menyerah sampai kick berikutnya
+      }
     } finally {
-      kicking = false;
+      running = null;
     }
-  })();
+  }
+
+  function kick(): void {
+    if (!deps.enabled()) return;
+    dirty = true;
+    if (running) return; // putaran yang berjalan akan melihat `dirty`
+    running = loop();
+  }
+
+  return {
+    kick,
+    /** Hanya untuk uji: selesai bila tidak ada putaran berjalan (percobaan ulang tertunda tidak ditunggu). */
+    idle: (): Promise<void> => running ?? Promise.resolve(),
+    /** Hanya untuk uji. */
+    state: () => ({ running: running !== null, dirty, retryScheduled: retryTimer !== null }),
+  };
 }
 
-/** Pemeliharaan berkala: retensi payload (D-18, ASUMSI), rekonsiliasi hasil belum pasti, ulangi unduhan media tertunda. */
+const inlineKicker = createKicker({
+  enabled: () => getEnv().WORKER_INLINE === "true",
+  processBatch: () => processInboundBatch(),
+  log: (m) => console.error(m),
+});
+export const kickProcessing = (): void => inlineKicker.kick();
+/** Hanya untuk uji. */
+export const waitForKickIdle = (): Promise<void> => inlineKicker.idle();
+
+/** Pemeliharaan berkala: retensi payload (D-18 Diputuskan), rekonsiliasi hasil belum pasti, ulangi unduhan media tertunda. Hanya dipanggil oleh worker-loop (scripts/worker.ts). */
 export async function runMaintenance(): Promise<{ purged: number; reconciled: number; expired: number; mediaRetried: number; outbox: number; jobs: number }> {
   const purged = await purgeRawPayloads();
   const rec = await reconcileUncertain(); // juga menandai `diproses` yang tertahan sebagai `belum_pasti` (G2-A06)

@@ -3,7 +3,7 @@
  * penandaan event `processed` ⇒ atomik; idempoten (UNIQUE provider_message_id / event_key) ⇒ aman diulang.
  *
  * Kontrak inti #3: `history` dan `echo` ditandai, TIDAK memperbarui jendela layanan, dan TIDAK memicu hook otomatisasi.
- * D-03 (ASUMSI): pada channel mode-uji, pengirim/penerima di luar daftar uji → event dikarantina seminimal mungkin
+ * D-03 (Diputuskan 26 Nov 2026: nomor uji …6319, channel Kemitraan Uji; perilaku kode tidak berubah): pada channel mode-uji, pengirim/penerima di luar daftar uji → event dikarantina seminimal mungkin
  * (payload dibuang, tidak ada kontak/pesan), tidak diproses otomatisasi, dan DILAPORKAN (audit + hitungan di alat uji).
  */
 import { and, eq, sql } from "drizzle-orm";
@@ -17,7 +17,7 @@ import { automationEligible } from "./events";
 import { setAiState } from "./ai-state";
 import { dispatchOutbox, enqueueCustomerMessage } from "./outbox";
 import { fetchInboundMedia } from "./media";
-import { isListedRecipient } from "./recipients";
+import { isListedByKnownUserId, isListedRecipient } from "./recipients";
 import { applyStatusesToMessage, recordStatusEvent } from "./status";
 import { provenCustomerTime } from "./window";
 
@@ -158,10 +158,26 @@ export async function ingestEvent(tx: Executor, ev: ClaimedEvent): Promise<Inges
 
     case "echo": {
       const m = p.message;
-      const to = p.to;
-      if (!to) return { kind: "quarantined", reason: "echo_tanpa_penerima" };
-      if (conn.testMode && !(await isListedRecipient(tx, to))) return quarantineUnlisted(tx, channelId, "echo");
-      const contact = await upsertContact(tx, [{ type: "wa_id", value: to }], null);
+      // Penerima = nomor (`to`) dan/atau BSUID (`to_user_id`), ditambah entri contacts[] HANYA bila terbukti miliknya (validasi ulang: event lama
+      // di antrean tidak memuatnya). Dikarantina hanya bila penerima benar-benar tidak dapat ditentukan. Identitas admin pengirim TIDAK ditebak.
+      const toUserId = p.toUserId ?? null;
+      const ct = p.contact && contactMatchesMessage({ from: p.to, userId: toUserId }, p.contact) ? p.contact : null;
+      const identities = dedupeIds([...idsOf(p.to, toUserId), ...idsOf(ct?.waId ?? null, ct?.userId ?? null)]);
+      if (identities.length === 0) return { kind: "quarantined", reason: "echo_tanpa_penerima" };
+      if (conn.testMode) {
+        const phone = identities.find((i) => i.type === "wa_id")?.value;
+        const uid = identities.find((i) => i.type === "user_id")?.value;
+        const listed = phone ? await isListedRecipient(tx, phone) : uid ? await isListedByKnownUserId(tx, uid) : false;
+        if (!listed) return quarantineUnlisted(tx, channelId, "echo");
+      }
+      let contact;
+      try {
+        contact = await upsertContact(tx, identities, null);
+      } catch (e) {
+        if (!(e instanceof IdentityConflictError)) throw e;
+        await writeAudit(tx, { actorLabel: "sistem:webhook", action: "integration.identity_conflict", objectType: "channel", objectId: channelId, result: "denied", metadata: { kind: "echo", contacts: e.contactIds.length } });
+        return { kind: "quarantined", reason: "identitas_bentrok", keepPayload: true }; // tidak ada kontak/pesan ditulis; tidak ada penggabungan otomatis
+      }
       const conversationId = await upsertConversation(tx, contact.id, channelId);
       const r = await insertMessage(tx, { conversationId, channelId, direction: "keluar", source: "whatsapp_business_app", msg: m, status: "terkirim" });
       if (!r.inserted) return noop;

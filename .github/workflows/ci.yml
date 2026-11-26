@@ -32,8 +32,10 @@ jobs:
       - name: Guard nomor operasional (Admisi/Hotline tidak boleh muncul di non-production)
         run: npm run guard:operational
         env:
-          # Opsional: sha256 digit E.164 nomor operasional (secret CI; bukan di repository).
+          # sha256 digit E.164 nomor operasional (G4) dan sha256 digit phone_number_id/WABA ID Meta operasional (G5) — secret CI, BUKAN di repository.
+          # Bila kosong guard memberi PERINGATAN (::warning) dan hanya menjalankan G1–G3; set GUARD_REQUIRE_HASHES=1 untuk menggagalkannya.
           OPERATIONAL_NUMBER_HASHES: ${{ secrets.OPERATIONAL_NUMBER_HASHES }}
+          OPERATIONAL_META_ID_HASHES: ${{ secrets.OPERATIONAL_META_ID_HASHES }}
       - name: Secret scan (lokal)
         run: npm run scan:secrets
       - name: Secret scan (gitleaks, seluruh riwayat git)

@@ -1,7 +1,35 @@
 # Reverse proxy HTTPS (sertifikat otomatis). Domain TIDAK ditulis di berkas ini: dibaca dari variabel SITE_ADDRESS (nilai non-rahasia di deploy/.env,
 # lihat deploy/.env.example). Dengan begitu Caddyfile di server = Caddyfile di repository (tidak ada edit lokal yang menyimpang dari commit).
 # Bila SITE_ADDRESS belum diisi, nilai bawaan `.invalid` sengaja tidak dapat memperoleh sertifikat (kesalahan konfigurasi terlihat jelas).
+# D-18 (Diputuskan 26 Nov 2026, staging): log teknis ≤ 30 hari, TANPA isi chat/rahasia, mode debug MATI. Log runtime Caddy ke stderr (level INFO);
+# log akses ke berkas bergulir di volume caddy_data (/data/log/access.log), dipangkas setelah 720 jam (30 hari).
+{
+	log {
+		level INFO
+	}
+}
+
 {$SITE_ADDRESS:staging-chat.example.invalid} {
+	# Log akses tanpa isi permintaan (Caddy memang tidak mencatat body) dan tanpa header apa pun (Cookie/Authorization/X-Hub-Signature-256) maupun
+	# header respons (Set-Cookie). Query verifikasi webhook (`hub.verify_token`, `hub.challenge`) diganti REDACTED agar Verify Token tidak masuk log.
+	log {
+		output file /data/log/access.log {
+			roll_size 20MiB
+			roll_keep 100
+			roll_keep_for 720h
+		}
+		format filter {
+			wrap json
+			fields {
+				request>headers delete
+				resp_headers delete
+				request>uri query {
+					replace hub.verify_token REDACTED
+					replace hub.challenge REDACTED
+				}
+			}
+		}
+	}
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"

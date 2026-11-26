@@ -36,11 +36,35 @@ Dijalankan: `bash scripts/backup-restore-drill.sh` (DB sumber dari **nol** → m
 ## 2b. Backup & restore di server staging — dinyatakan pemilik, 26 Nov 2026 (rincian belum diterima)
 Pemilik menyatakan: backup server dibuat, **checksum berkas cocok** (pemeriksaan manual), dan **uji restore terisolasi** dilakukan; keduanya diverifikasi **secara independen oleh auditor** (menurut pemilik). **Belum ada** di repository: nama berkas/SHA/ukuran/versi migrasi/durasi, cakupan media, salinan di luar VPS, PIC, dan catatan auditor — lihat `docs/tahap-2/runbook-uji-m11.md` §3.5–§3.6. Status: **Dinyatakan pemilik — bukan "Terbukti nyata"**. Tidak mengubah D-12 (RPO/RTO) dan D-18 (retensi), yang tetap Terbuka.
 
-## 3. Rancangan lokasi terpisah (belum dipasang — butuh server)
-- **Jadwal:** harian + sebelum setiap migrasi; usulan retensi 7 harian / 4 mingguan / 6 bulanan (selaras D-18, perlu diputuskan).
-- **Salinan di luar server:** salin berkas `.dump.gpg` + `.sha256` ke penyimpanan terpisah (provider/lokasi berbeda) dengan kredensial tulis-saja; passphrase dan kunci aplikasi di brankas berbeda dari keduanya.
-- **Restore drill berkala:** bulanan ke DB terpisah memakai `backup-restore-drill`-style verifikasi; dicatat waktunya.
-- **Untuk RPO ≤ 1 jam (D-12):** `pg_dump` harian **tidak cukup**; perlu arsip WAL kontinu (mis. pgBackRest/`pg_basebackup` + `archive_command`). Diputuskan bersama penilaian biaya D-12 (target Tahap 7).
+## 3. Backup terjadwal — keputusan D-12 (26 Nov 2026): skrip siap; **pemasangan = tugas operator**
+**Keputusan D-12 (Diputuskan, pemilik, 26 Nov 2026).** *Staging:* RPO ≤ 24 jam, RTO ≤ 1 hari kerja; backup **harian** terenkripsi (DB + media); simpan **7 hari**; salinan **di luar VPS**; uji restore **bulanan dan setiap migrasi**; pembuat ≠ pemeriksa; kunci terpisah dari VPS. *Production:* RPO ≤ 1 jam (backup harian + arsip WAL kontinu, mis. pgBackRest/WAL-G), RTO ≤ 4 jam kerja, diuji sebelum go-live — **dibangun di Tahap 7**; `pg_dump` harian saja **tidak cukup** untuk production.
+
+**Skrip:** `scripts/backup-rotate.sh` memakai `backup.sh` yang sama → menyimpan `BACKUP_KEEP` set terakhir (bawaan **7**; satu set = dump + media + dua `.sha256`) → menyalin set baru ke luar VPS lewat `BACKUP_OFFSITE_CMD`. Invarian (diuji, `@tahap-1`): rotasi hanya setelah backup baru sukses **dan** checksum cocok; hanya berkas ber-pola persis yang dihapus; offsite gagal ⇒ kode keluar 4 dan backup lokal **tetap ada**; `BACKUP_OFFSITE_CMD` kosong ⇒ kode 5 (salinan di luar VPS wajib; `BACKUP_OFFSITE_OPTIONAL=1` hanya dev/drill); dua eksekusi bersamaan dicegah (`flock`, kode 6). Kode keluar: 0 sukses · 2 konfigurasi · 3 checksum baru tidak cocok · 4 offsite gagal · 5 offsite tidak dikonfigurasi · 6 sedang berjalan.
+
+**Contoh pemasangan (operator; berkas di server, BUKAN di repository):**
+```bash
+# /etc/teone/backup.env  (root:root, chmod 600) — HANYA di server. Kredensial PG, jalur passphrase, dan perintah offsite ada di sini.
+PGHOST=127.0.0.1
+PGPORT=5432
+PGUSER=teone_owner
+PGPASSWORD=<dari pengelola rahasia>          # tidak pernah di repository
+PGDATABASE=<nama-database-staging>
+BACKUP_PASSPHRASE_FILE=/etc/teone/backup.pass   # chmod 600; salinan passphrase di brankas terpisah
+BACKUP_DIR=/var/backups/teone
+MEDIA_DIR=/var/lib/docker/volumes/deploy_media_data/_data   # jalur volume media (periksa dengan `docker volume inspect deploy_media_data`)
+BACKUP_REQUIRE_MEDIA=1
+BACKUP_KEEP=7
+# Tujuan di luar VPS (akun/penyimpanan berbeda). Kredensial tujuan ada di konfigurasi alat itu (mis. /etc/teone/rclone.conf, chmod 600).
+BACKUP_OFFSITE_CMD='rclone --config /etc/teone/rclone.conf copy "$BACKUP_DIR" tujuan:teone-staging --include "$(basename "$BACKUP_DUMP_FILE" .dump.gpg)*"'
+```
+```cron
+# /etc/cron.d/teone-backup — harian 02:15 (di luar jam ramai). Pengguna `root`: perlu membaca volume dan /etc/teone.
+15 2 * * *  root  set -a; . /etc/teone/backup.env; set +a; /opt/teone/chat-TEOne/scripts/backup-rotate.sh >> /var/log/teone-backup.log 2>&1
+```
+`pg_dump`/`psql` harus dapat menjangkau database (DB staging tidak dipublikasikan ke host: jalankan dari kontainer/jaringan yang sama, atau lewat `docker exec` seperti di `docs/tahap-2/runbook-uji-m11.md` §3). Pantau `/var/log/teone-backup.log` dan **kode keluar ≠ 0** (alarm); catat hasil sebagai teks.
+- **Uji restore berkala (D-12):** bulanan dan setelah setiap migrasi, ke DB/direktori **terpisah** (`scripts/restore.sh`, bukan DB staging); pemeriksa ≠ pembuat; catat artefak teks (nama berkas, SHA-256, ukuran, versi migrasi, durasi, hitungan baris).
+- **Retensi di tujuan offsite** (7 hari, D-12/D-18) = kebijakan siklus-hidup di penyimpanan tujuan; skrip hanya memangkas salinan **lokal**.
+- **Celah yang dilaporkan, TIDAK diubah diam-diam:** D-12 meminta *kunci terpisah dari VPS*, sedangkan enkripsi simetris `backup.sh` membaca passphrase dari berkas di VPS agar cron dapat berjalan. Opsi: enkripsi kunci-publik GPG (VPS hanya menyimpan kunci publik; kunci privat untuk restore di luar VPS). Belum dikerjakan — butuh keputusan lingkup.
 
 ## 4. Backup media — diimplementasikan; yang belum
 **Sudah (skrip + drill):** arsip media terenkripsi + checksum, restore ke direktori terpisah, verifikasi baris↔berkas. Media pelanggan disimpan **privat** di `MEDIA_DIR` (hanya metadata di database; diakses lewat endpoint yang memeriksa izin).
