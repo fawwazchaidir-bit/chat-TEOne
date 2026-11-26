@@ -9,8 +9,8 @@
 |---|---|---|---|
 | 1 | Server staging tersendiri dengan HTTPS publik (J0-03) — lihat `docs/staging.md` | Pemilik/Operasi | **Belum ada** |
 | 2 | Aplikasi Meta **milik TE One** (di Meta Business milik TE One) | Pemilik | **Belum terbukti ada** |
-| 3 | Jalur akses (D-02): Tech Provider sendiri atau BSP resmi untuk uji | Pemilik | **Terbuka** |
-| 4 | Nomor uji (D-03: usulan Kemitraan), belum dipublikasikan | Pemilik | **Belum terverifikasi** |
+| 3 | Jalur akses (D-02): **Diputuskan 26 Nov 2026** — aplikasi Meta milik sendiri "Trilogika Edutama TE-One" (dinyatakan pemilik: terkoneksi dan berhasil). Status Tech Provider/Embedded Signup untuk perpindahan Admisi tetap diverifikasi ke dokumentasi Meta sebelum Tahap 8 | Pemilik | **Diputuskan** |
+| 4 | Nomor uji (D-03): **Diputuskan 26 Nov 2026** — …6319 (channel Kemitraan Uji), satu-satunya nomor siap; pengirim di luar daftar uji tetap dikarantina + payload dibuang | Pemilik | **Diputuskan** (kesiapan nomor: dinyatakan pemilik) |
 | 5 | Token akses **system user** (bukan token pribadi) dengan izin pesan WhatsApp untuk WABA uji | Pemilik | Belum ada |
 | 6 | Daftar peserta uji (nomor yang boleh menerima/mengirim saat uji) | Pemilik | Belum ada |
 

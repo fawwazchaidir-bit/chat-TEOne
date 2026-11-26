@@ -2,7 +2,8 @@
  * Tindak lanjut audit ulang Gate 1 (G1-A02 portabilitas, G1-A05 backup/restore): verifikasi media (fungsi murni) dan penjaga statis agar perbaikan
  * tidak mundur. Perilaku shell (backup/restore sungguhan) dibuktikan oleh drill `scripts/backup-restore-drill.sh` (job CI "Drill backup & restore nyata").
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
@@ -166,5 +167,225 @@ describe("@tahap-1 build & deployment staging dapat direproduksi dan dikaitkan k
     expect(ci).toContain("npm run db:migrate");
     expect(ci).toContain("caddy validate");
     expect(ci).not.toMatch(/PASSWORD:\s*\S*[A-Za-z0-9]{8,}.*\n.*teone_owner/); // sandi tidak ditulis literal di langkah image
+  });
+});
+
+describe("@tahap-1 worker staging siap dijalankan dan nama proyek compose dikunci (S-10/A-4, S-06/R-2)", () => {
+  const compose = read("deploy/docker-compose.staging.yml");
+  const lines = compose.split("\n");
+  const serviceBlock = (name: string) => {
+    const i = lines.findIndex((l) => l === `  ${name}:` || l.startsWith(`  ${name}:`));
+    expect(i, `service ${name}`).toBeGreaterThanOrEqual(0);
+    let j = i + 1;
+    while (j < lines.length && !/^ {2}\S/.test(lines[j]!) && !/^\S/.test(lines[j]!)) j++;
+    return lines.slice(i, j).join("\n");
+  };
+
+  it("compose menetapkan `name: deploy` di puncak (sebelum services) sehingga volume deploy_* yang ada tetap dipakai dari direktori mana pun", () => {
+    const nameIdx = lines.findIndex((l) => /^name: deploy\s*$/.test(l));
+    const servicesIdx = lines.findIndex((l) => /^services:\s*$/.test(l));
+    expect(nameIdx).toBeGreaterThanOrEqual(0);
+    expect(servicesIdx).toBeGreaterThan(nameIdx);
+    expect(compose.match(/^name:/gm)).toHaveLength(1);
+  });
+
+  it("service worker: image tools bertag sama, perintah `npm run worker`, env sama dengan app (env_file + MEDIA_DIR + volume media), restart, shutdown halus", () => {
+    const w = serviceBlock("worker");
+    const a = serviceBlock("app");
+    expect(w).toContain("image: teone-tools:${TEONE_TAG:-staging}");
+    expect(w).toContain('command: ["npm", "run", "worker"]');
+    expect(w).toContain("env_file: /etc/teone/staging.env");
+    expect(a).toContain("env_file: /etc/teone/staging.env");
+    for (const needle of ["MEDIA_DIR: /data/media", "media_data:/data/media", "restart: unless-stopped", "stop_grace_period:", 'user: "10001:10001"']) {
+      expect(w, needle).toContain(needle);
+      if (needle.startsWith("MEDIA_DIR") || needle.startsWith("media_data")) expect(a, `app ${needle}`).toContain(needle); // sama dengan app
+    }
+    expect(w).toMatch(/depends_on:.*db.*service_healthy/);
+    expect(w).not.toMatch(/ports:/); // tidak dipublikasikan
+    expect(JSON.parse(read("package.json")).scripts.worker).toBe("node --import tsx scripts/worker.ts");
+  });
+
+  it("perintah menyalakan worker terdokumentasi (`-p deploy`, dua --env-file, --no-deps) dan scripts/worker.ts memakai loop yang diuji + mode --once", () => {
+    const d = read("docs/staging.md");
+    expect(d).toContain("-p deploy --env-file /etc/teone/staging.env --env-file deploy/.env");
+    expect(d).toContain("up -d --no-deps worker");
+    const w = read("scripts/worker.ts");
+    expect(w).toContain("runWorkerLoop");
+    expect(w).toContain('process.argv.includes("--once")');
+    expect(read("src/modules/conversations-messages/worker-loop.ts")).toContain("runMaintenance"); // pemeliharaan (termasuk purge payload D-18) hidup di loop worker
+  });
+});
+
+describe("@tahap-1 D-12 backup terjadwal: backup-rotate.sh (simpan 7, salinan di luar VPS, tanpa kredensial di repo)", () => {
+  const dirs: string[] = [];
+  afterEach(() => { while (dirs.length) rmSync(dirs.pop()!, { recursive: true, force: true }); });
+  const DB = "teone_uji";
+  // Backup.sh TIRUAN (tanpa DB/gpg): membuat set bernama sama dengan backup.sh sungguhan; kontrak stdout = jalur dump pada baris terakhir.
+  const FAKE = `#!/usr/bin/env bash
+set -euo pipefail
+: "\${BACKUP_DIR:?}" "\${PGDATABASE:?}" "\${FAKE_STAMP:?}"
+mkdir -p "$BACKUP_DIR"
+[ "\${FAKE_FAIL:-0}" = 1 ] && { echo "backup gagal (tiruan)" >&2; exit 1; }
+d="$BACKUP_DIR/$PGDATABASE-$FAKE_STAMP.dump.gpg"; m="$BACKUP_DIR/$PGDATABASE-$FAKE_STAMP.media.tar.gpg"
+printf 'dump-%s' "$FAKE_STAMP" > "$d"; printf 'media-%s' "$FAKE_STAMP" > "$m"
+( cd "$BACKUP_DIR" && sha256sum "$(basename "$d")" > "$(basename "$d").sha256" && sha256sum "$(basename "$m")" > "$(basename "$m").sha256" )
+[ "\${FAKE_BAD_SUM:-0}" = 1 ] && echo "0000000000000000000000000000000000000000000000000000000000000000  $(basename "$d")" > "$d.sha256"
+echo "$d"
+`;
+  function setup() {
+    const base = mkdtempSync(path.join(os.tmpdir(), "teone-rotate-"));
+    dirs.push(base);
+    const script = path.join(base, "fake-backup.sh");
+    writeFileSync(script, FAKE); chmodSync(script, 0o755);
+    const backups = path.join(base, "backups"); const offsite = path.join(base, "offsite");
+    return { base, script, backups, offsite };
+  }
+  const stampOf = (i: number) => `2026110${i}T020000Z`; // 1..8
+  const rotate = (e: ReturnType<typeof setup>, i: number, env: Record<string, string> = {}) => {
+    const r = spawnSync("bash", [path.join(root, "scripts/backup-rotate.sh")], {
+      encoding: "utf8", timeout: 60_000,
+      env: { PATH: process.env.PATH ?? "", BACKUP_DIR: e.backups, PGDATABASE: DB, BACKUP_SCRIPT: e.script, FAKE_STAMP: stampOf(i), OFFSITE: e.offsite, ...env } as unknown as NodeJS.ProcessEnv, // sengaja TANPA NODE_ENV dll.: lingkungan minimal agar skrip tidak bergantung pada variabel proses uji
+    });
+    return { code: r.status, out: `${r.stdout}${r.stderr}`, stdout: r.stdout.trim() };
+  };
+  const files = (dir: string) => (existsSync(dir) ? readdirSync(dir).filter((f) => !f.startsWith(".")).sort() : []);
+  const dumps = (dir: string) => files(dir).filter((f) => f.endsWith(".dump.gpg"));
+  const COPY = 'mkdir -p "$OFFSITE" && cp -p $BACKUP_FILES "$OFFSITE"/';
+
+  it("8 backup berturut-turut → TUJUH set tersisa (terbaru), set tertua beserta media dan checksumnya terhapus; berkas lain/DB lain tidak disentuh", () => {
+    const e = setup();
+    mkdirSync(e.backups, { recursive: true });
+    writeFileSync(path.join(e.backups, "catatan-operator.txt"), "jangan dihapus");
+    writeFileSync(path.join(e.backups, "lain_db-20260101T000000Z.dump.gpg"), "db lain");
+    for (let i = 1; i <= 8; i++) { const r = rotate(e, i, { BACKUP_OFFSITE_OPTIONAL: "1" }); expect(r.code, r.out).toBe(0); }
+    expect(dumps(e.backups).filter((f) => f.startsWith(DB))).toEqual([2, 3, 4, 5, 6, 7, 8].map((i) => `${DB}-${stampOf(i)}.dump.gpg`));
+    expect(files(e.backups).filter((f) => f.includes(stampOf(1)) && f.startsWith(DB))).toEqual([]); // dump, media, dan kedua .sha256 set-1 hilang
+    expect(files(e.backups).filter((f) => f.includes(stampOf(2)) && f.startsWith(DB))).toHaveLength(4); // set-2 utuh
+    expect(files(e.backups)).toEqual(expect.arrayContaining(["catatan-operator.txt", "lain_db-20260101T000000Z.dump.gpg"]));
+  });
+
+  it("BACKUP_KEEP dihormati (3) dan nilai berbahaya (0, 00, abc, negatif) DITOLAK sebelum apa pun dihapus", () => {
+    const e = setup();
+    for (let i = 1; i <= 5; i++) expect(rotate(e, i, { BACKUP_OFFSITE_OPTIONAL: "1", BACKUP_KEEP: "7" }).code).toBe(0);
+    const before = files(e.backups);
+    for (const bad of ["0", "00", "abc", "-1", "1.5"]) {
+      const r = rotate(e, 6, { BACKUP_OFFSITE_OPTIONAL: "1", BACKUP_KEEP: bad });
+      expect(r.code, `KEEP='${bad}': ${r.out}`).toBe(2);
+      expect(files(e.backups), `KEEP='${bad}'`).toEqual(before); // tidak ada yang berubah (bahkan tidak ada backup baru)
+    }
+    expect(rotate(e, 6, { BACKUP_OFFSITE_OPTIONAL: "1", BACKUP_KEEP: "3" }).code).toBe(0);
+    expect(dumps(e.backups)).toHaveLength(3);
+    expect(dumps(e.backups)[2]).toContain(stampOf(6)); // yang terbaru selalu bertahan
+  });
+
+  it("backup GAGAL → tidak ada rotasi: semua backup lama tetap ada (kegagalan tidak boleh menghapus riwayat)", () => {
+    const e = setup();
+    for (let i = 1; i <= 7; i++) rotate(e, i, { BACKUP_OFFSITE_OPTIONAL: "1" });
+    const before = files(e.backups);
+    const r = rotate(e, 8, { BACKUP_OFFSITE_OPTIONAL: "1", FAKE_FAIL: "1", BACKUP_KEEP: "2" });
+    expect(r.code).toBe(1);
+    expect(files(e.backups)).toEqual(before);
+  });
+
+  it("checksum backup BARU tidak cocok → kode 3 dan TIDAK ada yang dihapus", () => {
+    const e = setup();
+    for (let i = 1; i <= 3; i++) rotate(e, i, { BACKUP_OFFSITE_OPTIONAL: "1" });
+    const r = rotate(e, 4, { BACKUP_OFFSITE_OPTIONAL: "1", FAKE_BAD_SUM: "1", BACKUP_KEEP: "1" });
+    expect(r.code, r.out).toBe(3);
+    expect(dumps(e.backups).filter((f) => f.startsWith(DB)).length).toBeGreaterThanOrEqual(3); // set lama utuh
+    expect(files(e.backups).some((f) => f.includes(stampOf(1)))).toBe(true);
+  });
+
+  it("salinan di luar VPS BERHASIL: perintah menerima set baru (BACKUP_FILES/STAMP/DUMP_FILE), checksum salinan cocok, keluaran = jalur dump", () => {
+    const e = setup();
+    const r = rotate(e, 1, { BACKUP_OFFSITE_CMD: COPY });
+    expect(r.code, r.out).toBe(0);
+    expect(r.stdout.split("\n").pop()).toBe(path.join(e.backups, `${DB}-${stampOf(1)}.dump.gpg`));
+    expect(files(e.offsite)).toEqual(files(e.backups));
+    const chk = spawnSync("bash", ["-c", `cd "${e.offsite}" && sha256sum --check --status *.sha256`]);
+    expect(chk.status).toBe(0);
+  });
+
+  it("salinan di luar VPS GAGAL → kode keluar ≠ 0 (4) dan backup LOKAL (termasuk yang baru) tetap ada; offsite tak dikonfigurasi → kode 5, lokal tetap ada", () => {
+    const e = setup();
+    for (let i = 1; i <= 2; i++) rotate(e, i, { BACKUP_OFFSITE_OPTIONAL: "1" });
+    const gagal = rotate(e, 3, { BACKUP_OFFSITE_CMD: "echo 'tujuan tidak terjangkau' >&2; exit 7" });
+    expect(gagal.code, gagal.out).toBe(4);
+    expect(gagal.out).toContain("Backup LOKAL tetap ada");
+    expect(dumps(e.backups)).toContain(`${DB}-${stampOf(3)}.dump.gpg`);
+    expect(dumps(e.backups)).toHaveLength(3);
+    const kosong = rotate(e, 4, {});
+    expect(kosong.code, kosong.out).toBe(5);
+    expect(kosong.out).toContain("BACKUP_OFFSITE_CMD belum dikonfigurasi");
+    expect(dumps(e.backups)).toContain(`${DB}-${stampOf(4)}.dump.gpg`);
+  });
+
+  it("dua eksekusi bersamaan dicegah (flock): yang kedua keluar kode 6 tanpa menyentuh backup", async () => {
+    const e = setup();
+    mkdirSync(e.backups, { recursive: true });
+    const holder = spawn("bash", ["-c", `exec 9>"${e.backups}/.backup-rotate.lock"; flock 9; sleep 8`], { stdio: "ignore" });
+    try {
+      await new Promise((r) => setTimeout(r, 600));
+      const r = rotate(e, 1, { BACKUP_OFFSITE_OPTIONAL: "1" });
+      expect(r.code, r.out).toBe(6);
+      expect(dumps(e.backups)).toEqual([]);
+    } finally { holder.kill(); }
+  });
+
+  it("repository: skrip tanpa kredensial, memakai backup.sh yang sama, set -euo pipefail; crontab contoh + variabel terdokumentasi di docs/backup-restore.md; drill CI menjalankan rotasi nyata", () => {
+    const sh = read("scripts/backup-rotate.sh");
+    expect(sh).toContain("set -euo pipefail");
+    expect(sh).toContain('BACKUP_SCRIPT="${BACKUP_SCRIPT:-$here/backup.sh}"');
+    expect(sh).not.toMatch(/PGPASSWORD=|passphrase=|--passphrase |secret|token/i);
+    expect(statSyncMode("scripts/backup-rotate.sh") & 0o111).not.toBe(0);
+    const d = read("docs/backup-restore.md");
+    for (const needle of ["backup-rotate.sh", "BACKUP_OFFSITE_CMD", "BACKUP_KEEP", "/etc/cron.d/teone-backup", "D-12"]) expect(d, needle).toContain(needle);
+    expect(read("scripts/backup-restore-drill.sh")).toContain("backup-rotate.sh");
+  });
+});
+const statSyncMode = (f: string) => statSync(path.join(root, f)).mode;
+
+describe("@tahap-1 D-18 staging: log akses aman 30 hari, retensi payload dijalankan worker, penanda keputusan (P6/P7)", () => {
+  const caddy = read("deploy/Caddyfile");
+  const compose = read("deploy/docker-compose.staging.yml");
+
+  it("Caddyfile: log akses ke berkas bergulir 720 jam, tanpa header apa pun (Cookie/Authorization/X-Hub-Signature), tanpa header respons, query verify-token disamarkan; tanpa mode debug", () => {
+    for (const needle of ["output file /data/log/access.log", "roll_keep_for 720h", "format filter", "wrap json", "request>headers delete", "resp_headers delete", "replace hub.verify_token REDACTED", "replace hub.challenge REDACTED", "level INFO"]) {
+      expect(caddy, needle).toContain(needle);
+    }
+    expect(caddy).not.toMatch(/^\s*debug\b/m); // opsi global `debug`
+    expect(caddy).not.toMatch(/level\s+DEBUG/i);
+    expect(caddy).not.toMatch(/log_credentials|log_append|request>body|\bbody\b.*log/i); // tidak ada pencatatan kredensial/body
+    expect(caddy).not.toMatch(/trilogikaedutama|https?:\/\//); // domain tetap dari SITE_ADDRESS (tes lain menjaga ini juga)
+  });
+
+  it("compose: setiap service (db, app, worker, caddy) memakai logging json-file ber-batas ukuran; keterbatasan umur log kontainer dinyatakan jujur", () => {
+    expect(compose).toMatch(/x-logging: &logging\n\s+driver: json-file\n\s+options:\n\s+max-size: "10m"\n\s+max-file: "10"/);
+    expect(compose.match(/^ {4}logging: \*logging$/gm)).toHaveLength(4);
+    expect(compose).toContain("TIDAK membatasi umur");
+  });
+
+  it("retensi payload mentah 30 hari = keputusan D-18 dan DIJALANKAN worker: RAW_PAYLOAD_RETENTION_DAYS → purgeRawPayloads → runMaintenance → worker-loop → scripts/worker.ts → service worker", () => {
+    const store = read("src/modules/whatsapp-adapter/inbound-store.ts");
+    expect(store).toMatch(/RAW_PAYLOAD_RETENTION_DAYS = 30; \/\/ D-18 \(Diputuskan 26 Nov 2026\)/);
+    expect(store).toContain("purgeRawPayloads(days = RAW_PAYLOAD_RETENTION_DAYS)");
+    expect(read("src/modules/conversations-messages/worker.ts")).toMatch(/runMaintenance[\s\S]*await purgeRawPayloads\(\)/);
+    expect(read("src/modules/conversations-messages/worker-loop.ts")).toContain("await runMaintenance()");
+    expect(read("scripts/worker.ts")).toContain("runWorkerLoop");
+    expect(compose).toContain('command: ["npm", "run", "worker"]');
+  });
+
+  it("penanda ASUMSI untuk D-02/D-03/D-12/D-18 diganti rujukan keputusan di kode dan dokumen hidup; nilai yang berbeda dari keputusan dinyatakan eksplisit (tidak diubah diam-diam)", () => {
+    const walk = (dir: string): string[] => readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+    const targets = [...walk("src").filter((f) => /\.(ts|tsx)$/.test(f)), "tests/integration/tahap2-migration-retention.test.ts",
+      "docs/tahap-2/webhook-dan-keamanan.md", "docs/tahap-2/konfigurasi-staging.md", "docs/klasifikasi-data-dan-retensi.md", "docs/backup-restore.md"];
+    const bad = /ASUMSI[^\n]{0,30}D-(02|03|12|18)\b|D-(02|03|12|18)\b[^\n]{0,30}ASUMSI/;
+    for (const f of targets) expect(read(f).split("\n").filter((l) => bad.test(l)), f).toEqual([]);
+    const k = read("docs/tahap-2/konfigurasi-staging.md");
+    expect(k).toContain("**Diputuskan 26 Nov 2026** — aplikasi Meta milik sendiri");
+    expect(k).toMatch(/D-03\): \*\*Diputuskan 26 Nov 2026\*\* — …6319/);
+    const kl = read("docs/klasifikasi-data-dan-retensi.md");
+    expect(kl).toContain("Nilai yang BERBEDA — tidak diubah diam-diam");
+    expect(kl).toContain("D-18 Diputuskan");
   });
 });

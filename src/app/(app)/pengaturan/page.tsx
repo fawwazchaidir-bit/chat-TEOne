@@ -16,7 +16,7 @@ export default async function SettingsPage() {
       <PageHeader title="Pengaturan organisasi" sub="Jumlah channel maksimal adalah pengaturan organisasi (bawaan 5), bukan konstanta di kode." />
       <OrgSettingsForm maxChannels={org.maxChannels} timezone={org.timezone} activeChannels={n} canEdit={ctx.user.isSuperAdmin} />
       <div className="card small muted">
-        <strong>Belum tersedia:</strong> pengaturan jam kerja/jam kirim (Tahap 6), retensi data (D-18, masih usulan), dan integrasi Meta (Tahap 2).
+        <strong>Belum tersedia:</strong> pengaturan jam kerja/jam kirim (Tahap 6), retensi data (D-18 staging sudah diputuskan; pengaturannya di UI belum ada), dan integrasi Meta (Tahap 2).
       </div>
     </>
   );

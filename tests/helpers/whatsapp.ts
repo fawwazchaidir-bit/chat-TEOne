@@ -29,7 +29,7 @@ export const messagesChange = (o: { phoneId?: string; messages?: Obj[]; statuses
   value: { ...meta(o.phoneId ?? PHONE_ID, o.display), ...(o.contacts ? { contacts: o.contacts } : o.messages?.length ? { contacts: [{ profile: { name: "Peserta Uji" }, wa_id: (o.messages[0] as Obj).from }] } : {}), ...(o.messages ? { messages: o.messages } : {}), ...(o.statuses ? { statuses: o.statuses } : {}) },
 });
 export const statusObj = (id: string, status: string, recipient = CUSTOMER, extra: Obj = {}): Obj => ({ id, status, timestamp: nowSec(), recipient_id: recipient, ...extra });
-export const echoChange = (echoes: Obj[], phoneId = PHONE_ID): Obj => ({ field: "smb_message_echoes", value: { ...meta(phoneId), message_echoes: echoes } });
+export const echoChange = (echoes: Obj[], phoneId = PHONE_ID, contacts?: Obj[]): Obj => ({ field: "smb_message_echoes", value: { ...meta(phoneId), ...(contacts ? { contacts } : {}), message_echoes: echoes } });
 export const historyChange = (threads: Obj[], progress: Obj = { phase: 0, chunk_order: 1, progress: 10 }, phoneId = PHONE_ID): Obj => ({ field: "history", value: { ...meta(phoneId), history: [{ metadata: progress, threads }] } });
 
 /** Mengirim webhook ke handler route yang SEBENARNYA (raw body + tanda tangan). */

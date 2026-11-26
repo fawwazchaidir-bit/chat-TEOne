@@ -1,39 +1,22 @@
 /**
- * Worker antrean event masuk (ADR-0002) — proses TERPISAH yang disarankan di staging/production (set WORKER_INLINE=false pada web).
+ * Worker antrean event masuk (ADR-0002) — proses TERPISAH yang diperlukan di staging/production (A-4; set WORKER_INLINE=false pada web
+ * bila diinginkan). Hanya proses ini yang menjalankan pemeliharaan berkala (retensi payload D-18, penyapu/rekonsiliasi, ulang media, fallback outbox).
  * Aman dijalankan >1 replika (FOR UPDATE SKIP LOCKED) dan tahan restart (lease). Shutdown halus pada SIGTERM/SIGINT.
+ * `npm run worker -- --once` = satu siklus (kuras antrean + pemeliharaan sekali) lalu keluar; kode keluar ≠ 0 bila ada galat.
  */
 import { closeDb } from "../src/db/client";
 import { safeErrorLabel } from "../src/lib/safe-error";
-import { processInboundBatch, runMaintenance } from "../src/modules/conversations-messages";
+import { runWorkerLoop } from "../src/modules/conversations-messages/worker-loop";
 
 let stop = false;
 for (const sig of ["SIGTERM", "SIGINT"] as const) process.on(sig, () => { console.log(`[worker] ${sig} diterima, berhenti setelah batch ini`); stop = true; });
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const once = process.argv.includes("--once");
 
 async function main() {
-  console.log("[worker] mulai");
-  let lastMaintenance = 0;
-  while (!stop) {
-    let claimed = 0;
-    try {
-      const r = await processInboundBatch();
-      claimed = r.claimed;
-      if (r.claimed) console.log(`[worker] batch: diklaim=${r.claimed} diproses=${r.processed} karantina=${r.quarantined} gagal=${r.failed}`);
-    } catch (e) {
-      console.error(`[worker] batch gagal: ${safeErrorLabel(e)}`);
-    }
-    if (Date.now() - lastMaintenance > 60_000) {
-      lastMaintenance = Date.now();
-      try {
-        const m = await runMaintenance();
-        if (m.purged || m.reconciled || m.expired || m.mediaRetried || m.outbox || m.jobs) console.log(`[worker] pemeliharaan: payload-dibersihkan=${m.purged} direkonsiliasi=${m.reconciled} diproses-tertahan->belum-pasti=${m.expired} media-diulang=${m.mediaRetried} outbox=${m.outbox} job=${m.jobs}`);
-      } catch (e) {
-        console.error(`[worker] pemeliharaan gagal: ${safeErrorLabel(e)}`);
-      }
-    }
-    if (claimed === 0) await sleep(1000);
-  }
+  console.log(once ? "[worker] mulai (satu siklus)" : "[worker] mulai");
+  const r = await runWorkerLoop({ once, shouldStop: () => stop, log: (m) => console.log(m), logError: (m) => console.error(m) });
   await closeDb();
-  console.log("[worker] berhenti");
+  console.log(`[worker] berhenti (batch=${r.batches} diklaim=${r.claimed} pemeliharaan=${r.maintenanceRuns} galat=${r.errors})`);
+  if (once && r.errors > 0) process.exitCode = 1;
 }
 main().catch((e) => { console.error(`[worker] fatal: ${safeErrorLabel(e)}`); process.exit(1); });

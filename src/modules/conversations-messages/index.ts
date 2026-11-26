@@ -3,7 +3,7 @@ export { onCustomerMessage, emitCustomerMessage, automationEligible, AUTOMATION_
 export { evaluateWindow, provenCustomerTime, WINDOW_MS, type WindowState } from "./window";
 export { deriveStatus, applyStatusesToMessage, recordStatusEvent, PROVIDER_STATUS, type MessageStatus } from "./status";
 export { ingestEvent, type IngestOutcome } from "./ingest";
-export { processInboundBatch, kickProcessing, runMaintenance, type BatchResult } from "./worker";
+export { processInboundBatch, kickProcessing, waitForKickIdle, createKicker, KICK_BATCHES_PER_ROUND, runMaintenance, type BatchResult, type KickDeps } from "./worker";
 export { sendOutbound, classifyFailure, type SendInput, type SendResult } from "./send";
 export { reconcileUncertain, expireStaleProcessing, processingStaleMs, resolveUncertainManually } from "./reconcile";
 export { fetchInboundMedia, readMediaForUser, retryPendingMedia, sniffMime, MEDIA_LIMITS, ALLOWED_MIME } from "./media";
@@ -15,3 +15,4 @@ export { setAiState, AI_OFF_REASONS, AI_OFF_LABEL, type AiChange, type AiState, 
 export { dispatchOutbox, enqueueCustomerMessage } from "./outbox";
 export { executeSend, validateSendInput, byKey, asResult, safeName, type ExecuteSendInput, type SendActor } from "./send";
 export { recipientAllowed } from "./recipients";
+export { runWorkerLoop, MAINTENANCE_INTERVAL_MS, IDLE_SLEEP_MS, type WorkerLoopOptions, type WorkerLoopResult } from "./worker-loop";

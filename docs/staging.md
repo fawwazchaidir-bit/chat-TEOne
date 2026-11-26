@@ -49,7 +49,15 @@ Role DB dibuat dulu dengan `db/init-roles.sql` (sandi dari secret manager). Raha
 
 ## 5b. Tahap 2 — webhook WhatsApp dan worker
 - Meta harus menjangkau `https://<domain-staging>/api/webhooks/whatsapp` (POST/GET) lewat Caddy; **tidak** ada autentikasi sesi di jalur ini (diamankan tanda tangan + verify token).
-- Service `worker` dan volume `media_data` ada di `deploy/docker-compose.staging.yml` (**belum terbukti di server**). Backup media: skrip `backup.sh`/`restore.sh` kini mencakup media (`docs/backup-restore.md`); jadwal & salinan terpisah di server belum ada.
+- Service `worker` dan volume `media_data` ada di `deploy/docker-compose.staging.yml`; nama proyek **dikunci `name: deploy`** (volume `deploy_pg_data`, `deploy_media_data`, `deploy_caddy_data`). **Worker adalah satu-satunya yang menjalankan pemeliharaan berkala** (retensi payload ≤ 30 hari D-18, penyapu/rekonsiliasi `belum_pasti`, ulang media, fallback outbox); mode inline di `app` hanya memproses antrean saat ada webhook (S-10). Menyalakan worker (A-4 disetujui pemilik 26 Nov 2026; **tugas operator**, tanpa membangun ulang image `app`):
+  ```bash
+  sudo docker compose -p deploy --env-file /etc/teone/staging.env --env-file deploy/.env \
+    -f deploy/docker-compose.staging.yml up -d --no-deps worker
+  sudo docker compose -p deploy --env-file /etc/teone/staging.env --env-file deploy/.env -f deploy/docker-compose.staging.yml config | grep -E 'name:|image:|SITE_ADDRESS'   # periksa nama proyek, tag image, domain
+  sudo docker compose -p deploy -f deploy/docker-compose.staging.yml logs --tail 20 worker    # harapan: "[worker] mulai"; tanpa "[worker] fatal"
+  npm run worker -- --once   # (opsional, dari image tools) satu siklus lalu keluar; kode keluar ≠ 0 bila ada galat
+  ```
+  Image `teone-tools:<tag>` harus sudah ada di server (dibangun `scripts/build-staging-image.sh`); tag sama dengan `app`. Backup media: skrip `backup.sh`/`restore.sh` kini mencakup media (`docs/backup-restore.md`); jadwal & salinan terpisah di server belum ada.
 - **Keamanan staging dengan Meta asli:** flag `inbox` dan `ai_simulation` harus **mati**. `ai_simulation` kini ditolak server bila `META_GRAPH_BASE_URL` = `graph.facebook.com` (mengirim `[SIMULASI]` nyata dilarang).
 - Variabel `META_*`, `MEDIA_DIR`, `WORKER_INLINE`: lihat `tahap-2/konfigurasi-staging.md`.
 
