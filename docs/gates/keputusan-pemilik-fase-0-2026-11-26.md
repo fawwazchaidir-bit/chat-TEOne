@@ -99,3 +99,7 @@ Pernyataan pemilik (verbatim): "go live 15 januari tanpa ai sesuai saranmu".
 - **D-14 tetap Terbuka:** perlu ditetapkan apakah Kemitraan (…6319) live lebih dulu (paling lambat ±6 Jan) atau Admisi menjadi nomor pertama.
 - **Pembaruan:** pemilik memilih **D-14 opsi A** ("D-14 pilih A, Kemitraan live dulu"): Kemitraan ≤ ±6 Jan 2027 → observasi ≥ 5 hari kerja → Admisi 15 Jan 2027. Konsekuensi: Gate 1–3, template manual, dan Gate 7–9 untuk Kemitraan harus selesai **sebelum ±6 Jan 2027**; Kemitraan go-live **sebelum freeze 7–14 Jan**.
 - Bukti teks staging diterima → `docs/reports/bukti/staging-j2-2026-11-26.md`.
+
+## 8. M-12 (riwayat) — 26 Nov 2026
+Pernyataan pemilik (verbatim): "tetap gunakan nomor kemitraan ini, siapkan dengan kontijensi".
+Dicatat sebagai **A-3: M-12 pada …6319**. Rencana + kontinjensi: `docs/tahap-2/runbook-m12-6319.md` (Jalur A hari ini sebelum jendela 24 jam tutup, atau Jalur B onboarding ulang setelah PR S-12). Jalur A **hanya** dijalankan setelah pemilik menulis "SETUJU JALUR A".
