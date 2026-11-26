@@ -36,3 +36,10 @@
 | Ditemukan pesan pelanggan nyata tersimpan (bukan dari daftar uji) | Insiden D-18: catat jumlah (bukan isi), hapus ≤ 3 hari kerja |
 | Webhook berhenti / app tidak sehat | Rollback image (runbook Fase 2 Langkah 5) — data tidak terpengaruh |
 | Kontak/riwayat masuk tetapi bentuk tidak dikenal (karantina `bentuk_tidak_dikenal`) | Normal-aman (S-05); catat hitungan untuk perbaikan normalizer di PR S-12 |
+
+## Hasil Jalur A — 26 Nov 2026, 10.30 WIB
+Prasyarat terpenuhi (test_mode, terverifikasi nyata, 1 penerima uji, kill switch global menyala — diperiksa otomatis sebelum panggilan; backup `20261126T032838Z` offsite=ok). Baseline: pesan 9 · history 0 · unread_eligible 5 · automation_jobs 0 · domain_outbox 3 · kontak 1.
+
+Step 1 (`smb_app_state_sync`): **ditolak Meta** — `http 400`, `code 131000`, `subcode 10`, "This API is only available to WhatsApp Business App phone numbers onboarded on to WhatsApp Business Platform". Step 2 **tidak** dipanggil. Tidak ada data yang berubah; kesempatan sinkronisasi tidak terpakai.
+
+**Temuan G2-B06 (tinggi, sementara):** Meta tidak mengakui …6319 sebagai nomor WhatsApp Business App yang di-onboard (coexistence) untuk aplikasi TE-One. Dampak: M-11 (echo) kemungkinan tidak menghasilkan event; CCP 2.10 belum terbukti; rencana pemindahan Admisi (coexistence di Halo AI) mungkin memerlukan Embedded Signup aplikasi TE-One dan status Tech Provider/Solution Partner (D-02). Diagnosis berikut: `GET /<phone_number_id>?fields=is_on_biz_app,platform_type` (baca-saja).
