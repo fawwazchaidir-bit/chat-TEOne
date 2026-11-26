@@ -122,3 +122,9 @@ Pemilik sebelumnya memilih (i); telaah ini disampaikan untuk konfirmasi ulang.
 ## 11. Perubahan D-04: go-live dengan AI (26 Nov 2026)
 Pernyataan pemilik (verbatim): "saya revisi, sekarang saya ingin go live sudah dengan ai".
 Dampak yang dicatat auditor: AI agent = Tahap 4 → wajib lulus **Gate 4** (CCP 4.1–4.7: filter Kartu Program/knowledge, validasi jadwal & tautan oleh kode, set uji D-21 dengan **0 fabrikasi**, pemeriksaan ulang sebelum kirim, eskalasi, batas biaya + kill switch AI, simulator terisolasi) **sebelum freeze 7 Jan 2027**. Keputusan wajib sebelum pembangunan: **D-09** (provider/model, batas biaya, data yang dikirim — tanpa default), D-10, D-15, D-20, D-21, D-23; konten **Kartu Program**; `docs/prompts/tahap-4.md`; izin eksplisit kerja paralel Tahap 4 selama Gate 3 berjalan (AGENTS.md §2.3). Mode AI saat go-live **belum ditetapkan** (opsi di respons auditor: penuh / bertahap-asisten / menyusul).
+
+## 12. Mode AI & izin paralel Tahap 4 (26 Nov 2026)
+Pernyataan pemilik (verbatim): "B, izinkan Tahap 4 paralel, siapkan opsi D-09 dan template Kartu Program".
+- **Mode AI saat go-live = B (bertahap):** AI otomatis hanya menjawab pertanyaan yang jawabannya ada di Kartu Program aktif; selain itu eskalasi ke admin; perluasan cakupan setelah ambang D-21 terpenuhi pada data nyata.
+- **Izin eksplisit kerja paralel Tahap 4** selama uji/audit Gate 3 berjalan (pengecualian AGENTS.md §2.3). Batas: Tahap 4 tetap di balik flag `ai_agents` default **mati**, tidak dinyalakan di staging/production sebelum Gate 3 diputuskan dan Gate 4 lulus; prompt `docs/prompts/tahap-4.md` disusun/disetujui pemilik sebelum pembangunan.
+- Opsi D-09: `docs/tahap-4/opsi-d09-provider-ai.md`. Template Kartu Program: `docs/tahap-4/template-kartu-program.md` + `.csv`.
