@@ -110,3 +110,11 @@ Opsi untuk pemilik: (i) ajukan **Tech Provider** sekarang + bangun Embedded Sign
 
 **Pembaruan 26 Nov 2026:** pemilik memutuskan **opsi (i) — ajukan Tech Provider sekarang** ("jalankan (i) mulai sekarang"). Opsi (ii) tetap usulan cadangan auditor untuk 15 Jan 2027 (belum diputuskan).
 Fakta tambahan dari pemilik: nomor milik pemilik yang berakhiran 6319 = **…186319** (Kemitraan/cadangan, tersambung ke staging), **…196319**, **…246319** (fungsi belum dicatat). Layar *Business Platform* di ponsel …186319 menunjukkan terhubung **langsung ke aplikasi TE-One**. Karena itu penolakan SMB App Data (131000/10) kemungkinan disebabkan **jalur onboarding** (bukan Embedded Signup partner), bukan penyedia lain → konfirmasi lewat tiket dukungan Meta (kategori "WABiz: Cloud API" → "Coexistence Data Synchronization APIs and Webhooks").
+
+## 10. Telaah auditor: apakah TE-One wajib menjadi Tech Provider? (26 Nov 2026)
+**Tidak wajib untuk go-live; wajib hanya bila ingin impor kontak/riwayat (SMB App Data) saat onboarding.**
+- Dokumentasi Meta (App Review): "if you are using the API for yourself as a Direct Developer, you do not need Advanced access or app review." TE One hanya melayani nomor milik Trilogika sendiri → status **Direct Developer** cukup untuk kirim/terima, template, echo.
+- Bukti nyata 26 Nov: …186319 sudah **coexistence** (`is_on_biz_app=true`), terhubung langsung ke aplikasi TE-One, dan **echo berjalan (M-11 lulus)** — tanpa Tech Provider.
+- Yang gagal hanya **SMB App Data API** (131000/10). Dokumentasi menautkan sinkronisasi ke onboarding lewat Embedded Signup partner (Tech Provider/Solution Partner). *Kesimpulan ini inferensi; dikonfirmasi lewat tiket dukungan Meta.*
+- **Titik tidak dapat dibalik:** sinkronisasi hanya ≤ 24 jam setelah onboarding. Bila Admisi dipindah 15 Jan tanpa Tech Provider, riwayat Admisi tidak masuk TE One (tetap ada di WhatsApp Business App di ponsel), kecuali offboard + onboarding ulang kelak.
+Pemilik sebelumnya memilih (i); telaah ini disampaikan untuk konfirmasi ulang.
