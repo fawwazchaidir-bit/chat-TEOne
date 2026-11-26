@@ -32,4 +32,4 @@ feature_flag_overrides (02:37:58 UTC): whatsapp_connector|t   (tidak ada baris l
 - **G1-B01: tertutup (terbukti nyata).** Image yang berjalan di staging kini berlabel revisi = commit `0463559` yang sama dengan `main` dan dengan commit yang lulus CI #42/#43 serta verify-all auditor (kode identik dengan `6a49fa5`). Tidak ada edit lokal di checkout build.
 - **A-4 / S-10: worker berjalan** (terbukti nyata untuk "mulai"; siklus pemeliharaan diamati lewat log berikutnya).
 - **Catatan:** pernyataan pemilik 25–26 Nov memuat baris `inbox|f` dan `ai_simulation|f`; tabel `feature_flag_overrides` kini hanya berisi `whatsapp_connector`. Aplikasi tidak pernah menghapus baris override (hanya upsert), jadi kueri sebelumnya kemungkinan berbeda sumber. Efektifnya sama: kedua flag MATI (bawaan registri). Opsional: cek `audit_log` untuk aksi flag.
-- **Masih perlu:** satu pesan uji …4062 → …6319 tampil di TE One setelah pergantian Caddy/app (webhook end-to-end).
+- **Webhook end-to-end setelah pergantian:** pesan uji …4062 → …6319 **masuk** di TE One (dinyatakan pemilik, 26 Nov).
