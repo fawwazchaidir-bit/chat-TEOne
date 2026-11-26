@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
-import { E2E_ADMIN_URL, E2E_CUSTOMER, E2E_DB, E2E_ENV, E2E_OWNER_URL, E2E_PHONE_ID, E2E_WABA, FIXTURE_FILE } from "./env";
+import { E2E_ADMIN_URL, E2E_CUSTOMER, E2E_DB, E2E_ENV, E2E_OWNER_URL, E2E_PHONE_ID, E2E_SYNC_CHANNEL, E2E_SYNC_CUSTOMER, E2E_SYNC_PHONE_ID, E2E_SYNC_WABA, E2E_WABA, FIXTURE_FILE } from "./env";
 
 export const E2E_SA = { email: "superadmin@e2e.contoh.test", name: "Super Admin E2E", password: "Sandi-E2E-Super-Admin-1" };
 export const E2E_KEMITRAAN = { email: "kemitraan@e2e.contoh.test", name: "Penguji Kemitraan E2E", password: "Sandi-E2E-Kemitraan-Uji-1" };
@@ -9,6 +9,8 @@ export const E2E_HOTLINE = { email: "hotline@e2e.contoh.test", name: "Admin Hotl
 // Tahap 3: dua admin inbox pada channel Kemitraan (untuk uji kerja bersama) dan satu pengguna kill switch (tanpa 2FA agar E2E tidak bergantung pada TOTP).
 export const E2E_INBOX1 = { email: "inbox1@e2e.contoh.test", name: "Admin Inbox Satu", password: "Sandi-E2E-Inbox-Satu-1" };
 export const E2E_INBOX2 = { email: "inbox2@e2e.contoh.test", name: "Admin Inbox Dua", password: "Sandi-E2E-Inbox-Dua-1" };
+// S-12: Super Admin KHUSUS uji sinkronisasi (mendaftarkan 2FA-nya sendiri di spec); E2E_SA tetap milik G1 (urutan 2FA-nya tidak boleh terganggu).
+export const E2E_SYNC_SA = { email: "syncsa@e2e.contoh.test", name: "Super Admin Sinkron E2E", password: "Sandi-E2E-Sinkron-Super-1" };
 export const E2E_KILLER = { email: "killswitch@e2e.contoh.test", name: "Pengendali Kill Switch E2E", password: "Sandi-E2E-Kill-Switch-1" };
 
 /** Membuat database E2E dari nol, migrasi, seed contoh, Super Admin (lewat jalur bootstrap CLI), dan satu Admin Hotline. */
@@ -51,6 +53,12 @@ export async function prepareE2eDatabase() {
   await d.insert(featureFlagOverrides).values({ key: "whatsapp_connector", enabled: true });
   await d.insert(channelConnections).values({ channelId: kem.id, wabaId: E2E_WABA, phoneNumberId: E2E_PHONE_ID });
   await d.insert(testRecipients).values({ label: "Peserta uji E2E", identityValue: E2E_CUSTOMER });
+  // S-12: channel coexistence tersendiri + pemetaan + penerima uji. Flag `history_sync` SENGAJA tidak dinyalakan di sini (spec menyalakan lalu mematikannya).
+  // Bootstrap CLI hanya berlaku SEKALI (Super Admin pertama); Super Admin kedua khusus uji dibuat langsung (tanpa 2FA: spec mendaftarkannya lewat UI).
+  await d.insert(users).values({ email: E2E_SYNC_SA.email, name: E2E_SYNC_SA.name, passwordHash: await hashPassword(E2E_SYNC_SA.password), isSuperAdmin: true, mustChangePassword: false });
+  const [syncCh] = await d.insert(channels).values({ name: E2E_SYNC_CHANNEL, functionLabel: "Kemitraan", integrationKind: "cloud_api_coexistence", environment: "development", isSample: true }).returning({ id: channels.id });
+  await d.insert(channelConnections).values({ channelId: syncCh!.id, wabaId: E2E_SYNC_WABA, phoneNumberId: E2E_SYNC_PHONE_ID });
+  await d.insert(testRecipients).values({ label: "Peserta uji sinkron E2E", identityValue: E2E_SYNC_CUSTOMER });
   const [tr] = await d.insert(roles).values({ name: "Penguji Integrasi E2E" }).returning({ id: roles.id });
   await d.insert(roleGrants).values([
     { roleId: tr!.id, permission: "channel.view", scopeAll: false, channelIds: [kem.id] },
@@ -80,7 +88,7 @@ export async function prepareE2eDatabase() {
   await closeDb();
 
   mkdirSync(path.dirname(FIXTURE_FILE), { recursive: true });
-  writeFileSync(FIXTURE_FILE, JSON.stringify({ sa: E2E_SA, hotline: E2E_HOTLINE, kemitraan: E2E_KEMITRAAN, inbox1: E2E_INBOX1, inbox2: E2E_INBOX2, killer: E2E_KILLER, channels: Object.fromEntries(chs.map((c) => [c.name, c.id])) }));
+  writeFileSync(FIXTURE_FILE, JSON.stringify({ sa: E2E_SA, syncSa: E2E_SYNC_SA, hotline: E2E_HOTLINE, kemitraan: E2E_KEMITRAAN, inbox1: E2E_INBOX1, inbox2: E2E_INBOX2, killer: E2E_KILLER, channels: Object.fromEntries(chs.map((c) => [c.name, c.id])) }));
 }
 
 if (process.argv[1]?.endsWith("prepare-db.ts")) {

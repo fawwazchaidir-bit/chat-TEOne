@@ -34,3 +34,11 @@ export const E2E_WABA = "100000000000009";
 export const E2E_PHONE_ID = "200000000000009";
 export const E2E_CUSTOMER = "15550007001"; // peserta uji sintetis
 export const E2E_STRANGER = "15550007999"; // di luar daftar uji
+
+// S-12: channel khusus uji sinkronisasi (coexistence, mode uji) — terpisah dari channel G1/G2/G3 agar tidak saling memengaruhi.
+export const E2E_SYNC_CHANNEL = "Kemitraan Sinkron — contoh";
+export const E2E_SYNC_WABA = "100000000000019";
+export const E2E_SYNC_PHONE_ID = "200000000000019";
+export const E2E_SYNC_DISPLAY = "15550000019";
+export const E2E_SYNC_CUSTOMER = "15550007019"; // peserta uji sintetis (terdaftar di daftar penerima uji)
+export const E2E_SYNC_STRANGER = "15550007919"; // di luar daftar uji
