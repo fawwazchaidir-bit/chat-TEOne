@@ -23,6 +23,8 @@ export const PERMISSIONS = [
   { key: "audit.view", label: "Lihat audit", channelScoped: false, available: true },
   // Tahap 2 (ADR-0004): alat uji integrasi WhatsApp — izin khusus, bercakupan channel.
   { key: "integration.test", label: "Alat uji integrasi WhatsApp", channelScoped: true, available: true },
+  // S-12: memicu sinkronisasi kontak/riwayat (sekali pakai, tidak dapat diulang) dan menyatakan jam onboarding. Hanya Super Admin (sesi 2FA penuh) yang dapat memegangnya.
+  { key: "integration.history_sync", label: "Pemicu sinkronisasi kontak & riwayat coexistence (sekali pakai)", channelScoped: true, available: true, superAdminOnlyGrant: true },
   // Tahap 3 (ADR-0007): penugasan/tim, catatan internal, jeda otomatisasi per channel. Registri BERTAMBAH; 19+1 izin sebelumnya tidak berubah.
   { key: "chat.assign", label: "Ubah penugasan & tim chat", channelScoped: true, available: true },
   { key: "chat.note", label: "Tulis catatan internal", channelScoped: true, available: true },

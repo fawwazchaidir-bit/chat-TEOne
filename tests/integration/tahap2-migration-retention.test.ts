@@ -37,7 +37,7 @@ describe("@tahap-2 migrasi 0002: maju-saja, diuji pada snapshot data Tahap 1 (GA
     try {
       mkdirSync(path.join(tmp, "meta"), { recursive: true });
       const journal = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8"));
-      expect(journal.entries.map((e: { tag: string }) => e.tag)).toEqual(["0000_initial_schema", "0001_constraints_and_triggers", "0002_tahap2_whatsapp_connector", "0003_tahap2_gate2_mapping_version", "0004_tahap3_inbox_schema", "0005_tahap3_triggers_integrity"]);
+      expect(journal.entries.map((e: { tag: string }) => e.tag)).toEqual(["0000_initial_schema", "0001_constraints_and_triggers", "0002_tahap2_whatsapp_connector", "0003_tahap2_gate2_mapping_version", "0004_tahap3_inbox_schema", "0005_tahap3_triggers_integrity", "0006_tahap2_s12_sinkronisasi_riwayat"]);
       const t1 = { ...journal, entries: journal.entries.filter((e: { idx: number }) => e.idx <= 1) };
       writeFileSync(path.join(tmp, "meta/_journal.json"), JSON.stringify(t1));
       for (const e of t1.entries) cpSync(`drizzle/${e.tag}.sql`, path.join(tmp, `${e.tag}.sql`));
@@ -69,7 +69,7 @@ describe("@tahap-2 migrasi 0002: maju-saja, diuji pada snapshot data Tahap 1 (GA
     const o = new Client({ connectionString: url("teone_owner", "owner_test_pw") });
     await o.connect();
     try {
-      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(6);
+      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(7);
       expect((await o.query("select count(*)::int n from users")).rows[0].n).toBe(2);
       expect((await o.query("select count(*)::int n from channels")).rows[0].n).toBe(2);
       expect((await o.query("select count(*)::int n from audit_log")).rows[0].n).toBe(3);
@@ -88,7 +88,7 @@ describe("@tahap-2 migrasi 0002: maju-saja, diuji pada snapshot data Tahap 1 (GA
       expect((await o.query("select mapping_version, mapping_changed_at is not null as has_ts from channel_connections")).rows[0]).toEqual({ mapping_version: 0, has_ts: true });
       // migrasi diulang → idempoten
       await runMigrations(url("teone_owner", "owner_test_pw"), { quiet: true });
-      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(6);
+      expect((await o.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n).toBe(7);
     } finally {
       await o.end();
     }

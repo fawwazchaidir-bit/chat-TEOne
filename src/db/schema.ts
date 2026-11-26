@@ -315,16 +315,62 @@ export const channelConnections = pgTable(
     verifiedAt: ts("verified_at"),
     verificationDetail: jsonb("verification_detail").notNull().default(sql`'{}'::jsonb`),
     historyProgress: jsonb("history_progress").notNull().default(sql`'{}'::jsonb`),
+    /**
+     * S-12 (migrasi 0006, expand-only): waktu onboarding coexistence. Dasar jendela 24 jam sinkronisasi kontak/riwayat (dokumentasi resmi Meta, dibaca 26 Nov 2026).
+     * Tidak ada sumber resmi yang dapat dibaca otomatis (webhook `account_update` tidak memuat waktu onboarding) → SELALU isian admin berizin,
+     * bersumber `dinyatakan_admin` (bukan bukti Meta). NULL = tidak diketahui ⇒ sinkronisasi ditolak. Direset saat pemetaan berubah.
+     */
+    coexistenceOnboardedAt: ts("coexistence_onboarded_at"),
+    coexistenceOnboardedSource: text("coexistence_onboarded_source"),
+    coexistenceOnboardedBy: uuid("coexistence_onboarded_by"),
     createdAt: ts("created_at").notNull().defaultNow(),
     updatedAt: ts("updated_at").notNull().defaultNow(),
     updatedBy: uuid("updated_by"),
   },
   (t) => [
     uniqueIndex("channel_connections_phone_unique").on(t.phoneNumberId),
+    check("channel_connections_onboarded_source", sql`(${t.coexistenceOnboardedAt} IS NULL AND ${t.coexistenceOnboardedSource} IS NULL) OR (${t.coexistenceOnboardedAt} IS NOT NULL AND ${t.coexistenceOnboardedSource} IS NOT NULL AND ${t.coexistenceOnboardedSource} IN ('dinyatakan_admin'))`),
     check("channel_connections_status", sql`${t.verificationStatus} IN ('belum_diperiksa','terverifikasi','gagal')`),
     check("channel_connections_mode", sql`${t.verificationMode} IS NULL OR ${t.verificationMode} IN ('nyata','simulasi')`),
     check("channel_connections_verified_has_mode", sql`${t.verificationStatus} <> 'terverifikasi' OR (${t.verificationMode} IS NOT NULL AND ${t.verifiedAt} IS NOT NULL)`),
     check("channel_connections_rate", sql`${t.rateLimitPerSec} >= 1 AND ${t.rateLimitPerSec} <= 100`),
+  ],
+);
+
+// ───────────── S-12: permintaan sinkronisasi kontak/riwayat ke SMB App Data API (SEKALI per channel+jenis+versi pemetaan) ─────────────
+/**
+ * Baris dibuat DALAM TRANSAKSI SEBELUM Meta dipanggil, dan UNIQUE(channel, jenis, versi pemetaan) menjadikannya penjaga "sekali saja" di database —
+ * bukan di UI. Tidak menyimpan payload/isi apa pun dari Meta: hanya kode galat, status HTTP, dan `request_id` (pengenal untuk dukungan Meta).
+ */
+export const smbSyncRequests = pgTable(
+  "smb_sync_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    channelId: uuid("channel_id").notNull().references(() => channels.id),
+    syncType: text("sync_type").notNull(),
+    mappingVersion: integer("mapping_version").notNull(),
+    status: text("status").notNull().default("diminta"),
+    requestedBy: uuid("requested_by"),
+    requestedAt: ts("requested_at").notNull().defaultNow(),
+    /** Naik hanya bila baris dipakai ulang karena TERBUKTI belum pernah sampai ke Meta (dibatalkan kill switch) atau diselesaikan manual "tidak diproses". */
+    attempts: integer("attempts").notNull().default(1),
+    completedAt: ts("completed_at"),
+    httpStatus: integer("http_status"),
+    metaCode: integer("meta_code"),
+    metaSubcode: integer("meta_subcode"),
+    failureKind: text("failure_kind"),
+    metaRequestId: text("meta_request_id"),
+    resolution: text("resolution"),
+    resolvedBy: uuid("resolved_by"),
+    resolvedAt: ts("resolved_at"),
+    resolutionNote: text("resolution_note"),
+  },
+  (t) => [
+    uniqueIndex("smb_sync_requests_once").on(t.channelId, t.syncType, t.mappingVersion),
+    check("smb_sync_requests_type", sql`${t.syncType} IN ('smb_app_state_sync','history')`),
+    check("smb_sync_requests_status", sql`${t.status} IN ('diminta','diterima_meta','gagal','belum_pasti')`),
+    check("smb_sync_requests_resolution", sql`${t.resolution} IS NULL OR ${t.resolution} IN ('diterima','tidak_diproses')`),
+    check("smb_sync_requests_failure_kind", sql`${t.failureKind} IS NULL OR ${t.failureKind} IN ('tidak_dikirim','timeout','jaringan','http','respons_tak_dikenal')`),
   ],
 );
 

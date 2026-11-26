@@ -70,7 +70,7 @@ export async function saveConnection(ctx: Ctx, channelId: string, input: { wabaI
         .onConflictDoUpdate({
           target: channelConnections.channelId,
           // Pemetaan berubah ⇒ verifikasi lama TIDAK berlaku lagi.
-          set: { wabaId: input.wabaId, phoneNumberId: input.phoneNumberId, updatedAt: new Date(), updatedBy: ctx.user.id, ...(changed ? { verificationStatus: "belum_diperiksa", verificationMode: null, verifiedAt: null, verificationDetail: {}, mappingVersion: sql`${channelConnections.mappingVersion} + 1`, mappingChangedAt: new Date() } : {}) },
+          set: { wabaId: input.wabaId, phoneNumberId: input.phoneNumberId, updatedAt: new Date(), updatedBy: ctx.user.id, ...(changed ? { verificationStatus: "belum_diperiksa", verificationMode: null, verifiedAt: null, verificationDetail: {}, mappingVersion: sql`${channelConnections.mappingVersion} + 1`, mappingChangedAt: new Date(), coexistenceOnboardedAt: null, coexistenceOnboardedSource: null, coexistenceOnboardedBy: null, historyProgress: {} } : {}) },
         });
       await writeAudit(tx, { ...auditFor(ctx), action: "integration.connection_saved", objectType: "channel", objectId: channelId, metadata: { wabaId: input.wabaId, phoneNumberId: input.phoneNumberId, resetVerification: changed } });
     });
