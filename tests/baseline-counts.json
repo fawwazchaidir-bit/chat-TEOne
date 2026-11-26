@@ -4,8 +4,8 @@
     "playwright": 3
   },
   "@tahap-2": {
-    "vitest": 166,
-    "playwright": 3
+    "vitest": 258,
+    "playwright": 4
   },
   "@tahap-3": {
     "vitest": 86,
