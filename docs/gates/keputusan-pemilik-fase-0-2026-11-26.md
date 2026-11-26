@@ -103,3 +103,7 @@ Pernyataan pemilik (verbatim): "go live 15 januari tanpa ai sesuai saranmu".
 ## 8. M-12 (riwayat) — 26 Nov 2026
 Pernyataan pemilik (verbatim): "tetap gunakan nomor kemitraan ini, siapkan dengan kontijensi".
 Dicatat sebagai **A-3: M-12 pada …6319**. Rencana + kontinjensi: `docs/tahap-2/runbook-m12-6319.md` (Jalur A hari ini sebelum jendela 24 jam tutup, atau Jalur B onboarding ulang setelah PR S-12). Jalur A **hanya** dijalankan setelah pemilik menulis "SETUJU JALUR A".
+
+## 9. Keputusan yang dibutuhkan — jalur onboarding coexistence (26 Nov 2026)
+Fakta: impor kontak/riwayat (SMB App Data API) hanya untuk nomor yang di-onboard lewat **Embedded Signup aplikasi partner**; aplikasi TE-One belum punya Embedded Signup dan status Tech Provider belum ada. D-02 ("aplikasi Meta sendiri") **cukup untuk Cloud API**, tetapi **belum cukup** untuk memindahkan nomor coexistence beserta riwayatnya.
+Opsi untuk pemilik: (i) ajukan **Tech Provider** sekarang + bangun Embedded Signup (lingkup tambahan Tahap 2); (ii) go-live tanpa impor riwayat (riwayat lama tetap di WhatsApp Business App/Halo AI); (iii) BSP resmi. Usulan auditor: (i) dimulai segera, (ii) sebagai cadangan untuk 15 Jan 2027. **Belum diputuskan.**
