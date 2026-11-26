@@ -7,11 +7,11 @@
  * (payload dibuang, tidak ada kontak/pesan), tidak diproses otomatisasi, dan DILAPORKAN (audit + hitungan di alat uji).
  */
 import { and, eq, sql } from "drizzle-orm";
-import { channelConnections, conversations, leadSources, media, messages } from "@/db/schema";
+import { channelConnections, contacts, conversations, leadSources, media, messages } from "@/db/schema";
 import type { Executor } from "@/db/client";
 import { writeAudit } from "@/modules/audit";
 import { IdentityConflictError, upsertContact, type IdentityInput } from "@/modules/contacts/service";
-import { contactMatchesMessage, type ClaimedEvent, type MessageFragment, type NormalizedEvent } from "@/modules/whatsapp-adapter";
+import { contactMatchesMessage, mergeHistoryProgress, type ClaimedEvent, type MessageFragment, type NormalizedEvent } from "@/modules/whatsapp-adapter";
 import { upsertConversation } from "./conversations";
 import { automationEligible } from "./events";
 import { setAiState } from "./ai-state";
@@ -191,14 +191,34 @@ export async function ingestEvent(tx: Executor, ev: ClaimedEvent): Promise<Inges
 
     case "history": {
       if (!p.message) {
-        // Event progres/penolakan sinkronisasi riwayat: hanya dicatat pada koneksi.
-        await tx.update(channelConnections).set({ historyProgress: { ...p.progress, updatedAt: new Date().toISOString() } }).where(eq(channelConnections.channelId, channelId));
+        // Event progres/penolakan sinkronisasi riwayat (Step 2). Potongan tiba TIDAK berurutan → digabung (progres tidak turun; fase terjauh; penolakan 2593109 permanen).
+        // Baris koneksi dikunci agar dua event progres serentak tidak saling menimpa.
+        const [cur] = await tx.select({ hp: channelConnections.historyProgress }).from(channelConnections).where(eq(channelConnections.channelId, channelId)).for("update");
+        await tx.update(channelConnections).set({ historyProgress: mergeHistoryProgress(cur?.hp, p.progress, new Date().toISOString()) }).where(eq(channelConnections.channelId, channelId));
         return noop;
       }
-      const customer = p.customer;
-      if (!customer) return { kind: "quarantined", reason: "history_tanpa_pelanggan" };
-      if (conn.testMode && !(await isListedRecipient(tx, customer))) return quarantineUnlisted(tx, channelId, "history");
-      const contact = await upsertContact(tx, [{ type: "wa_id", value: customer }], null);
+      if (p.identityConflict) return { kind: "quarantined", reason: "history_identitas_bertentangan" }; // thread.id ≠ context.wa_id: tidak ada identitas yang dipercaya
+      if (p.direction !== "masuk" && p.direction !== "keluar") return { kind: "quarantined", reason: "history_arah_tidak_pasti" }; // arah tidak ditebak
+      // F1-03: pengenal = nomor (thread.id/context.wa_id) dan/atau BSUID (context.user_id). BSUID pengirim pesan hanya dipakai bila thread tidak punya pengenal lain
+      // (satu-satunya bukti); bila bertentangan dengan context.user_id → karantina. Identitas TIDAK digabung antarkontak (kontrak inti #2).
+      const threadUser = p.customerUserId ?? null;
+      if (p.fromUserId && threadUser && p.fromUserId !== threadUser) return { kind: "quarantined", reason: "history_identitas_bertentangan" };
+      const idents = dedupeIds([...idsOf(p.customer, threadUser ?? (p.customer ? null : (p.fromUserId ?? null)))]);
+      if (idents.length === 0) return { kind: "quarantined", reason: "history_tanpa_pelanggan" };
+      if (conn.testMode) {
+        const phone = idents.find((i) => i.type === "wa_id")?.value;
+        const uid = idents.find((i) => i.type === "user_id")?.value;
+        const listed = phone ? await isListedRecipient(tx, phone) : uid ? await isListedByKnownUserId(tx, uid) : false;
+        if (!listed) return quarantineUnlisted(tx, channelId, "history");
+      }
+      let contact;
+      try {
+        contact = await upsertContact(tx, idents, null);
+      } catch (e) {
+        if (!(e instanceof IdentityConflictError)) throw e;
+        await writeAudit(tx, { actorLabel: "sistem:webhook", action: "integration.identity_conflict", objectType: "channel", objectId: channelId, result: "denied", metadata: { kind: "history", contacts: e.contactIds.length } });
+        return { kind: "quarantined", reason: "identitas_bentrok", keepPayload: true }; // tidak ada kontak/pesan ditulis; tidak ada penggabungan otomatis
+      }
       const conversationId = await upsertConversation(tx, contact.id, channelId);
       const r = await insertMessage(tx, { conversationId, channelId, direction: p.direction, source: "history", msg: p.message, status: null });
       if (!r.inserted) return noop; // dideduplikasi terhadap event langsung
@@ -207,8 +227,32 @@ export async function ingestEvent(tx: Executor, ev: ClaimedEvent): Promise<Inges
       return { kind: "processed", after: [] }; // TIDAK ada hook: history tidak memicu apa pun
     }
 
-    case "contact_sync":
-      return noop; // sinkronisasi kontak Business App: tidak disimpan (minimalisasi data)
+    case "contact_sync": {
+      // S-12 (Step 1 / perubahan buku alamat): kontak dibuat atau namanya diperbarui — TANPA percakapan, pesan, unread, label, hook, atau follow-up (kontrak inti #3).
+      // Event lama di antrean (hanya hitungan) → tidak ada yang disimpan. Payload (nama + nomor) DIBUANG setelah diproses (minimalisasi data).
+      const ct = p.contact;
+      if (!ct) return { kind: "processed", dropPayload: true, after: [] };
+      const idents = dedupeIds(idsOf(ct.phone, ct.userId));
+      if (idents.length === 0) return { kind: "quarantined", reason: "kontak_tanpa_identitas" };
+      if (conn.testMode) {
+        const phone = idents.find((i) => i.type === "wa_id")?.value;
+        const uid = idents.find((i) => i.type === "user_id")?.value;
+        const listed = phone ? await isListedRecipient(tx, phone) : uid ? await isListedByKnownUserId(tx, uid) : false;
+        if (!listed) return quarantineUnlisted(tx, channelId, "contact_sync");
+      }
+      if (ct.action !== "add") return { kind: "processed", dropPayload: true, after: [] }; // `remove`/tak dikenal: TIDAK menghapus kontak, identitas, atau percakapan
+      let contact;
+      try {
+        contact = await upsertContact(tx, idents, ct.fullName ?? ct.firstName);
+      } catch (e) {
+        if (!(e instanceof IdentityConflictError)) throw e;
+        await writeAudit(tx, { actorLabel: "sistem:webhook", action: "integration.identity_conflict", objectType: "channel", objectId: channelId, result: "denied", metadata: { kind: "contact_sync", contacts: e.contactIds.length } });
+        return { kind: "quarantined", reason: "identitas_bentrok", keepPayload: true };
+      }
+      const name = (ct.fullName ?? ct.firstName)?.trim();
+      if (name) await tx.update(contacts).set({ displayName: name }).where(and(eq(contacts.id, contact.id), sql`${contacts.displayName} IS DISTINCT FROM ${name}`)); // nama buku alamat bisnis = nama tampilan
+      return { kind: "processed", dropPayload: true, after: [] };
+    }
 
     default:
       return { kind: "quarantined", reason: "bentuk_tidak_dikenal" };
