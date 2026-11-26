@@ -38,3 +38,11 @@ ufw: active — ALLOW 22/tcp, 80/tcp, 443/tcp (v4+v6) dari Anywhere
 
 ## Temuan
 **F2-02 — Sedang: SSH dapat dijangkau dari seluruh internet.** Mitigasi yang disarankan (operator): pastikan login SSH hanya dengan kunci (`PasswordAuthentication no`, `PermitRootLogin no`); bila IP admin tetap, batasi `ufw` 22 ke IP itu; bila tidak tetap, pertimbangkan `fail2ban` atau VPN. Jangan menutup 22 sebelum akses kunci terbukti (risiko terkunci).
+
+## Pembaruan F2-02 — konfigurasi SSH (26 Nov, `sshd -T`, dinyatakan pemilik)
+```
+passwordauthentication no
+pubkeyauthentication yes
+permitrootlogin without-password
+```
+SSH hanya menerima login **kunci**; sandi ditolak; root hanya dengan kunci. **F2-02 diturunkan ke rendah.** Pengerasan opsional: `PermitRootLogin no` (setelah memastikan akun admin non-root dengan sudo dapat login dengan kunci), dan/atau batasi `ufw` 22 ke IP admin bila IP tetap, atau `fail2ban`.
