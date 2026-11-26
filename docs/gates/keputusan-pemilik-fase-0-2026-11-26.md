@@ -118,3 +118,7 @@ Fakta tambahan dari pemilik: nomor milik pemilik yang berakhiran 6319 = **…186
 - Yang gagal hanya **SMB App Data API** (131000/10). Dokumentasi menautkan sinkronisasi ke onboarding lewat Embedded Signup partner (Tech Provider/Solution Partner). *Kesimpulan ini inferensi; dikonfirmasi lewat tiket dukungan Meta.*
 - **Titik tidak dapat dibalik:** sinkronisasi hanya ≤ 24 jam setelah onboarding. Bila Admisi dipindah 15 Jan tanpa Tech Provider, riwayat Admisi tidak masuk TE One (tetap ada di WhatsApp Business App di ponsel), kecuali offboard + onboarding ulang kelak.
 Pemilik sebelumnya memilih (i); telaah ini disampaikan untuk konfirmasi ulang.
+
+## 11. Perubahan D-04: go-live dengan AI (26 Nov 2026)
+Pernyataan pemilik (verbatim): "saya revisi, sekarang saya ingin go live sudah dengan ai".
+Dampak yang dicatat auditor: AI agent = Tahap 4 → wajib lulus **Gate 4** (CCP 4.1–4.7: filter Kartu Program/knowledge, validasi jadwal & tautan oleh kode, set uji D-21 dengan **0 fabrikasi**, pemeriksaan ulang sebelum kirim, eskalasi, batas biaya + kill switch AI, simulator terisolasi) **sebelum freeze 7 Jan 2027**. Keputusan wajib sebelum pembangunan: **D-09** (provider/model, batas biaya, data yang dikirim — tanpa default), D-10, D-15, D-20, D-21, D-23; konten **Kartu Program**; `docs/prompts/tahap-4.md`; izin eksplisit kerja paralel Tahap 4 selama Gate 3 berjalan (AGENTS.md §2.3). Mode AI saat go-live **belum ditetapkan** (opsi di respons auditor: penuh / bertahap-asisten / menyusul).
