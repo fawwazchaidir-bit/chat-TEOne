@@ -74,20 +74,21 @@ Semua CCP Gate 1 lulus; temuan kritis dan tinggi = 0. Tiga butir di bawah tidak 
 
 ## Setelah keputusan LANJUT (pemilik)
 1. Tag `tahap-1-diterima` pada `046355936dc44b62f2281166fe9ef15c95527138` (GitHub → Releases → Draft a new release → tag baru, target = commit itu).
-2. Backup titik-kembali: salin set backup terakhir di Google Drive ke folder `teone-staging-backup/tahap-1-diterima/` (di luar rotasi 8 hari).
+2. Backup titik-kembali: salin set backup terakhir ke folder Google Drive **terpisah** `teone-titik-kembali/tahap-1-diterima/`. **Jangan** di dalam `teone-staging-backup/`: `rclone delete --min-age 8d` di perintah offsite bersifat rekursif dan akan ikut menghapusnya.
 
 ## Formulir keputusan (diisi pemilik)
 ```
 GATE 1 — Fondasi produksi
-Tanggal rapat     :
+Tanggal rapat     : 26 November 2026 (keputusan tertulis di sesi audit)
 Commit diaudit    : 046355936dc44b62f2281166fe9ef15c95527138 (main = staging)
 Auditor           : sesi AI terpisah (independen: ya)
 Ringkasan A: 10/10 · B: 5/6 (+2 N/A) · C: 9/9
 Temuan terbuka    : kritis 0 · tinggi 0 · sedang 1 (G1-B05 sebagian) · rendah 3
 Syarat ringan     : log cron pertama · passphrase di luar VPS · branch protection — tenggat 28 Nov 2026
 Rekomendasi auditor: LANJUT
-KEPUTUSAN: [ ] LANJUT   [ ] LANJUT TERBATAS   [ ] TAHAN
-Tag dibuat        : tahap-1-diterima (ya/tidak)
-Backup titik-kembali: <lokasi/waktu>
-Diputuskan oleh   :                     Tanggal:
+KEPUTUSAN: [x] LANJUT   [ ] LANJUT TERBATAS   [ ] TAHAN      (pernyataan pemilik: "Gate 1: LANJUT")
+Syarat ringan     : tetap berlaku, tenggat 28 Nov 2026 (log cron · passphrase di luar VPS · branch protection)
+Tag dibuat        : tahap-1-diterima — BELUM (dibuat pemilik lewat GitHub Releases pada commit di atas)
+Backup titik-kembali: BELUM — gdrive:teone-titik-kembali/tahap-1-diterima/
+Diputuskan oleh   : Pemilik proyek          Tanggal: 26 November 2026
 ```
