@@ -136,3 +136,11 @@ Kartu program yang dikirim pemilik memuat nomor kontak resmi yang **6 digit tera
 - **…246319 = Hotline** (idem),
 - **…186319 = Kemitraan/cadangan** (tersambung ke staging).
 Saran auditor sebelumnya yang memakai …196319/…246319 sebagai nomor uji (checklist Tech Provider bagian D; rencana uji Gate 3 P4/S4) **dicabut dan dokumen sudah dikoreksi**. Belum ada tindakan yang dilakukan pada nomor-nomor itu. Usulan: AGENTS.md §1 diperbarui lewat PR agar memakai 6 digit terakhir. Catatan guard: aturan G2 (akhiran 1119/0124) tidak cocok dengan nomor-nomor ini; perlindungan efektif berasal dari G3 (nomor lengkap dilarang) dan G4 (hash, sudah diisi pemilik).
+
+## 14. Jadwal aktif: tabel menang, status dihitung sistem (26 Nov 2026) — D-25
+
+Pemilik menyetujui (26 Nov 2026):
+1. **Tabel JADWAL AKTIF adalah satu-satunya sumber** tanggal pelatihan, tanggal uji, cut-off, harga, DP, dan link. Bila kartu program bertentangan dengan tabel, **tabel yang dipakai**. Tindak lanjut: tanggal/harga dihapus dari kartu; kartu hanya memuat alur, syarat, FAQ.
+2. **Status batch dihitung sistem**: batch boleh ditawarkan hanya bila Status = Buka **dan** cut-off belum lewat (Asia/Jakarta). Status manual hanya dipakai untuk menutup lebih awal (mis. kuota penuh). Sesuai AGENTS.md §8 (validasi tanggal oleh kode, bukan model).
+
+Dampak Tahap 4 (spesifikasi untuk developer): modul `program-cards` menyimpan baris jadwal terstruktur (kode program, kode batch, tanggal mulai/selesai, cut-off bertimestamp WIB, harga, DP, link, status manual); fungsi `statusEfektif(batch, now)` diuji unit termasuk kasus batas (cut-off tepat 23.59 WIB, H-1, hari H); hanya batch efektif-terbuka yang dikirim ke model. Set uji v0.4 menghapus label ASUMSI pada SE-001 dan menandai T22/T24 diputuskan.

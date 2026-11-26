@@ -36,6 +36,7 @@ Cara mengisi: ubah *Status*, tulis keputusan akhir di kolom *Keputusan akhir*, l
 | D-22 | Penanganan lead nyasar | Calon pelanggan baru di Hotline/Kemitraan dialihkan ke Tim Admisi **di percakapan yang sama** (pelanggan tidak diminta pindah nomor) | Tahap 3 | **Diputuskan** | Usulan default diterima | Pemilik proyek / 26 Nov 2026 |
 | D-23 | Kategori keluhan Hotline | Teknis kelas · Materi · Sertifikat · Pembayaran · Trainer · Lainnya | Tahap 4 | Terbuka | | |
 | D-24 | Fitur harian Halo AI yang boleh hilang saat go-live | Tidak ada, sampai inventaris J0-05 selesai | Tahap 7 | Terbuka | | |
+| D-25 | Sumber kebenaran jadwal/harga/link & status batch | Jadwal, tanggal uji, cut-off, harga, DP, dan link **hanya dari tabel JADWAL AKTIF**; tabel mengalahkan kartu bila bertentangan (kartu tidak memuat tanggal). Status efektif batch **dihitung sistem**: terbuka hanya bila Status = Buka **dan** cut-off > waktu sekarang (Asia/Jakarta); status manual hanya untuk menutup lebih awal | Tahap 4 | **Diputuskan** | Usulan auditor diterima | Pemilik proyek / 26 Nov 2026 |
 
 ---
 
