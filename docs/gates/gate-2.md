@@ -146,3 +146,10 @@ KEPUTUSAN: [ ] LANJUT  [ ] LANJUT TERBATAS  [ ] TAHAN
 Jika terbatas/ditahan: lingkup, syarat, PIC dan tenggat: ____
 
 Tag penerimaan dan backup titik-kembali: ____  Diputuskan oleh: ____
+
+---
+
+## Keputusan pemilik — 26 November 2026
+**Gate 2: LANJUT TERBATAS** (pernyataan tertulis pemilik di sesi audit), dasar: [`audit-ulang-gate-2-2026-11-26.md`](audit-ulang-gate-2-2026-11-26.md), commit `7f4577b` (kode = `046355936dc4` = staging).
+**Lingkup terbuka:** impor riwayat (CCP 2.9 nyata, bagian riwayat CCP 2.10) — PIC pemilik (tiket Meta, keputusan Tech Provider) + developer (PR S-12); keputusan ≤ 20 Des 2026, bila tidak → go-live 15 Jan tanpa impor riwayat. Golden E2E G2 kirim-ulang webhook nyata — bersama uji Gate 3.
+D-01, D-05, D-16, D-22 diputuskan (usulan default) pada tanggal yang sama. Tahap 3 boleh diuji nyata setelah dua syarat sisa: event `channel_tidak_dikenal` diperiksa; tag `tahap-1-diterima` dikonfirmasi.

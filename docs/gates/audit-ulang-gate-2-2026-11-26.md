@@ -76,16 +76,16 @@ Konektor terbukti untuk **pesan masuk/keluar, status, karantina, daftar penerima
 ## Formulir keputusan (diisi pemilik)
 ```
 GATE 2 — Konektor WhatsApp
-Tanggal rapat     :
+Tanggal rapat     : 26 November 2026 (keputusan tertulis di sesi audit)
 Commit diaudit    : 7f4577b (kode = 046355936dc4 = staging)
 Auditor           : sesi AI terpisah (independen: ya)
 Ringkasan A: 8/10 (+2 sebagian/tertunda) · B: 6/8 (+2 sebagian/tertunda) · C: 8/10 (+2 sebagian)
 Temuan terbuka    : kritis 0 · tinggi 1 (impor riwayat, lingkup terbatas) · sedang 1 (G2-B05) · rendah 1 (F1-03)
 Yang baru terbukti simulasi (belum nyata): 2.2, 2.3, 2.6; 2.9 nyata; kirim ulang webhook nyata
 Rekomendasi auditor: LANJUT TERBATAS
-KEPUTUSAN: [ ] LANJUT   [ ] LANJUT TERBATAS   [ ] TAHAN
+KEPUTUSAN: [ ] LANJUT   [x] LANJUT TERBATAS   [ ] TAHAN      (pernyataan pemilik: "Gate 2: LANJUT TERBATAS")
 Lingkup terbuka + PIC + tenggat: impor riwayat (pemilik/developer, keputusan ≤ 20 Des 2026)
-Syarat sebelum uji nyata Tahap 3: D-01/D-05/D-16/D-22; event channel_tidak_dikenal; tag tahap-1-diterima
-Tag dibuat        : tahap-2-diterima (ya/tidak)
-Diputuskan oleh   :                     Tanggal:
+Syarat sebelum uji nyata Tahap 3: D-01/D-05/D-16/D-22 → DIPUTUSKAN (default, 26 Nov); event channel_tidak_dikenal; tag tahap-1-diterima
+Tag dibuat        : tahap-2-diterima-terbatas — BELUM (dibuat pemilik lewat GitHub Releases pada 046355936dc4)
+Diputuskan oleh   : Pemilik proyek          Tanggal: 26 November 2026
 ```

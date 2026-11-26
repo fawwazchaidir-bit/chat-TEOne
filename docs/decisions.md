@@ -12,11 +12,11 @@ Cara mengisi: ubah *Status*, tulis keputusan akhir di kolom *Keputusan akhir*, l
 
 | ID | Keputusan | Usulan default | Dibutuhkan sebelum | Status | Keputusan akhir | Oleh / tanggal |
 |---|---|---|---|---|---|---|
-| D-01 | Kebutuhan grup WhatsApp lama | Opsi A (lihat rincian) | Tahap 3 dimulai (±22 Des 2026) | Terbuka | | |
+| D-01 | Kebutuhan grup WhatsApp lama | Opsi A (lihat rincian) | Tahap 3 dimulai (±22 Des 2026) | **Diputuskan** | Usulan default diterima | Pemilik proyek / 26 Nov 2026 |
 | D-02 | Jalur akses Meta untuk coexistence | Ajukan Tech Provider sendiri; jika belum disetujui per 15 Des 2026, pakai BSP resmi untuk uji | Tahap 2 (±1 Des 2026) | **Diputuskan** | Aplikasi Meta milik sendiri "Trilogika Edutama TE-One" (dinyatakan pemilik: sudah terkoneksi dan berhasil). Kebutuhan Tech Provider/Embedded Signup untuk Admisi tetap diverifikasi ke dokumentasi Meta sebelum perpindahan | Pemilik proyek / 26 Nov 2026 |
 | D-03 | Nomor uji coexistence | Kemitraan, **tidak dipublikasikan** sampai GO; pesan dari pengirim di luar daftar uji tidak diproses otomatisasi dan dilaporkan | Tahap 2 (±1 Des 2026) | **Diputuskan** | Nomor uji = …6319 (channel Kemitraan Uji), satu-satunya nomor siap; pemilik menyatakan tidak ada chat masuk ke nomor ini. M-12 (history) hanya bila tidak ada chat pelanggan 180 hari terakhir — lihat `gates/keputusan-pemilik-fase-0-2026-11-26.md` §2 | Pemilik proyek / 26 Nov 2026 |
 | D-04 | Cakupan go-live dan jadwal | Lihat rincian | Gate 1 (±2 Des 2026) | **Diubah** | **Jadwal:** nomor Admisi live **15 Jan 2027**; freeze **7–14 Jan 2027**. **Cakupan go-live 15 Jan (tanpa AI):** inbox multi-channel + tim + routing + balasan cepat + catatan internal + template manual + izin per channel/audit/kill switch. **Menyusul setelah lulus gate-nya, di balik flag mati:** AI agent/Kartu Program/simulator, label otomatis, pipeline & laporan, follow-up FU-1/FU-2. Halo AI tetap dipakai untuk fungsi yang belum tersedia (D-24). Berdampak ke D-14 (tetap Terbuka) | Pemilik proyek / 26 Nov 2026 |
-| D-05 | Pesan keluar dari HP (WhatsApp Business App) mematikan AI | **Ya**, AI Off pada chat terkait | Tahap 3 | Terbuka | | |
+| D-05 | Pesan keluar dari HP (WhatsApp Business App) mematikan AI | **Ya**, AI Off pada chat terkait | Tahap 3 | **Diputuskan** | Usulan default diterima | Pemilik proyek / 26 Nov 2026 |
 | D-06 | Waktu kirim FU-2 | Target T+23 jam; jika di luar jam kirim, kirim pada slot jam kirim terakhir sebelum (T+24 jam − 30 menit) | Tahap 6 | Terbuka | | |
 | D-07 | FU-1 yang tertunda dan jarak FU-1 → FU-2 | Jarak minimum 3 jam; jika lebih dekat, FU-1 dilewati | Tahap 6 | Terbuka | | |
 | D-08 | Skenario follow-up hingga 72 jam | Tidak aktif saat go-live | Tahap 6 | Terbuka | | |
@@ -27,13 +27,13 @@ Cara mengisi: ubah *Status*, tulis keputusan akhir di kolom *Keputusan akhir*, l
 | D-13 | Target performa | p95 buka inbox/chat < 1 detik pada 10 pengguna bersamaan | Tahap 7 | Terbuka | | |
 | D-14 | Urutan & jadwal perpindahan nomor | Kemitraan → Admisi → Hotline; tidak ada perpindahan 4–15 Mar 2027; observasi ≥ 5 hari kerja antar nomor | Tahap 8 | **Diputuskan** | Opsi A: **Kemitraan (…6319) live dulu paling lambat ±6 Jan 2027**, observasi ≥ 5 hari kerja, lalu **Admisi 15 Jan 2027**; freeze 7–14 Jan 2027 (tidak ada rilis baru; observasi Kemitraan berjalan). Hotline menyusul setelah D-01 dan J0-04. GO tertulis per nomor tetap wajib (Gate 9) | Pemilik proyek / 26 Nov 2026 |
 | D-15 | Janji waktu respons eskalasi & jam kerja tim | Pesan eskalasi **tanpa** janji waktu sampai disetujui | Tahap 4 | Terbuka | | |
-| D-16 | Status belum dibaca | Per pengguna | Tahap 3 | Terbuka | | |
+| D-16 | Status belum dibaca | Per pengguna | Tahap 3 | **Diputuskan** | Usulan default diterima | Pemilik proyek / 26 Nov 2026 |
 | D-17 | Label otomatis saat AI Off | Mati | Tahap 5 | Terbuka | | |
 | D-18 | Retensi data & UU PDP | Lihat rincian — **perlu tinjauan pemilik / penasihat hukum** | Tahap 7 (struktur sejak Tahap 1) | **Diputuskan (staging)** · production: arah disetujui, final setelah tinjauan penasihat hukum | Staging: tanpa data pelanggan nyata; payload mentah ≤ 30 hari; log teknis ≤ 30 hari tanpa isi chat, debug Caddy mati; data penguji dihapus sebelum go-live; backup rotasi 7 hari; insiden data nyata → catat jumlah, hapus ≤ 3 hari kerja. Production (arah): payload 30 hari, log 90 hari, chat/media 2 tahun, permintaan hapus/akses ≤ 14 hari kerja | Pemilik proyek / 26 Nov 2026 |
 | D-19 | Server production & lokasi data | VPS tersendiri; lokasi dicatat | Tahap 8 | Terbuka | | |
 | D-20 | Routing eskalasi kelompok / lembaga / ≥ 5 peserta | Ke Tim Kemitraan | Tahap 4 | Terbuka | | |
 | D-21 | Ambang lulus set uji AI | 0 harga/jadwal/tautan dikarang; ≥ 95% eskalasi benar (minta manusia & komplain); ≥ 90% jawaban benar untuk pertanyaan yang tersedia | Tahap 4 | Terbuka | | |
-| D-22 | Penanganan lead nyasar | Calon pelanggan baru di Hotline/Kemitraan dialihkan ke Tim Admisi **di percakapan yang sama** (pelanggan tidak diminta pindah nomor) | Tahap 3 | Terbuka | | |
+| D-22 | Penanganan lead nyasar | Calon pelanggan baru di Hotline/Kemitraan dialihkan ke Tim Admisi **di percakapan yang sama** (pelanggan tidak diminta pindah nomor) | Tahap 3 | **Diputuskan** | Usulan default diterima | Pemilik proyek / 26 Nov 2026 |
 | D-23 | Kategori keluhan Hotline | Teknis kelas · Materi · Sertifikat · Pembayaran · Trainer · Lainnya | Tahap 4 | Terbuka | | |
 | D-24 | Fitur harian Halo AI yang boleh hilang saat go-live | Tidak ada, sampai inventaris J0-05 selesai | Tahap 7 | Terbuka | | |
 
