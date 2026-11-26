@@ -128,3 +128,11 @@ Pernyataan pemilik (verbatim): "B, izinkan Tahap 4 paralel, siapkan opsi D-09 da
 - **Mode AI saat go-live = B (bertahap):** AI otomatis hanya menjawab pertanyaan yang jawabannya ada di Kartu Program aktif; selain itu eskalasi ke admin; perluasan cakupan setelah ambang D-21 terpenuhi pada data nyata.
 - **Izin eksplisit kerja paralel Tahap 4** selama uji/audit Gate 3 berjalan (pengecualian AGENTS.md §2.3). Batas: Tahap 4 tetap di balik flag `ai_agents` default **mati**, tidak dinyalakan di staging/production sebelum Gate 3 diputuskan dan Gate 4 lulus; prompt `docs/prompts/tahap-4.md` disusun/disetujui pemilik sebelum pembangunan.
 - Opsi D-09: `docs/tahap-4/opsi-d09-provider-ai.md`. Template Kartu Program: `docs/tahap-4/template-kartu-program.md` + `.csv`.
+
+
+## 13. KOREKSI AUDITOR — identitas nomor operasional (26 Nov 2026) ⚠️
+Kartu program yang dikirim pemilik memuat nomor kontak resmi yang **6 digit terakhirnya …196319** (dengan "1119" di tengah) dan Agent Spec memuat nomor **…246319** (dengan "0124" di tengah). AGENTS.md §1 menyebut Admisi "…1119" dan Hotline "…0124" — kemungkinan besar merujuk **digit tengah** nomor-nomor ini. Maka (menunggu konfirmasi pemilik):
+- **…196319 = Admisi** (nomor operasional, DILARANG disentuh sampai Tahap 9 + GO),
+- **…246319 = Hotline** (idem),
+- **…186319 = Kemitraan/cadangan** (tersambung ke staging).
+Saran auditor sebelumnya yang memakai …196319/…246319 sebagai nomor uji (checklist Tech Provider bagian D; rencana uji Gate 3 P4/S4) **dicabut dan dokumen sudah dikoreksi**. Belum ada tindakan yang dilakukan pada nomor-nomor itu. Usulan: AGENTS.md §1 diperbarui lewat PR agar memakai 6 digit terakhir. Catatan guard: aturan G2 (akhiran 1119/0124) tidak cocok dengan nomor-nomor ini; perlindungan efektif berasal dari G3 (nomor lengkap dilarang) dan G4 (hash, sudah diisi pemilik).

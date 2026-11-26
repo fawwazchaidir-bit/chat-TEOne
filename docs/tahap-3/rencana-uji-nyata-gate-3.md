@@ -12,7 +12,7 @@ Disusun auditor 26 Nov 2026 setelah Gate 2 **LANJUT TERBATAS** dan tag `tahap-1-
 | P1 | Gate 2 LANJUT TERBATAS tercatat; tag ada | ✅ (26 Nov) |
 | P2 | Flag **`inbox` = menyala**, **`ai_simulation` = mati**, `whatsapp_connector` = menyala | Halaman Kill switch & flag; kueri `feature_flag_overrides` |
 | P3 | Channel …186319 `test_mode = true` | kueri §6 |
-| P4 | Daftar penerima uji: …4062 **+ satu nomor pemilik lain** (…196319 atau …246319) sebagai "pelanggan B" | Halaman Integrasi → penerima uji |
+| P4 | Daftar penerima uji: …4062 **+ satu nomor tim lain yang BUKAN nomor bisnis** (mis. HP pribadi staf) sebagai "pelanggan B". **DILARANG memakai …196319 atau …246319** — diduga nomor Admisi dan Hotline (koreksi auditor 26 Nov) | Halaman Integrasi → penerima uji |
 | P5 | Channel kedua **"Uji B"** dibuat **tanpa koneksi** Meta (hanya untuk uji visibilitas) | Halaman Channel |
 | P6 | Pengguna uji: **Admin Kemitraan** (cakupan channel Kemitraan, Tim Kemitraan), **Admin Admisi** (cakupan channel Uji B saja, Tim Admisi), Super Admin (Anda) — semua dengan 2FA | Halaman Pengguna / Peran / Tim |
 | P7 | Backup sebelum uji: `backup-rotate.sh` kode 0, `offsite=ok` | VPS |
@@ -24,7 +24,7 @@ Disusun auditor 26 Nov 2026 setelah Gate 2 **LANJUT TERBATAS** dan tag `tahap-1-
 | **S1** | 3.1 | Dari …4062 kirim "Halo S1". Login **Admin Kemitraan** → percakapan tampil di inbox (Semua, channel Kemitraan, belum dibaca 1). Login **Admin Admisi** → percakapan **tidak tampil** di daftar, pencarian (4 digit terakhir), filter, dan jumlah; buka URL percakapan langsung → **ditolak** | Tampil hanya untuk yang berizin; URL langsung 403/halaman ditolak |
 | **S2** | 3.5 | Admin Kemitraan membalas S1 dengan **klik ganda cepat** pada tombol kirim | Di WhatsApp …4062 hanya **1** pesan; di TE One 1 pesan keluar; status naik ke Diterima/Dibaca dari webhook |
 | **S3** | 3.2 + D-22 | Admin Kemitraan menandai **Lead nyasar** / **alihkan** percakapan ke **Tim Admisi** | Admin Admisi kini **melihat percakapan itu saja** (bukan seluruh channel Kemitraan); percakapan lain di channel Kemitraan tetap tidak terlihat olehnya |
-| **S4** | 3.1 (lintas channel) | Dari "pelanggan B" (…196319/…246319) kirim "Halo S4" | Admin Admisi tidak melihat percakapan B; panel riwayat kontak hanya menampilkan channel berizin |
+| **S4** | 3.1 (lintas channel) | Dari "pelanggan B" (HP pribadi staf, bukan nomor bisnis) kirim "Halo S4" | Admin Admisi tidak melihat percakapan B; panel riwayat kontak hanya menampilkan channel berizin |
 | **S5** | 3.7 + D-05 | Aktifkan sementara `smb_message_echoes`; dari ponsel …186319 kirim 1 pesan ke …4062 di percakapan S1 | Pesan tampil bersumber **WhatsApp Business App**; **AI Off** pada percakapan itu dengan alasan echo; unread tidak bertambah. Matikan lagi `smb_message_echoes` |
 | **S6** | 3.6 (bagian nyata) | Nyalakan kill switch **channel** Kemitraan, lalu **global**; tunggu 10 menit; kirim balasan manual | Spanduk merah tampil < 60 dtk; **tidak lepas sendiri**; balasan manual **tetap** terkirim (sesuai rancangan); lepaskan manual → tercatat di audit |
 | **S7** | G2 nyata (tertunda) | Di Meta App Dashboard → Webhooks, gunakan **Test** untuk field `messages` (contoh Meta) dua kali **atau** minta operator mengulang pengiriman event yang sama | Event contoh dikarantina `channel_tidak_dikenal` dua kali tanpa pesan baru; untuk pesan …4062, kirim ulang id yang sama tidak menambah pesan (diamati di hitungan) — bila tidak dapat dipicu nyata, catat "belum dapat diuji" |
