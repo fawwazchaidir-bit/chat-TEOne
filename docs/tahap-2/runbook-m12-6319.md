@@ -43,3 +43,14 @@ Prasyarat terpenuhi (test_mode, terverifikasi nyata, 1 penerima uji, kill switch
 Step 1 (`smb_app_state_sync`): **ditolak Meta** — `http 400`, `code 131000`, `subcode 10`, "This API is only available to WhatsApp Business App phone numbers onboarded on to WhatsApp Business Platform". Step 2 **tidak** dipanggil. Tidak ada data yang berubah; kesempatan sinkronisasi tidak terpakai.
 
 **Temuan G2-B06 (tinggi, sementara):** Meta tidak mengakui …6319 sebagai nomor WhatsApp Business App yang di-onboard (coexistence) untuk aplikasi TE-One. Dampak: M-11 (echo) kemungkinan tidak menghasilkan event; CCP 2.10 belum terbukti; rencana pemindahan Admisi (coexistence di Halo AI) mungkin memerlukan Embedded Signup aplikasi TE-One dan status Tech Provider/Solution Partner (D-02). Diagnosis berikut: `GET /<phone_number_id>?fields=is_on_biz_app,platform_type` (baca-saja).
+
+## Diagnosis identitas nomor — 26 Nov 2026 (baca-saja, Graph API)
+```
+TERSAMBUNG KE STAGING: nomor …186319 · verified_name "Admisi Trilogika Edutama" · is_on_biz_app=true · platform_type=CLOUD_API · status=CONNECTED
+SEMUA NOMOR DI WABA YANG SAMA: hanya …186319
+```
+Pemilik menyatakan memiliki tiga nomor yang sama-sama berakhiran 6319.
+
+**Temuan G2-B07 (berpotensi KRITIS, menunggu konfirmasi pemilik):** nomor yang tersambung ke staging bernama tampilan **"Admisi Trilogika Edutama"** dan aktif di WhatsApp Business App (coexistence). AGENTS.md §1 mencatat Admisi = …1119 dan Kemitraan sebagai "cadangan Admisi". Bila …186319 adalah nomor yang dipakai operasional Admisi (lead iklan) atau terhubung ke Halo AI, staging melanggar AGENTS.md §3.1/§3.2. Bila …186319 adalah nomor Kemitraan/cadangan yang kebetulan bernama "Admisi", tidak ada pelanggaran, tetapi nama tampilan menyesatkan dan dokumen harus memakai 6 digit terakhir. Penolakan SMB App Data (131000/10) konsisten dengan nomor coexistence yang **di-onboard lewat jalur lain** (bukan Embedded Signup aplikasi TE-One).
+
+**Tindakan sementara (tanpa mengubah registrasi):** hentikan M-11/M-12 pada …186319; kill switch global tetap menyala; matikan sementara langganan field `smb_message_echoes` dan `history` di aplikasi TE-One sampai identitas jelas; hitung lalu lintas masuk (angka saja).
