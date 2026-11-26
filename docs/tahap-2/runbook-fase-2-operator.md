@@ -69,12 +69,12 @@ sudo bash -c "cd $B && ls -l && sha256sum --check *.sha256"
 
 ## Langkah 4 — Uji restore terisolasi (tidak menyentuh DB staging)
 ```bash
-ST=$(sudo ls -1 $B | grep -E "^$DB-[0-9T]+Z\.dump\.gpg$" | sort | tail -1); echo "$ST"
+ST=$(sudo ls -1 $B | grep -E "^$DB-[0-9T]+Z\.dump\.gpg$" | sort | tail -1); echo "berkas: $ST"; [ -n "$ST" ] || echo "BERHENTI: tidak ada .dump.gpg langsung di $B (cek: sudo find $B -type f)"
 sudo docker network create --internal teone-restore-test
 sudo docker run -d --name teone-restore-pg --network teone-restore-test -e POSTGRES_PASSWORD="$(head -c16 /dev/urandom | base64)" postgres:16
 sleep 8; sudo docker exec teone-restore-pg createdb -U postgres restore_check
 T0=$(date +%s)
-sudo gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 --decrypt "$B/$ST" 3< /etc/teone/backup.pass | sudo docker exec -i teone-restore-pg pg_restore -U postgres -d restore_check --no-owner --no-acl
+sudo bash -c "gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 --decrypt '$B/$ST' 3< /etc/teone/backup.pass" | sudo docker exec -i teone-restore-pg pg_restore -U postgres -d restore_check --no-owner --no-acl   # redirect 3< harus di dalam sudo (berkas passphrase milik root)
 echo "durasi restore: $(( $(date +%s) - T0 )) dtk"
 Q="select 'messages',count(*) from messages union all select 'inbound_events',count(*) from inbound_events union all select 'conversations',count(*) from conversations union all select 'audit_log',count(*) from audit_log union all select 'migrasi',count(*) from drizzle.__drizzle_migrations"
 echo "== hasil restore";  sudo docker exec teone-restore-pg psql -U postgres -d restore_check -Atc "$Q"
