@@ -86,6 +86,6 @@ Rekomendasi auditor: LANJUT TERBATAS
 KEPUTUSAN: [ ] LANJUT   [x] LANJUT TERBATAS   [ ] TAHAN      (pernyataan pemilik: "Gate 2: LANJUT TERBATAS")
 Lingkup terbuka + PIC + tenggat: impor riwayat (pemilik/developer, keputusan ≤ 20 Des 2026)
 Syarat sebelum uji nyata Tahap 3: D-01/D-05/D-16/D-22 → DIPUTUSKAN (default, 26 Nov); event channel_tidak_dikenal; tag tahap-1-diterima
-Tag dibuat        : tahap-2-diterima-terbatas — BELUM (dibuat pemilik lewat GitHub Releases pada 046355936dc4)
+Tag dibuat        : tahap-2-diterima-terbatas — SUDAH, pada 7f4577b (kode identik 046355936dc4); diverifikasi auditor 26 Nov via git ls-remote
 Diputuskan oleh   : Pemilik proyek          Tanggal: 26 November 2026
 ```
