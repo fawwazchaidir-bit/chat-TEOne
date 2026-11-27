@@ -57,6 +57,32 @@ export const listWabaPhoneNumbers = (wabaId: string) =>
 export const listSubscribedApps = (wabaId: string) => call<{ data?: unknown[] }>("GET", `${encodeURIComponent(wabaId)}/subscribed_apps`);
 export const subscribeApp = (wabaId: string) => call<{ success?: boolean }>("POST", `${encodeURIComponent(wabaId)}/subscribed_apps`);
 
+// ───────────── Sinkronisasi kontak & riwayat (SMB App Data API; S-12) ─────────────
+/**
+ * `POST /<API_VERSION>/<BUSINESS_PHONE_NUMBER_ID>/smb_app_data`, body `{"messaging_product":"whatsapp","sync_type":"smb_app_state_sync"|"history"}`,
+ * respons sukses `{"messaging_product":"whatsapp","request_id":"…"}` — TERVERIFIKASI dari halaman resmi *Onboarding WhatsApp Business app users*
+ * (Step 1 & Step 2, dibaca 26 Nov 2026). Halaman rujukan Graph API `smb_app_data` TIDAK dapat dibaca (HTTP 404 untuk klien tanpa sesi): daftar kode galat
+ * khusus endpoint ini BELUM TERVERIFIKASI → galat dipetakan lewat pemetaan umum (errors.ts) dan yang tak dikenal diperlakukan sebagai gagal tanpa percobaan ulang.
+ *
+ * TIDAK ADA percobaan ulang di sini maupun di pemanggil: timeout/jaringan/5xx = hasil BELUM PASTI (Meta mungkin sudah memproses; permintaan hanya boleh sekali).
+ */
+export const SMB_SYNC_TYPES = ["smb_app_state_sync", "history"] as const;
+export type SmbSyncType = (typeof SMB_SYNC_TYPES)[number];
+export const isSmbSyncType = (v: unknown): v is SmbSyncType => typeof v === "string" && (SMB_SYNC_TYPES as readonly string[]).includes(v);
+
+/** Pra-pemeriksaan TANPA memanggil jaringan: null = dapat dipanggil; selain itu alasan (konfigurasi). Dipakai SEBELUM baris permintaan dibuat. */
+export function metaCallProblem(cfg: MetaConfig = getMetaConfig()): string | null {
+  if (!cfg.accessToken) return "META_ACCESS_TOKEN belum diisi";
+  try { assertSafeBaseUrl(cfg); } catch (e) { return (e as Error).message; }
+  return null;
+}
+
+export type SmbSyncOk = { messaging_product?: string; request_id?: string };
+export const requestSmbSync = (phoneNumberId: string, syncType: SmbSyncType): Promise<CallResult<SmbSyncOk>> =>
+  isSmbSyncType(syncType) && /^\d{5,30}$/.test(phoneNumberId)
+    ? call<SmbSyncOk>("POST", `${encodeURIComponent(phoneNumberId)}/smb_app_data`, { json: { messaging_product: "whatsapp", sync_type: syncType } })
+    : Promise.resolve({ ok: false, kind: "konfigurasi", detail: "sync_type atau phone_number_id tidak valid — tidak dipanggil" });
+
 // ───────────── Kirim ─────────────
 export type SendOk = { messages?: { id?: string }[]; contacts?: unknown[] };
 export const postMessage = (phoneNumberId: string, payload: Json) => call<SendOk>("POST", `${encodeURIComponent(phoneNumberId)}/messages`, { json: { messaging_product: "whatsapp", recipient_type: "individual", ...payload } });

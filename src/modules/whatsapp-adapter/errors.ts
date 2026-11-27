@@ -42,3 +42,41 @@ export const CATEGORY_LABEL: Record<MetaErrorCategory | "timeout" | "jaringan" |
   media_upload: "Gagal mengunggah media (pesan belum dikirim)",
   konfigurasi: "Konfigurasi Meta belum lengkap",
 };
+
+// ───────────── Sinkronisasi kontak & riwayat (S-12) ─────────────
+/** Kode pada webhook `history` bila pemilik bisnis menolak berbagi riwayat (dokumentasi resmi Meta, dibaca 26 Nov 2026). */
+export const HISTORY_SHARING_DECLINED_CODE = 2593109;
+export const HISTORY_DECLINED_LABEL = "Pemilik bisnis menolak berbagi riwayat (kode 2593109) — Meta tidak akan mengirim riwayat";
+
+/** Hasil panggilan SMB App Data API yang sudah DIKLASIFIKASI. `belum_pasti` = Meta mungkin sudah memproses: tidak boleh dicoba ulang. */
+export type SmbSyncClassified =
+  | { status: "diterima_meta"; requestId: string }
+  | { status: "gagal"; failureKind: "http" | "tidak_dikirim"; httpStatus: number | null; metaCode: number | null; metaSubcode: number | null; label: string }
+  | { status: "belum_pasti"; failureKind: "timeout" | "jaringan" | "http" | "respons_tak_dikenal"; httpStatus: number | null; metaCode: number | null; metaSubcode: number | null; label: string };
+
+type SyncCall =
+  | { ok: true; status: number; data: unknown }
+  | { ok: false; kind: "konfigurasi"; detail: string }
+  | { ok: false; kind: "timeout" | "jaringan" }
+  | { ok: false; kind: "http"; status: number; meta: { code: number | null; subcode: number | null } };
+
+/**
+ * Klasifikasi eksplisit (tanpa ketergantungan pada teks pesan Meta):
+ *  - 2xx dengan `messaging_product="whatsapp"` DAN `request_id` berupa teks → `diterima_meta`. 2xx dengan bentuk lain → `belum_pasti` (TIDAK pernah dinyatakan diterima tanpa respons yang sah).
+ *  - timeout/jaringan → `belum_pasti`. HTTP ≥ 500 atau kategori `server_meta` → `belum_pasti` (server mungkin sudah memproses).
+ *  - HTTP 4xx lain (termasuk rate limit 429/kode 4/80007/130429) → `gagal`: Meta menjawab menolak. Kategorinya dicatat; TIDAK ada percobaan ulang otomatis.
+ */
+export function classifySmbSyncResult(r: SyncCall): SmbSyncClassified {
+  if (r.ok) {
+    const d = (typeof r.data === "object" && r.data !== null ? r.data : {}) as { messaging_product?: unknown; request_id?: unknown };
+    if (d.messaging_product === "whatsapp" && typeof d.request_id === "string" && d.request_id.length > 0 && d.request_id.length <= 200) return { status: "diterima_meta", requestId: d.request_id };
+    return { status: "belum_pasti", failureKind: "respons_tak_dikenal", httpStatus: r.status, metaCode: null, metaSubcode: null, label: "Meta menjawab sukses tetapi bentuk respons tidak dikenal — hasil belum pasti" };
+  }
+  if (r.kind === "konfigurasi") return { status: "gagal", failureKind: "tidak_dikirim", httpStatus: null, metaCode: null, metaSubcode: null, label: `${CATEGORY_LABEL.konfigurasi} (tidak dikirim)` };
+  if (r.kind === "timeout" || r.kind === "jaringan") return { status: "belum_pasti", failureKind: r.kind, httpStatus: null, metaCode: null, metaSubcode: null, label: CATEGORY_LABEL[r.kind] };
+  if (r.kind !== "http") return { status: "belum_pasti", failureKind: "respons_tak_dikenal", httpStatus: null, metaCode: null, metaSubcode: null, label: "Hasil tidak dikenal — belum pasti" };
+  const cat = categorizeMetaError(r.meta.code, r.status);
+  const label = CATEGORY_LABEL[cat];
+  if (r.status >= 500 || cat === "server_meta") return { status: "belum_pasti", failureKind: "http", httpStatus: r.status, metaCode: r.meta.code, metaSubcode: r.meta.subcode, label: `${label} — hasil belum pasti` };
+  return { status: "gagal", failureKind: "http", httpStatus: r.status, metaCode: r.meta.code, metaSubcode: r.meta.subcode, label };
+}

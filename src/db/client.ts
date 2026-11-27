@@ -37,7 +37,11 @@ export async function closeDb() {
 }
 
 /** Kode SQLSTATE kustom yang dilempar trigger database (lihat drizzle/0001_*). */
-export const PG_ERR = { CHANNEL_LIMIT: "TE001", LAST_SUPER_ADMIN: "TE002", LIMIT_BELOW_ACTIVE: "TE003" } as const;
+export const PG_ERR = {
+  CHANNEL_LIMIT: "TE001", LAST_SUPER_ADMIN: "TE002", LIMIT_BELOW_ACTIVE: "TE003",
+  // Tahap 4 (migrasi 0008): versi terbit tidak berubah · agent masih dipakai · penempatan tidak sah · aktivasi tanpa versi terbit · sumber agent pada versi non-draft
+  VERSION_IMMUTABLE: "TE010", AGENT_IN_USE: "TE011", PLACEMENT_INVALID: "TE012", ACTIVE_NEEDS_PUBLISHED: "TE013", SOURCES_LOCKED: "TE014",
+} as const;
 
 export function pgErrorCode(e: unknown): string | undefined {
   let cur: unknown = e;

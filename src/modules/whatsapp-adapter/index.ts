@@ -7,3 +7,4 @@ export * from "./rate-limiter";
 export * from "./client";
 export * from "./inbound-store";
 export * from "./connection";
+export * from "./history-sync";

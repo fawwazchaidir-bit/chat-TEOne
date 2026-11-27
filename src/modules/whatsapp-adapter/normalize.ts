@@ -2,9 +2,11 @@
  * Normalisasi payload webhook Meta → event internal. SATU-SATUNYA tempat asumsi bentuk payload Meta.
  *
  * STATUS VERIFIKASI (jujur): bentuk `messages` / `statuses` (envelope entry→changes→value, metadata.phone_number_id,
- * contacts[], messages[], statuses[]) adalah bentuk Cloud API yang umum dan stabil. Bentuk field COEXISTENCE
- * (`smb_message_echoes`, `history`, `smb_app_state_sync`), objek `referral`, dan pengenal selain `wa_id` disusun dari sumber
- * SEKUNDER dan pengetahuan umum — BELUM diverifikasi ke dokumentasi resmi Meta (host dokumentasi diblokir saat pembangunan).
+ * contacts[], messages[], statuses[]) adalah bentuk Cloud API yang umum dan stabil. Bentuk field COEXISTENCE `smb_message_echoes`,
+ * `history` (history[].metadata{phase,chunk_order,progress}, threads[].{id,context{wa_id,user_id,…},messages[]}, errors[] kode 2593109, webhook aset media
+ * terpisah) dan `smb_app_state_sync` (state_sync[].{type,contact{full_name,first_name,phone_number,user_id,username},action,metadata.timestamp}) DIVERIFIKASI
+ * ke halaman resmi Meta "Onboarding WhatsApp Business app users" (dibaca 26 Nov 2026) — bentuk SIMULASI/dokumentasi, BELUM teramati pada akun nyata (M-12).
+ * Objek `referral` dan pengenal selain `wa_id` pada `messages` tetap dari sumber SEKUNDER.
  * Karena itu normalizer: (1) tidak pernah melempar error, (2) mengabaikan field asing, (3) mengarantina yang tidak dikenali
  * (`unknown`), (4) selalu mempertahankan identitas event agar dedup tetap benar. Wajib diverifikasi pada nomor uji.
  */
@@ -15,6 +17,8 @@ export type EventMeta = { phoneNumberId: string | null; wabaId: string | null; d
 export type InboundMedia = { id: string; mime: string | null; sha256: string | null; caption: string | null; filename: string | null };
 export type Referral = { sourceType: string | null; sourceId: string | null; sourceUrl: string | null; headline: string | null; clickId: string | null };
 export type ContactInfo = { waId: string | null; userId: string | null; name: string | null };
+/** Kontak dari webhook `smb_app_state_sync` (buku alamat WhatsApp Business app). `action`: add = ditambah/diubah, remove = dihapus; null = tak dikenal. */
+export type ContactSyncItem = { action: "add" | "remove" | null; fullName: string | null; firstName: string | null; phone: string | null; userId: string | null; username: string | null; ts: string | null };
 
 export type MessageFragment = {
   id: string;
@@ -34,9 +38,15 @@ export type NormalizedEvent = { eventKey: string; meta: EventMeta; providerTs: s
   | { kind: "status"; status: StatusFragment }
   /** `to` = nomor penerima (dihilangkan Meta bila tidak tersedia); `toUserId` = BSUID penerima; `contact` = entri `contacts[]` yang TERBUKTI milik penerima. Dua bidang terakhir opsional: event lama di antrean tidak memilikinya. */
   | { kind: "echo"; to: string | null; toUserId?: string | null; contact?: ContactInfo | null; message: MessageFragment }
-  | { kind: "history"; direction: "masuk" | "keluar"; customer: string | null; historyStatus: string | null; message: MessageFragment }
+  /**
+   * `direction` null = arah TIDAK dapat ditentukan (ingest mengarantina; tidak ditebak). `customer` = nomor pelanggan (thread.id / context.wa_id), `customerUserId` = BSUID
+   * dari context thread, `fromUserId` = BSUID pengirim pesan (bila pesan dari pengguna). `identityConflict` = thread.id ≠ context.wa_id (identitas tidak dipercaya). Semua opsional:
+   * event lama di antrean tidak memilikinya (F1-03).
+   */
+  | { kind: "history"; direction: "masuk" | "keluar" | null; customer: string | null; customerUserId?: string | null; fromUserId?: string | null; identityConflict?: boolean; historyStatus: string | null; message: MessageFragment }
   | { kind: "history"; progress: { phase: number | null; chunk: number | null; progress: number | null; errorCode: number | null; errorTitle: string | null }; message?: undefined; direction?: undefined; customer?: undefined; historyStatus?: undefined }
-  | { kind: "contact_sync"; count: number }
+  /** Satu event per kontak (S-12); `contact` opsional: event lama di antrean hanya memuat hitungan. */
+  | { kind: "contact_sync"; count: number; contact?: ContactSyncItem }
   | { kind: "unknown"; reason: string; field: string | null }
 );
 
@@ -120,6 +130,18 @@ function pickEchoContact(contacts: Obj[], to: string | null, toUserId: string | 
   return distinct.size === 1 ? (matches[0] as ContactInfo) : null;
 }
 
+/**
+ * Arah pesan history. Urutan bukti (tanpa menebak): pesan dengan `to` (echo Business App) / dari nomor bisnis → keluar; pesan berpengirim BSUID (`from_user_id`,
+ * pengguna tanpa nomor) → masuk; `from` = pelanggan thread → masuk; `from` lain pada thread ber-pelanggan → keluar (aturan lama). Tanpa bukti apa pun → null (dikarantina).
+ */
+function historyDirection(msg: MessageFragment, r: Obj, meta: EventMeta, customer: string | null): "masuk" | "keluar" | null {
+  if (str(r.to)) return "keluar";
+  if (msg.from && meta.displayPhone && msg.from === meta.displayPhone) return "keluar";
+  if (str(r.from_user_id)) return "masuk";
+  if (msg.from && customer) return msg.from === customer ? "masuk" : "keluar";
+  return null;
+}
+
 function unknownEvent(meta: EventMeta, reason: string, field: string | null, basis: unknown): NormalizedEvent {
   return { kind: "unknown", eventKey: `unk:${sha(basis)}`, meta, providerTs: null, reason, field };
 }
@@ -179,20 +201,43 @@ export function normalizePayload(body: unknown): NormalizedEvent[] {
             out.push({ kind: "history", eventKey: `histp:${sha([wabaId, meta.phoneNumberId, progress])}`, meta, providerTs: null, progress });
             for (const th of arr(h.threads)) {
               const t = obj(th);
-              const customer = digits(str(t.id));
+              const tctx = obj(t.context);
+              // Identitas thread (F1-03): nomor dari `id` / `context.wa_id` (dihilangkan Meta bila tak tersedia), BSUID dari `context.user_id`.
+              // `id` ≠ `context.wa_id` = bukti bertentangan → tidak dipercaya sama sekali (tidak ada yang dipilih/digabung).
+              const idPhone = digits(str(t.id));
+              const ctxPhone = digits(str(tctx.wa_id));
+              const identityConflict = !!idPhone && !!ctxPhone && idPhone !== ctxPhone;
+              const customer = identityConflict ? null : (idPhone ?? ctxPhone);
+              const customerUserId = identityConflict ? null : str(tctx.user_id);
               for (const raw of arr(t.messages)) {
                 const r = obj(raw);
                 const msg = parseMessage(r);
                 if (!msg) continue;
-                const fromBusiness = meta.displayPhone !== null && msg.from === meta.displayPhone;
-                const direction = fromBusiness || (customer !== null && msg.from !== null && msg.from !== customer) ? "keluar" : "masuk";
-                out.push({ kind: "history", eventKey: `hist:${msg.id}`, meta, providerTs: msg.ts, direction, customer, historyStatus: str(obj(r.history_context).status), message: msg });
+                const fromUserId = str(r.from_user_id);
+                out.push({ kind: "history", eventKey: `hist:${msg.id}`, meta, providerTs: msg.ts, direction: historyDirection(msg, r, meta, customer), customer, customerUserId, fromUserId, ...(identityConflict ? { identityConflict: true } : {}), historyStatus: str(obj(r.history_context).status), message: msg });
               }
             }
           }
+          // Webhook ASET MEDIA terpisah (field `history` dengan `messages[]`, bukan `history[]`; hanya media ≤ 14 hari): Tahap 2 tidak mengunduh media riwayat →
+          // dikarantina dengan alasan khusus (payload karantina hanya {field, reason}: tanpa nomor/ID media).
+          for (const raw of arr(v.messages)) out.push(unknownEvent(meta, "history_media_tidak_diproses", field, raw));
         } else if (field === "smb_app_state_sync") {
-          const count = arr(v.state_sync).length;
-          out.push({ kind: "contact_sync", eventKey: `cs:${sha([wabaId, meta.phoneNumberId, v])}`, meta, providerTs: null, count });
+          const items = arr(v.state_sync);
+          if (items.length === 0) out.push({ kind: "contact_sync", eventKey: `cs:${sha([wabaId, meta.phoneNumberId, v])}`, meta, providerTs: null, count: 0 });
+          for (const raw of items) {
+            const i = obj(raw);
+            if (!isObj(raw) || str(i.type) !== "contact") { out.push(unknownEvent(meta, "state_sync_bukan_kontak", field, raw)); continue; }
+            const c2 = obj(i.contact);
+            const act = str(i.action);
+            const rawTs = str(obj(i.metadata).timestamp);
+            const contact: ContactSyncItem = {
+              action: act === "add" || act === "remove" ? act : null,
+              fullName: str(c2.full_name)?.slice(0, 200) ?? null, firstName: str(c2.first_name)?.slice(0, 100) ?? null,
+              phone: digits(str(c2.phone_number)), userId: str(c2.user_id), username: str(c2.username)?.slice(0, 100) ?? null, ts: parseTs(rawTs),
+            };
+            // Kunci = hash (tanpa nilai mentah): kontak + aksi + cap waktu + nama → suntingan baru (cap/nama berbeda) diproses, pengiriman ulang yang sama dideduplikasi.
+            out.push({ kind: "contact_sync", eventKey: `cs:${sha([wabaId, meta.phoneNumberId, contact.phone ?? contact.userId, contact.action, rawTs, contact.fullName, contact.firstName])}`, meta, providerTs: contact.ts, count: 1, contact });
+          }
         } else {
           out.push(unknownEvent(meta, "field_tidak_dikenal", field, c));
         }

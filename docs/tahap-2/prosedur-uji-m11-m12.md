@@ -4,6 +4,8 @@
 > **Pembangun tidak melakukan apa pun** terhadap staging, akun Meta, atau ponsel uji. **Tidak ada** field webhook yang diaktifkan, **tidak ada** re-onboarding, **tidak ada** pendaftaran ulang nomor, **tidak ada** `git reset`/`pull`, **tidak ada** penggantian image. Dokumen ini hanya rencana; setiap langkah bertanda **[TUNGGU KEPUTUSAN]** hanya boleh dijalankan setelah formulir §10 diisi **tertulis oleh pemilik** (formulir sengaja dibiarkan **kosong**).
 > Admisi (…1119), Hotline (…0124), dan Halo AI **tidak** menjadi bagian prosedur ini sedikit pun. Hanya nomor uji **…6319** (penguji **…4062**).
 > **PEMBARUAN 26 Nov (izin M-11):** pemilik **mengizinkan tertulis** uji echo M-11 pada …6319 ([`persetujuan-pemilik-m11-2026-11-26.md`](persetujuan-pemilik-m11-2026-11-26.md)). **Pelaksanaan kini mengikuti [`runbook-uji-m11.md`](runbook-uji-m11.md)** (gerbang GO/NO-GO, kueri, kondisi berhenti, lembar teks). **Berubah karena batas izin:** S4 dan S7 **dibatalkan**; bukti **teks**, bukan tangkapan layar; **tanpa** rebuild image dan **tanpa** worker. §6 di bawah dipertahankan sebagai riwayat rancangan. Dokumentasi resmi Meta **dibaca** ([`verifikasi-dokumentasi-meta-2026-11-26.md`](verifikasi-dokumentasi-meta-2026-11-26.md)).
+> **PEMBARUAN S-12 (26 Nov 2026):** TE One kini **memiliki pemicu sinkronisasi** (SMB App Data API Step 1/2; PR S-12, flag `history_sync` default **mati**) sehingga M-12 **dapat** dirancang tanpa menunggu tindakan di luar TE One — lihat **Opsi H3** di §7. H3 **belum dijalankan**, **belum disetujui**, dan **tidak boleh** dijalankan pada …6319 (berisi chat pelanggan nyata), Admisi, atau Hotline.
+>
 > **PEMBARUAN setelah laporan Fase 0 operator (26 Nov 03.59 WIB):** kondisi **STOP (a)** §4 **terpicu** — ponsel …6319 berisi **chat pelanggan nyata**. **M-11 dan perubahan subscription tidak boleh dilanjutkan** sampai pemilik memutuskan cara isolasi (§2.4, formulir **A-2c**). **Koreksi:** dugaan saya semula bahwa jendela sinkronisasi riwayat "hampir pasti sudah lewat" **salah** (onboarding ±16.00 WIB 25 Nov) — lihat §2.3 dan §2.4.
 
 ## 0. Label sumber — baca dulu
@@ -244,6 +246,24 @@ Tangkapan layar field webhook sebelum/sesudah (S1, S6); hasil baseline sebelum/s
 - **Prasyarat bila pemilik tetap ingin:** nomor ke-3 **khusus uji** tanpa pelanggan nyata (bukan …1119/…0124), ponsel bersih berisi chat sintetis, field `history`+`smb_message_echoes`+`smb_app_state_sync` di-subscribe **sebelum** onboarding, jendela waktu dan orang yang siap ≥ 24 jam, backup baru, persetujuan terpisah atas **langkah dan dampaknya**.
 - **Pemulihan:** onboarding ulang adalah satu-satunya cara memulihkan keadaan bila terputus; **tidak dapat dibatalkan oleh TE One**.
 
+### Opsi H3 — Nomor uji BERSIH di-onboard baru + Step 1/2 dari TE One dalam 24 jam **[BARU 26 Nov (S-12); TUNGGU KEPUTUSAN A-3; disarankan bila M-12 nyata ingin dikejar]**
+- **Pelaksanaan terperinci (gerbang GO/NO-GO, kueri baca-saja, langkah L0–L10, kondisi berhenti, lembar hasil, template persetujuan kosong): [`runbook-uji-m12.md`](runbook-uji-m12.md).** Runbook itu **disiapkan, belum dijalankan, belum disetujui**.
+- **Arah dipilih pemilik (26 Nov 2026, pernyataan di sesi pembangunan: "Pilih opsi (a): nomor uji bersih + Step 1/2").** Ini **arah**, **bukan persetujuan eksekusi**: formulir **A-3 tetap kosong** (hanya pemilik yang mengisi) dan **tidak ada** langkah di bawah yang boleh dijalankan sebelum **persetujuan tertulis terpisah** atas langkah dan dampaknya (butir 4 prasyarat). Pembangun tidak menyentuh staging, akun Meta, atau nomor apa pun.
+- **Mengapa ini satu-satunya jalur yang masuk akal:** jendela sinkronisasi hanya **24 jam** sejak onboarding dan tiap langkah **sekali** (resmi, 26 Nov). Pemicu kini ada di TE One, tetapi hanya berguna pada nomor yang **baru** di-onboard dan **tanpa chat pelanggan nyata**. …6319 **tidak** memenuhi syarat itu (jendela lewat + chat nyata). Opsi "saat onboarding Admisi Tahap 9" **tidak disarankan** sebagai satu-satunya kesempatan uji: kesempatannya sekali dan salah langkah berarti offboarding nomor operasional.
+- **Prasyarat (semua harus ya; pembangun tidak menjalankan satu pun):**
+  1. PR S-12 sudah diaudit independen dan di-merge; image baru terpasang di staging oleh operator (migrasi `0006` terapan, worker berjalan); **flag `history_sync` dinyalakan Super Admin hanya setelah keputusan tertulis ini**.
+  2. Nomor uji **bersih** (bukan …6319, …1119, …0124): ponsel berisi **hanya chat sintetis**; channel TE One untuk nomor itu **bukan operasional**, **mode uji aktif**, penguji terdaftar di daftar penerima uji; kill switch global/channel **mati**.
+  3. **Sebelum onboarding**, operator men-*subscribe* **`history`, `smb_app_state_sync`, `smb_message_echoes`** pada aplikasi Meta TE One (tanpa itu webhook sinkronisasi **terlewat** — resmi) dan memverifikasi callback staging; backup baru + titik pemulihan (`docs/backup-restore.md`).
+  4. Dua orang siap ≥ 24 jam (satu Super Admin dengan 2FA + satu operator), dan persetujuan terpisah atas langkah ini.
+- **Langkah (urut):**
+  - **L1** Onboard nomor uji lewat Embedded Signup dan **setujui berbagi riwayat**; **catat jam selesai onboarding (WIB) saat itu juga** (tangkapan layar berjam, disamarkan).
+  - **L2** TE One → *Channel* → *Koneksi WhatsApp*: simpan pemetaan (WABA + phone_number_id) → **Periksa koneksi** sampai *terverifikasi — NYATA*.
+  - **L3** Panel *Sinkronisasi riwayat* → **Nyatakan jam onboarding** (tersimpan sebagai **"dinyatakan admin"**, bukan bukti Meta).
+  - **L4** **Step 1 (kontak)** dengan konfirmasi ganda → tunggu webhook `smb_app_state_sync` (kontak tersimpan tanpa percakapan) → baru **Step 2 (riwayat)** → amati `history` fase 0/1/2, progres → 0 otomatisasi/unread.
+  - **L5** Catat hasil: audit `integration.history_sync_requested` (diterima/gagal/belum pasti), jumlah event kontak/riwayat, progres, status penolakan 2593109 bila ada. **Hasil hanya: lulus / gagal / belum dapat diuji.**
+- **Kondisi berhenti:** jam onboarding tak pasti; jendela tersisa < 30 menit (TE One menolak sendiri); chat non-sintetis muncul; hasil **"belum pasti"** (jangan mengulang — selesaikan manual setelah bukti); kill switch menyala. Terlewatnya jendela = **"belum dapat diuji"**, **bukan** kegagalan kode; mengulang = offboarding + onboarding ulang → **keputusan terpisah**.
+- **Dampak:** akun nomor operasional **0**; data = chat sintetis di staging (retensi D-18); biaya = satu nomor uji tambahan + ±1 hari kerja dua orang. **Nilai bukti:** menutup CCP 2.9 nyata (history) dan menyelesaikan S-12; CCP 2.10 bergantung pada M-11 juga.
+
 ## 8. Tombol darurat — ringkasan
 | Tingkat | Tindakan | Menghentikan | Efek samping | Dapat dibalik? |
 |---|---|---|---|---|
@@ -269,7 +289,7 @@ Tangkapan layar field webhook sebelum/sesudah (S1, S6); hasil baseline sebelum/s
 | **A-2** | **[Persetujuan tertulis pemilik diterima 26 Nov — lihat `persetujuan-pemilik-m11-2026-11-26.md`; kotak di bawah tidak diisi pembangun]** Jalankan M-11: subscribe **hanya** `smb_message_echoes` pada aplikasi TE One, uji S0–S9, lalu cabut | ☐ | ☐ | | |
 | **A-2b** | Sertakan kontrol negatif S4 (kirim ke satu nomor tim di luar daftar uji; orangnya setuju) | ☐ | ☐ | nama pihak: | |
 | **A-2c** | **[Pemilik mengizinkan M-11 pada …6319 dengan syarat satu operator/tanpa aktivitas lain = setara I-3; lihat persetujuan]** **Isolasi ponsel …6319 untuk M-11** (STOP a terpicu): pilih **satu** | ☐ I-1 (tidak menguji) | ☐ I-2 (nomor uji bersih) | ☐ I-3 (pembekuan ponsel; belum direkomendasikan) | |
-| **A-3** | M-12: pilih **satu** | ☐ H0 | ☐ H1 | ☐ H2 (dilarang sampai persetujuan terpisah tertulis) | |
+| **A-3** | M-12: pilih **satu** | ☐ H0 | ☐ H1 (dihapus) | ☐ H2 (dilarang sampai persetujuan terpisah tertulis) · ☐ **H3** (nomor uji bersih + Step 1/2 dalam 24 jam; butuh PR S-12 diterima + persetujuan terpisah) | |
 | **A-4** | **Jalankan worker terpisah** (opsi W1: `up -d --no-deps worker`) setelah kueri §5 di [`pemeliharaan-inline-vs-worker.md`](pemeliharaan-inline-vs-worker.md) ditinjau | ☑ | ☐ | Jalankan setelah kueri §5 dicatat (angka saja), dengan `-p deploy` | Pemilik proyek · 26 Nov 2026 · pernyataan tertulis di sesi audit (`gates/keputusan-pemilik-fase-0-2026-11-26.md`) |
 | **D-18/D-12** | Retensi/penghapusan data uji & RPO/RTO (masih **Terbuka**) | ☐ diputuskan | ☐ ditunda | | |
 

@@ -7,6 +7,8 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 
 export type SendMode = "ok" | "http400" | "http429" | "http500" | "timeout" | "noid" | "window131047";
+/** Perilaku endpoint SMB App Data (S-12). `noid` = 200 tanpa request_id; `badjson` = 200 dengan badan bukan JSON; `http190` = token ditolak. */
+export type SmbMode = "ok" | "http400" | "http429" | "http500" | "http190" | "timeout" | "noid" | "badjson";
 type Call = { method: string; path: string; json?: Record<string, unknown>; auth: string | undefined; bytes?: number };
 
 export class MockGraph {
@@ -17,6 +19,8 @@ export class MockGraph {
   calls: Call[] = [];
   sendMode: SendMode | ((n: number) => SendMode) = "ok";
   sendCount = 0;
+  smbMode: SmbMode | ((n: number) => SmbMode) = "ok";
+  smbCount = 0;
   phones = new Map<string, { display: string; name: string }>();
   wabas = new Map<string, string[]>();
   subscribed = new Set<string>();
@@ -28,7 +32,7 @@ export class MockGraph {
   subscribedStatus = 200;
   /** Penahan permintaan (untuk uji balapan/crash): `hold("send")` menahan POST /messages sampai fungsi pelepas dipanggil. */
   private gates = new Map<string, Promise<void>>();
-  hold(kind: "send" | "upload" | "phone"): () => void {
+  hold(kind: "send" | "upload" | "phone" | "smb"): () => void {
     let release!: () => void;
     this.gates.set(kind, new Promise<void>((r) => { release = r; }));
     return () => { this.gates.delete(kind); release(); };
@@ -53,10 +57,12 @@ export class MockGraph {
     await new Promise<void>((r) => this.server.close(() => r()));
   }
   reset() {
-    this.calls = []; this.sendCount = 0; this.sendMode = "ok"; this.uploaded = []; this.mediaInfoStatus = 200; this.overrideMediaUrl = null;
+    this.calls = []; this.sendCount = 0; this.sendMode = "ok"; this.smbMode = "ok"; this.smbCount = 0; this.uploaded = []; this.mediaInfoStatus = 200; this.overrideMediaUrl = null;
     this.appId = "300000000000001"; this.subscribedStatus = 200; this.gates.clear(); this.phones.clear(); this.wabas.clear(); this.subscribed.clear(); this.media.clear(); this.token = "uji-access-token-sintetis-0001";
   }
   sends() { return this.calls.filter((c) => c.method === "POST" && c.path.endsWith("/messages")); }
+  /** Semua panggilan ke SMB App Data API (Step 1/2) yang diterima mock — dasar bukti "tepat satu panggilan". */
+  smbCalls() { return this.calls.filter((c) => c.method === "POST" && c.path.endsWith("/smb_app_data")); }
 
   private err(res: http.ServerResponse, status: number, code: number, message: string) {
     res.writeHead(status, { "content-type": "application/json" });
@@ -84,7 +90,7 @@ export class MockGraph {
     const parts = url.pathname.replace(/^\/v\d+\.\d+\//, "").split("/").filter(Boolean);
     const [id, sub] = parts;
     const out = (status: number, data: unknown) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(data)); };
-    const gateKind = req.method === "POST" && sub === "messages" ? "send" : req.method === "POST" && sub === "media" ? "upload" : req.method === "GET" && id && !sub && this.phones.has(id) ? "phone" : null;
+    const gateKind = req.method === "POST" && sub === "messages" ? "send" : req.method === "POST" && sub === "smb_app_data" ? "smb" : req.method === "POST" && sub === "media" ? "upload" : req.method === "GET" && id && !sub && this.phones.has(id) ? "phone" : null;
     const gate = gateKind ? this.gates.get(gateKind) : undefined;
     if (gate) await gate;
 
@@ -98,6 +104,20 @@ export class MockGraph {
       if (mode === "window131047") return this.err(res, 400, 131047, "Re-engagement message");
       if (mode === "noid") return out(200, { messaging_product: "whatsapp" });
       return out(200, { messaging_product: "whatsapp", contacts: [{ input: "x", wa_id: "x" }], messages: [{ id: `wamid.mock.${this.sendCount}` }] });
+    }
+    if (req.method === "POST" && sub === "smb_app_data") {
+      this.smbCount++;
+      const mode = typeof this.smbMode === "function" ? this.smbMode(this.smbCount) : this.smbMode;
+      if (mode === "timeout") { this.timers.add(setTimeout(() => res.destroy(), 4000)); return; }
+      if (mode === "http190") return this.err(res, 401, 190, "Invalid OAuth access token.");
+      if (mode === "http400") return this.err(res, 400, 100, "Invalid parameter");
+      if (mode === "http429") return this.err(res, 429, 4, "Application request limit reached");
+      if (mode === "http500") return this.err(res, 500, 1, "Unknown error");
+      // Bentuk resmi: badan wajib {messaging_product:"whatsapp", sync_type:"smb_app_state_sync"|"history"}.
+      if (!json || json.messaging_product !== "whatsapp" || (json.sync_type !== "smb_app_state_sync" && json.sync_type !== "history")) return this.err(res, 400, 100, "Invalid parameter");
+      if (mode === "badjson") { res.writeHead(200, { "content-type": "text/plain" }); return void res.end("bukan json"); }
+      if (mode === "noid") return out(200, { messaging_product: "whatsapp" });
+      return out(200, { messaging_product: "whatsapp", request_id: `mock.req.${this.smbCount}` });
     }
     if (req.method === "POST" && sub === "media") {
       this.uploaded.push({ size: body.length, type: String(ct) });
