@@ -97,4 +97,58 @@ Pernyataan pemilik (verbatim): "go live 15 januari tanpa ai sesuai saranmu".
 - **D-04 cakupan Diputuskan** sesuai usulan §6 butir 3: inbox tim, routing, balasan cepat, catatan internal, template manual, izin/audit/kill switch. AI, label otomatis, pipeline/laporan, dan follow-up menyusul di balik flag mati.
 - Gate yang wajib lulus untuk go-live ini: **Gate 1, 2, 3**, ditambah template manual (bagian Gate 6) dan **Gate 7–9** (audit terpadu/UAT, pilot, GO per nomor). Gate 4–5 dan sisa Gate 6 tidak menghalangi tanggal 15 Jan.
 - **D-14 tetap Terbuka:** perlu ditetapkan apakah Kemitraan (…6319) live lebih dulu (paling lambat ±6 Jan) atau Admisi menjadi nomor pertama.
+- **Pembaruan:** pemilik memilih **D-14 opsi A** ("D-14 pilih A, Kemitraan live dulu"): Kemitraan ≤ ±6 Jan 2027 → observasi ≥ 5 hari kerja → Admisi 15 Jan 2027. Konsekuensi: Gate 1–3, template manual, dan Gate 7–9 untuk Kemitraan harus selesai **sebelum ±6 Jan 2027**; Kemitraan go-live **sebelum freeze 7–14 Jan**.
 - Bukti teks staging diterima → `docs/reports/bukti/staging-j2-2026-11-26.md`.
+
+## 8. M-12 (riwayat) — 26 Nov 2026
+Pernyataan pemilik (verbatim): "tetap gunakan nomor kemitraan ini, siapkan dengan kontijensi".
+Dicatat sebagai **A-3: M-12 pada …6319**. Rencana + kontinjensi: `docs/tahap-2/runbook-m12-6319.md` (Jalur A hari ini sebelum jendela 24 jam tutup, atau Jalur B onboarding ulang setelah PR S-12). Jalur A **hanya** dijalankan setelah pemilik menulis "SETUJU JALUR A".
+
+## 9. Keputusan yang dibutuhkan — jalur onboarding coexistence (26 Nov 2026)
+Fakta: impor kontak/riwayat (SMB App Data API) hanya untuk nomor yang di-onboard lewat **Embedded Signup aplikasi partner**; aplikasi TE-One belum punya Embedded Signup dan status Tech Provider belum ada. D-02 ("aplikasi Meta sendiri") **cukup untuk Cloud API**, tetapi **belum cukup** untuk memindahkan nomor coexistence beserta riwayatnya.
+Opsi untuk pemilik: (i) ajukan **Tech Provider** sekarang + bangun Embedded Signup (lingkup tambahan Tahap 2); (ii) go-live tanpa impor riwayat (riwayat lama tetap di WhatsApp Business App/Halo AI); (iii) BSP resmi. Usulan auditor: (i) dimulai segera, (ii) sebagai cadangan untuk 15 Jan 2027. **Belum diputuskan.**
+
+**Pembaruan 26 Nov 2026:** pemilik memutuskan **opsi (i) — ajukan Tech Provider sekarang** ("jalankan (i) mulai sekarang"). Opsi (ii) tetap usulan cadangan auditor untuk 15 Jan 2027 (belum diputuskan).
+Fakta tambahan dari pemilik: nomor milik pemilik yang berakhiran 6319 = **…186319** (Kemitraan/cadangan, tersambung ke staging), **…196319**, **…246319** (fungsi belum dicatat). Layar *Business Platform* di ponsel …186319 menunjukkan terhubung **langsung ke aplikasi TE-One**. Karena itu penolakan SMB App Data (131000/10) kemungkinan disebabkan **jalur onboarding** (bukan Embedded Signup partner), bukan penyedia lain → konfirmasi lewat tiket dukungan Meta (kategori "WABiz: Cloud API" → "Coexistence Data Synchronization APIs and Webhooks").
+
+## 10. Telaah auditor: apakah TE-One wajib menjadi Tech Provider? (26 Nov 2026)
+**Tidak wajib untuk go-live; wajib hanya bila ingin impor kontak/riwayat (SMB App Data) saat onboarding.**
+- Dokumentasi Meta (App Review): "if you are using the API for yourself as a Direct Developer, you do not need Advanced access or app review." TE One hanya melayani nomor milik Trilogika sendiri → status **Direct Developer** cukup untuk kirim/terima, template, echo.
+- Bukti nyata 26 Nov: …186319 sudah **coexistence** (`is_on_biz_app=true`), terhubung langsung ke aplikasi TE-One, dan **echo berjalan (M-11 lulus)** — tanpa Tech Provider.
+- Yang gagal hanya **SMB App Data API** (131000/10). Dokumentasi menautkan sinkronisasi ke onboarding lewat Embedded Signup partner (Tech Provider/Solution Partner). *Kesimpulan ini inferensi; dikonfirmasi lewat tiket dukungan Meta.*
+- **Titik tidak dapat dibalik:** sinkronisasi hanya ≤ 24 jam setelah onboarding. Bila Admisi dipindah 15 Jan tanpa Tech Provider, riwayat Admisi tidak masuk TE One (tetap ada di WhatsApp Business App di ponsel), kecuali offboard + onboarding ulang kelak.
+Pemilik sebelumnya memilih (i); telaah ini disampaikan untuk konfirmasi ulang.
+
+## 11. Perubahan D-04: go-live dengan AI (26 Nov 2026)
+Pernyataan pemilik (verbatim): "saya revisi, sekarang saya ingin go live sudah dengan ai".
+Dampak yang dicatat auditor: AI agent = Tahap 4 → wajib lulus **Gate 4** (CCP 4.1–4.7: filter Kartu Program/knowledge, validasi jadwal & tautan oleh kode, set uji D-21 dengan **0 fabrikasi**, pemeriksaan ulang sebelum kirim, eskalasi, batas biaya + kill switch AI, simulator terisolasi) **sebelum freeze 7 Jan 2027**. Keputusan wajib sebelum pembangunan: **D-09** (provider/model, batas biaya, data yang dikirim — tanpa default), D-10, D-15, D-20, D-21, D-23; konten **Kartu Program**; `docs/prompts/tahap-4.md`; izin eksplisit kerja paralel Tahap 4 selama Gate 3 berjalan (AGENTS.md §2.3). Mode AI saat go-live **belum ditetapkan** (opsi di respons auditor: penuh / bertahap-asisten / menyusul).
+
+## 12. Mode AI & izin paralel Tahap 4 (26 Nov 2026)
+Pernyataan pemilik (verbatim): "B, izinkan Tahap 4 paralel, siapkan opsi D-09 dan template Kartu Program".
+- **Mode AI saat go-live = B (bertahap):** AI otomatis hanya menjawab pertanyaan yang jawabannya ada di Kartu Program aktif; selain itu eskalasi ke admin; perluasan cakupan setelah ambang D-21 terpenuhi pada data nyata.
+- **Izin eksplisit kerja paralel Tahap 4** selama uji/audit Gate 3 berjalan (pengecualian AGENTS.md §2.3). Batas: Tahap 4 tetap di balik flag `ai_agents` default **mati**, tidak dinyalakan di staging/production sebelum Gate 3 diputuskan dan Gate 4 lulus; prompt `docs/prompts/tahap-4.md` disusun/disetujui pemilik sebelum pembangunan.
+- Opsi D-09: `docs/tahap-4/opsi-d09-provider-ai.md`. Template Kartu Program: `docs/tahap-4/template-kartu-program.md` + `.csv`.
+
+
+## 13. KOREKSI AUDITOR — identitas nomor operasional (26 Nov 2026) ⚠️
+Kartu program yang dikirim pemilik memuat nomor kontak resmi yang **6 digit terakhirnya …196319** (dengan "1119" di tengah) dan Agent Spec memuat nomor **…246319** (dengan "0124" di tengah). AGENTS.md §1 menyebut Admisi "…1119" dan Hotline "…0124" — kemungkinan besar merujuk **digit tengah** nomor-nomor ini. Maka (menunggu konfirmasi pemilik):
+- **…196319 = Admisi** (nomor operasional, DILARANG disentuh sampai Tahap 9 + GO),
+- **…246319 = Hotline** (idem),
+- **…186319 = Kemitraan/cadangan** (tersambung ke staging).
+Saran auditor sebelumnya yang memakai …196319/…246319 sebagai nomor uji (checklist Tech Provider bagian D; rencana uji Gate 3 P4/S4) **dicabut dan dokumen sudah dikoreksi**. Belum ada tindakan yang dilakukan pada nomor-nomor itu. Usulan: AGENTS.md §1 diperbarui lewat PR agar memakai 6 digit terakhir. Catatan guard: aturan G2 (akhiran 1119/0124) tidak cocok dengan nomor-nomor ini; perlindungan efektif berasal dari G3 (nomor lengkap dilarang) dan G4 (hash, sudah diisi pemilik).
+
+## 14. Jadwal aktif: tabel menang, status dihitung sistem (26 Nov 2026) — D-25
+
+Pemilik menyetujui (26 Nov 2026):
+1. **Tabel JADWAL AKTIF adalah satu-satunya sumber** tanggal pelatihan, tanggal uji, cut-off, harga, DP, dan link. Bila kartu program bertentangan dengan tabel, **tabel yang dipakai**. Tindak lanjut: tanggal/harga dihapus dari kartu; kartu hanya memuat alur, syarat, FAQ.
+2. **Status batch dihitung sistem**: batch boleh ditawarkan hanya bila Status = Buka **dan** cut-off belum lewat (Asia/Jakarta). Status manual hanya dipakai untuk menutup lebih awal (mis. kuota penuh). Sesuai AGENTS.md §8 (validasi tanggal oleh kode, bukan model).
+
+Dampak Tahap 4 (spesifikasi untuk developer): modul `program-cards` menyimpan baris jadwal terstruktur (kode program, kode batch, tanggal mulai/selesai, cut-off bertimestamp WIB, harga, DP, link, status manual); fungsi `statusEfektif(batch, now)` diuji unit termasuk kasus batas (cut-off tepat 23.59 WIB, H-1, hari H); hanya batch efektif-terbuka yang dikirim ke model. Set uji v0.4 menghapus label ASUMSI pada SE-001 dan menandai T22/T24 diputuskan.
+
+## 15. Konfirmasi identitas nomor operasional (26 Nov 2026)
+
+Pemilik mengonfirmasi: **…196319 = Admisi**, **…246319 = Hotline** (keduanya nomor operasional — larangan AGENTS.md §3.1 berlaku sampai Tahap 9 + GO tertulis); **…186319 = Kemitraan/cadangan** (staging). Status §13 berubah dari "menunggu konfirmasi" menjadi **terkonfirmasi**. Dokumen yang memakai kata "diduga" sudah diperbarui.
+
+**AGENTS.md §1 dan §3.1** diubah di branch ini agar memakai 6 digit terakhir. Sesuai AGENTS.md (header), perubahan ini **baru berlaku setelah PR disetujui dan di-merge pemilik**.
+
+**Temuan G2-B08 (Tinggi) — untuk developer, bukan auditor:** aturan guard **G2** (`scripts/guard-operational.mjs`, `OP_SUFFIX = ["1119","0124"]`) memeriksa 4 digit akhir yang **salah**; nomor operasional sebenarnya berakhiran 6319, sehingga G2 tidak pernah menangkapnya. Perlindungan efektif saat ini datang dari G3 (nomor lengkap dilarang) dan G4 (hash 3 nomor, CI #43). Perbaikan yang diminta: G2 memakai akhiran **6 digit** `196319` dan `246319` (bukan 4 digit `6319`, karena Kemitraan …186319 sah dipakai di staging), plus test yang membuktikan …186319 lolos dan …196319/…246319 ditolak. Masuk PR developer berikutnya (mis. bersama S-12) dengan tag `@tahap-1`.
