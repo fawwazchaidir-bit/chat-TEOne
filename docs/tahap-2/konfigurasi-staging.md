@@ -2,7 +2,7 @@
 
 > Status: **Dibuat, BELUM DIVERIFIKASI di server.** Server staging (Jalur 0 J0-03), aplikasi Meta milik TE One, dan nomor uji **belum tersedia** pada pembangunan Tahap 2.
 > Langkah di dashboard Meta di bawah ditulis dari pengetahuan umum dan **wajib dicocokkan dengan dokumentasi Meta terbaru** oleh orang yang memiliki akses.
-> **Jangan** memakai aplikasi Meta, token, webhook, atau nomor milik Halo AI. **Jangan** menyentuh nomor Admisi (…1119) dan Hotline (…0124).
+> **Jangan** memakai aplikasi Meta, token, webhook, atau nomor milik Halo AI. **Jangan** menyentuh nomor Admisi (…196319; dulu ditulis "…1119") dan Hotline (…246319; dulu ditulis "…0124").
 
 ## 1. Prasyarat (harus dari pemilik proyek / Jalur 0)
 | # | Prasyarat | Siapa | Status |

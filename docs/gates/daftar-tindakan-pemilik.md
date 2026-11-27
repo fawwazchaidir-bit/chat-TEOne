@@ -56,7 +56,7 @@
 4. Sesudah itu baru audit Gate 2 dapat menilai CCP **2.8 (echo nyata)** dan **2.10 (coexistence nyata)**.
 
 ## E. Larangan (tetap berlaku sampai Tahap 9 dan GO tertulis)
-- **Jangan** menghubungkan, memutus, memindahkan, atau mengubah nomor **Admisi (…1119)** dan **Hotline (…0124)**; **jangan** mengubah koneksi/webhook/aplikasi Meta **Halo AI**.
+- **Jangan** menghubungkan, memutus, memindahkan, atau mengubah nomor **Admisi (…196319; dulu ditulis "…1119")** dan **Hotline (…246319; dulu ditulis "…0124")**; **jangan** mengubah koneksi/webhook/aplikasi Meta **Halo AI**.
 - **Jangan** memakai WAHA/Baileys/whatsapp-web.js atau konektor tidak resmi (kecuali keputusan D-01 Opsi B eksplisit + isolasi).
 - **Jangan** menaruh token/secret/kunci/OTP di repository, chat, issue, atau screenshot; **jangan** memakai data pelanggan asli untuk uji.
 - **Jangan** mempublikasikan nomor Kemitraan sebelum GO.
