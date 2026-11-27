@@ -7,9 +7,13 @@
 | [`prompts/tahap-1.md`](prompts/tahap-1.md) · [`prompts/tahap-2.md`](prompts/tahap-2.md) · [`prompts/tahap-3.md`](prompts/tahap-3.md) | Prompt Tahap 1, 2, dan 3 |
 | [`gates/GATE-CHECKLIST.md`](gates/GATE-CHECKLIST.md) | Checklist gate CCP + prompt auditor independen |
 | [`gates/daftar-tindakan-pemilik.md`](gates/daftar-tindakan-pemilik.md) | **Daftar tindakan pemilik Tahap 1 & 2** (keputusan, akses, server, gate) · [`jalur-0.md`](jalur-0.md) = draf daftar kerja prasyarat |
+| [`tahap-2/checklist-tech-provider.md`](tahap-2/checklist-tech-provider.md) | **Checklist pendaftaran Tech Provider** (verifikasi bisnis, App Review, Embedded Signup) |
 | [`prompts/perbaikan-s12-sinkronisasi-riwayat.md`](prompts/perbaikan-s12-sinkronisasi-riwayat.md) | **Perintah pengerjaan PR S-12**: pemicu sinkronisasi kontak & riwayat (SMB App Data API) + F1-03 BSUID history + F2-01 backup via docker |
 | [`prompts/perbaikan-fase-1.md`](prompts/perbaikan-fase-1.md) | **Perintah pengerjaan Perbaikan Fase 1** (P1–P7) untuk sesi developer + tugas operator Fase 2 |
 | [`gates/keputusan-pemilik-fase-0-2026-11-26.md`](gates/keputusan-pemilik-fase-0-2026-11-26.md) | **Keputusan pemilik Fase 0 (26 Nov 2026)**: D-03 = …6319, A-4 worker disetujui, …6319 tetap tersambung; draf siap-putus D-02/D-04/D-12/D-18 |
+| [`tahap-4/opsi-d09-provider-ai.md`](tahap-4/opsi-d09-provider-ai.md) · [`tahap-4/metode-pemilihan-model.md`](tahap-4/metode-pemilihan-model.md) · [`tahap-4/set-uji-ai-chelsea.xlsx`](tahap-4/set-uji-ai-chelsea.xlsx) (set uji 66 soal + temuan knowledge base) · [`tahap-4/template-kartu-program.md`](tahap-4/template-kartu-program.md) | **Tahap 4 (paralel, diizinkan 26 Nov):** opsi keputusan D-09 (model, biaya, data) · template Kartu Program + CSV |
+| [`tahap-3/rencana-uji-nyata-gate-3.md`](tahap-3/rencana-uji-nyata-gate-3.md) | **Rencana uji nyata Gate 3** (S1–S8, prasyarat, kondisi berhenti, kueri bukti) |
+| [`gates/audit-ulang-gate-2-2026-11-26.md`](gates/audit-ulang-gate-2-2026-11-26.md) | **Audit ulang Gate 2 (26 Nov 2026)**: C 8/10 + 2 sebagian; **KEPUTUSAN PEMILIK: LANJUT TERBATAS** (26 Nov 2026); impor riwayat terbuka |
 | [`gates/audit-ulang-gate-1-2026-11-26.md`](gates/audit-ulang-gate-1-2026-11-26.md) | **Audit ulang Gate 1 (26 Nov 2026)**: A 10/10, C 9/9 — **KEPUTUSAN PEMILIK: LANJUT** (26 Nov 2026) + 3 syarat ringan |
 | [`gates/audit-gate-1-2-2026-11-25.md`](gates/audit-gate-1-2-2026-11-25.md) | **Audit independen Gate 1 & 2 putaran ke-3 (25 Nov 2026)**: verify-all 11/11 independen pada `d0c4842`; temuan G1-B01…B05, G2-B01…B05; urutan penyelesaian Fase 0–4 |
 | [`gates/gate-1-audit-ulang.md`](gates/gate-1-audit-ulang.md) | Audit ulang Gate 1 (21 Nov 2026; TAHAN untuk penerimaan penuh) |
