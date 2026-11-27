@@ -5,9 +5,10 @@ import { Badge, Denied, PageHeader, SampleBadge, fmtDate } from "@/components/ui
 import { getDb } from "@/db/client";
 import { channels as channelsTable } from "@/db/schema";
 import { ChannelConnectionPanel, type ConnView } from "@/components/channel-connection";
+import { HistorySyncPanel, type HistorySyncView } from "@/components/history-sync-panel";
 import { requireFull } from "@/lib/page-auth";
 import { isFeatureEnabled } from "@/modules/feature-flags";
-import { getConnectionView } from "@/modules/whatsapp-adapter";
+import { getConnectionView, getHistorySyncView } from "@/modules/whatsapp-adapter";
 import { CHANNEL_STATUS_LABEL, INTEGRATION_KINDS, getChannelAutomation, listChannels } from "@/modules/channels/service";
 import { ChannelAutomationControls } from "@/components/channel-automation";
 import { getOrgSettings } from "@/modules/org-settings/service";
@@ -24,6 +25,9 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
   const automation = inboxOn ? await getChannelAutomation(ctx, items.filter((x) => !x.archivedAt).map((x) => x.id)) : {};
   const conns = new Map<string, ConnView>();
   if (connectorOn) for (const c of items.filter((x) => !x.archivedAt)) conns.set(c.id, JSON.parse(JSON.stringify(await getConnectionView(ctx, c.id))) as ConnView);
+  // S-12: sinkronisasi kontak & riwayat hanya untuk channel coexistence; flag `history_sync` mati → panel menampilkan "Belum tersedia".
+  const syncViews = new Map<string, HistorySyncView>();
+  if (connectorOn) for (const c of items.filter((x) => !x.archivedAt && x.integrationKind === "cloud_api_coexistence")) syncViews.set(c.id, JSON.parse(JSON.stringify(await getHistorySyncView(ctx, c.id))) as HistorySyncView);
   return (
     <>
       <PageHeader title="Channel" sub={<>Slot aktif organisasi: <strong>{active} / {org.maxChannels}</strong>. Semua channel berstatus <em>Belum dikonfigurasi</em> — Tahap 1 tidak membuat koneksi WhatsApp.</>}
@@ -54,7 +58,8 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
       ))}
       {connectorOn ? items.filter((c) => !c.archivedAt).map((c) => (
         <details key={c.id} className="card"><summary style={{ cursor: "pointer", fontWeight: 700 }}>Koneksi WhatsApp — {c.name}</summary>
-          <ChannelConnectionPanel channelId={c.id} view={conns.get(c.id) ?? { configured: false }} canManage={ctx.perms.can("channel.manage", c.id)} /></details>
+          <ChannelConnectionPanel channelId={c.id} view={conns.get(c.id) ?? { configured: false }} canManage={ctx.perms.can("channel.manage", c.id)} />
+          {syncViews.has(c.id) && <HistorySyncPanel channelId={c.id} channelName={c.name} view={syncViews.get(c.id) as HistorySyncView} />}</details>
       )) : <div className="card small muted">Koneksi WhatsApp (Meta Cloud API): <span className="badge na">Belum tersedia · Tahap 2</span> — feature flag <code className="mono">whatsapp_connector</code> masih mati.</div>}
       <p className="small muted">Aturan slot: mengarsipkan membebaskan slot segera; memulihkan memerlukan slot kosong dan nama aktif yang belum dipakai. Jejak audit tetap ada.</p>
     </>

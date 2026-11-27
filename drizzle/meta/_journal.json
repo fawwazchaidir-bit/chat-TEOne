@@ -43,6 +43,27 @@
       "when": 1795259819132,
       "tag": "0005_tahap3_triggers_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795664855582,
+      "tag": "0006_tahap2_s12_sinkronisasi_riwayat",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795734033126,
+      "tag": "0007_tahap4_struktur_ai_agent",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795734078026,
+      "tag": "0008_tahap4_penjaga_dan_fulltext",
+      "breakpoints": true
     }
   ]
 }

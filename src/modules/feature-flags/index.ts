@@ -12,6 +12,7 @@ import type { Ctx } from "@/modules/shared/context";
  */
 export const FEATURE_FLAGS = [
   { key: "whatsapp_connector", label: "Konektor WhatsApp", stage: 2 },
+  { key: "history_sync", label: "Sinkronisasi kontak & riwayat coexistence (SMB App Data API; sekali pakai per nomor)", stage: 2 },
   { key: "inbox", label: "Inbox & routing", stage: 3 },
   { key: "ai_agents", label: "AI agent", stage: 4 },
   { key: "ai_simulation", label: "Simulasi AI (khusus uji; tidak pernah di production)", stage: 3 },
