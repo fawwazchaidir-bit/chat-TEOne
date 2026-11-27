@@ -34,7 +34,7 @@ Akhiran **sengaja 6 digit, bukan 4 digit `6319`**: nomor Kemitraan …186319 sah
 - **Eksekusi 1 (tidak lengkap, BUKAN bukti lulus):** `bash scripts/verify-all.sh` pada pohon dengan perubahan ini: 8 langkah lulus, 3 langkah (05 gitleaks, 09 E2E, 10 penjaga akhir) **"tidak dapat dijalankan"** karena `gitleaks` tidak ada di PATH dan Chromium tidak ditemukan di lokasi bawaan Playwright. Ini kendala lingkungan lokal, bukan kegagalan kode; hasilnya tidak dihitung sebagai lulus.
 - **Eksekusi 2 (lengkap):** dengan `PATH` memuat biner gitleaks ber-pin di `.tools/gitleaks` dan `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`: **11/11 langkah LULUS, 0 gagal, 0 tidak dapat dijalankan** — lint · typecheck · guard · secret scan · gitleaks seluruh riwayat · npm audit · build · Vitest (regresi + penjaga) · E2E Playwright · penjaga akhir dengan E2E · drill backup & restore nyata. Dijalankan pada dasar `ba85b5d` dengan perubahan ini belum di-commit (tercatat di `.verify/ringkasan.md`).
 - **Hitungan aktual** (`.test-results/tag-report.md`): Vitest **551** test, 0 gagal, 0 dilewati; E2E 17 spesifikasi, 10 lulus, 7 placeholder resmi "BELUM TERSEDIA" (bukan bukti).
-- **CI GitHub:** diisi di deskripsi PR setelah run pada commit final selesai.
+- **CI GitHub pada `5659b2d`** (commit kode): run #132 <https://github.com/fawwazchaidir-bit/chat-TEOne/actions/runs/46001366704> — **success**, 4 job: Lint·Typecheck·Guard·Secret scan ✔ · Build·Test regresi·E2E ✔ · Drill backup & restore nyata ✔ · Image Docker ✔. Commit setelahnya hanya mengubah baris ini (dokumen).
 
 ## 7. CCP
 Tidak ada CCP baru. Guard nomor operasional adalah bagian regresi CCP Tahap 1 (GATE-CHECKLIST B6).
