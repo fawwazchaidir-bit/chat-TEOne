@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint, bigserial, boolean, check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid,
+  bigint, bigserial, boolean, check, date, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid,
 } from "drizzle-orm/pg-core";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -690,4 +690,239 @@ export const domainOutbox = pgTable(
     deliveredAt: ts("delivered_at"),
   },
   (t) => [index("domain_outbox_queue_idx").on(t.status, t.runAfter), check("domain_outbox_status", sql`${t.status} IN ('pending','processing','delivered','failed')`), check("domain_outbox_kind", sql`${t.kind} IN ('customer_message')`)],
+);
+
+// ═════════════════════════ TAHAP 4 — AI agent, Kartu Program, knowledge (ADR-0010, ADR-0011) ═════════════════════════
+// STRUKTUR SAJA (migrasi 0007–0008, expand-only): belum ada perilaku. Seluruh fitur di balik flag `ai_agents` (default mati). Pola umum:
+//  • entitas + tabel `*_versions` (status draft → terbit → diganti): SATU draft dan SATU terbit per entitas (indeks parsial); versi terbit TIDAK BERUBAH
+//    (trigger `te_version_guard`); riwayat versi = baris-barisnya.
+//  • akses sumber = DUA arah: versi agent memilih sumber DAN sumber mengizinkan agent (kartu: `program_card_agents`; knowledge shared: `knowledge_source_agents`;
+//    knowledge khusus agent: pemilik). Penyaringan sebelum model dikerjakan modul `ai-agents` (tahap berikutnya), bukan prompt.
+
+// ───────────── Agent ─────────────
+export const aiAgents = pgTable(
+  "ai_agents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Nama TIDAK dikunci di kode ("Chelsea" hanyalah data) dan dapat diubah. */
+    name: text("name").notNull(),
+    status: text("status").notNull().default("aktif"),
+    isSample: boolean("is_sample").notNull().default(false),
+    createdBy: uuid("created_by"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    updatedBy: uuid("updated_by"),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ai_agents_name_unique").on(sql`lower(${t.name})`),
+    check("ai_agents_name_len", sql`length(btrim(${t.name})) BETWEEN 1 AND 80`),
+    check("ai_agents_status", sql`${t.status} IN ('aktif','nonaktif')`),
+  ],
+);
+
+/** Isi konfigurasi (peran, bahasa, gaya, sapaan, emoji, instruksi, aturan eskalasi per alasan → tim) ada di `config` (JSON; skema zod di modul `ai-agents`, tahap berikutnya). */
+export const aiAgentVersions = pgTable(
+  "ai_agent_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id").notNull().references(() => aiAgents.id),
+    versionNo: integer("version_no").notNull(),
+    status: text("status").notNull().default("draft"),
+    config: jsonb("config").notNull().default(sql`'{}'::jsonb`),
+    changeNote: text("change_note"),
+    createdBy: uuid("created_by"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    publishedBy: uuid("published_by"),
+    publishedAt: ts("published_at"),
+  },
+  (t) => [
+    uniqueIndex("ai_agent_versions_no_unique").on(t.agentId, t.versionNo),
+    uniqueIndex("ai_agent_versions_one_draft").on(t.agentId).where(sql`${t.status} = 'draft'`),
+    uniqueIndex("ai_agent_versions_one_published").on(t.agentId).where(sql`${t.status} = 'terbit'`),
+    check("ai_agent_versions_no", sql`${t.versionNo} >= 1`),
+    check("ai_agent_versions_status", sql`${t.status} IN ('draft','terbit','diganti')`),
+    check("ai_agent_versions_published_meta", sql`(${t.status} = 'draft' AND ${t.publishedAt} IS NULL) OR (${t.status} <> 'draft' AND ${t.publishedAt} IS NOT NULL AND ${t.publishedBy} IS NOT NULL)`),
+  ],
+);
+
+/** Penempatan agent di channel. Satu baris per penempatan (riwayat pergantian: siapa, kapan, agent lama/baru). SATU channel = SATU penempatan aktif (`ended_at IS NULL`). */
+export const aiChannelAgents = pgTable(
+  "ai_channel_agents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    channelId: uuid("channel_id").notNull().references(() => channels.id),
+    agentId: uuid("agent_id").notNull().references(() => aiAgents.id),
+    assignedBy: uuid("assigned_by"),
+    assignedAt: ts("assigned_at").notNull().defaultNow(),
+    endedBy: uuid("ended_by"),
+    endedAt: ts("ended_at"),
+  },
+  (t) => [
+    uniqueIndex("ai_channel_agents_one_active").on(t.channelId).where(sql`${t.endedAt} IS NULL`),
+    index("ai_channel_agents_agent_idx").on(t.agentId),
+    check("ai_channel_agents_end_order", sql`${t.endedAt} IS NULL OR ${t.endedAt} >= ${t.assignedAt}`),
+  ],
+);
+
+// ───────────── Kartu Program (sumber TUNGGAL harga/jadwal/tautan) ─────────────
+export const programCards = pgTable(
+  "program_cards",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: text("code").notNull(),
+    status: text("status").notNull().default("draft"),
+    isSample: boolean("is_sample").notNull().default(false),
+    createdBy: uuid("created_by"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    updatedBy: uuid("updated_by"),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("program_cards_code_unique").on(sql`lower(${t.code})`),
+    check("program_cards_code_fmt", sql`${t.code} ~ '^[A-Za-z0-9][A-Za-z0-9_.-]{1,39}$'`),
+    check("program_cards_status", sql`${t.status} IN ('draft','aktif','diarsipkan')`),
+  ],
+);
+
+/**
+ * Kolom boleh kosong pada draft; KELENGKAPAN diperiksa kode saat terbit, dan KELAYAKAN tautan diperiksa kode tepat sebelum kirim (bukan model, bukan DB).
+ * DB hanya menjaga bentuk yang tak boleh pernah salah: URL pendaftaran hanya https; rentang tanggal; mode. `flyer` ditambahkan (expand-only) saat modul aset media dibangun.
+ */
+export const programCardVersions = pgTable(
+  "program_card_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    programCardId: uuid("program_card_id").notNull().references(() => programCards.id),
+    versionNo: integer("version_no").notNull(),
+    status: text("status").notNull().default("draft"),
+    name: text("name"),
+    category: text("category"),
+    mode: text("mode"),
+    location: text("location"),
+    /** Tanggal KALENDER pada zona `timezone` kartu (tanpa jam); dipetakan sebagai teks "YYYY-MM-DD" agar tidak bergeser oleh zona proses. */
+    scheduleStart: date("schedule_start", { mode: "string" }),
+    scheduleEnd: date("schedule_end", { mode: "string" }),
+    timezone: text("timezone").notNull().default("Asia/Jakarta"),
+    registrationCloseAt: ts("registration_close_at"),
+    priceText: text("price_text"),
+    requirements: text("requirements"),
+    registrationUrl: text("registration_url"),
+    briefText: text("brief_text"),
+    flowText: text("flow_text"),
+    changeNote: text("change_note"),
+    createdBy: uuid("created_by"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    publishedBy: uuid("published_by"),
+    publishedAt: ts("published_at"),
+  },
+  (t) => [
+    uniqueIndex("program_card_versions_no_unique").on(t.programCardId, t.versionNo),
+    uniqueIndex("program_card_versions_one_draft").on(t.programCardId).where(sql`${t.status} = 'draft'`),
+    uniqueIndex("program_card_versions_one_published").on(t.programCardId).where(sql`${t.status} = 'terbit'`),
+    check("program_card_versions_no", sql`${t.versionNo} >= 1`),
+    check("program_card_versions_status", sql`${t.status} IN ('draft','terbit','diganti')`),
+    check("program_card_versions_published_meta", sql`(${t.status} = 'draft' AND ${t.publishedAt} IS NULL) OR (${t.status} <> 'draft' AND ${t.publishedAt} IS NOT NULL AND ${t.publishedBy} IS NOT NULL)`),
+    check("program_card_versions_mode", sql`${t.mode} IS NULL OR ${t.mode} IN ('online','offline')`),
+    check("program_card_versions_dates", sql`${t.scheduleStart} IS NULL OR ${t.scheduleEnd} IS NULL OR ${t.scheduleEnd} >= ${t.scheduleStart}`),
+    check("program_card_versions_url", sql`${t.registrationUrl} IS NULL OR (${t.registrationUrl} ~ '^https://[^[:space:]]+$' AND length(${t.registrationUrl}) <= 2000)`),
+    check("program_card_versions_tz", sql`length(${t.timezone}) BETWEEN 3 AND 64`),
+  ],
+);
+
+/** Agent yang BOLEH memakai kartu (sisi kartu dari akses dua arah). */
+export const programCardAgents = pgTable(
+  "program_card_agents",
+  {
+    programCardId: uuid("program_card_id").notNull().references(() => programCards.id),
+    agentId: uuid("agent_id").notNull().references(() => aiAgents.id),
+    createdBy: uuid("created_by"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.programCardId, t.agentId] })],
+);
+
+// ───────────── Knowledge (tidak terstruktur) ─────────────
+export const knowledgeSources = pgTable(
+  "knowledge_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    /** `shared` TIDAK otomatis berlaku untuk semua agent (lihat `knowledge_source_agents`); `agent` = milik satu agent. */
+    scope: text("scope").notNull(),
+    ownerAgentId: uuid("owner_agent_id").references(() => aiAgents.id),
+    kind: text("kind").notNull(),
+    status: text("status").notNull().default("draft"),
+    isSample: boolean("is_sample").notNull().default(false),
+    createdBy: uuid("created_by"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    updatedBy: uuid("updated_by"),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("knowledge_sources_owner_idx").on(t.ownerAgentId),
+    check("knowledge_sources_title_len", sql`length(btrim(${t.title})) BETWEEN 1 AND 160`),
+    check("knowledge_sources_scope", sql`${t.scope} IN ('shared','agent')`),
+    check("knowledge_sources_owner_rule", sql`(${t.scope} = 'agent' AND ${t.ownerAgentId} IS NOT NULL) OR (${t.scope} = 'shared' AND ${t.ownerAgentId} IS NULL)`),
+    check("knowledge_sources_kind", sql`${t.kind} IN ('teks','txt','pdf','docx')`),
+    check("knowledge_sources_status", sql`${t.status} IN ('draft','diproses','siap_ditinjau','aktif','gagal','diarsipkan')`),
+  ],
+);
+
+/** Kolom pencarian `content_tsv` (tsvector, config `indonesian`, GIN) ditambahkan oleh migrasi kustom 0008 — tidak dipetakan ORM. */
+export const knowledgeSourceVersions = pgTable(
+  "knowledge_source_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id").notNull().references(() => knowledgeSources.id),
+    versionNo: integer("version_no").notNull(),
+    status: text("status").notNull().default("draft"),
+    contentText: text("content_text"),
+    contentSha256: text("content_sha256"),
+    byteSize: integer("byte_size"),
+    /** Kategori galat pemrosesan (tanpa isi dokumen/rahasia). */
+    errorCategory: text("error_category"),
+    changeNote: text("change_note"),
+    createdBy: uuid("created_by"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    publishedBy: uuid("published_by"),
+    publishedAt: ts("published_at"),
+  },
+  (t) => [
+    uniqueIndex("knowledge_source_versions_no_unique").on(t.sourceId, t.versionNo),
+    uniqueIndex("knowledge_source_versions_one_draft").on(t.sourceId).where(sql`${t.status} = 'draft'`),
+    uniqueIndex("knowledge_source_versions_one_published").on(t.sourceId).where(sql`${t.status} = 'terbit'`),
+    check("knowledge_source_versions_no", sql`${t.versionNo} >= 1`),
+    check("knowledge_source_versions_status", sql`${t.status} IN ('draft','terbit','diganti')`),
+    check("knowledge_source_versions_published_meta", sql`(${t.status} = 'draft' AND ${t.publishedAt} IS NULL) OR (${t.status} <> 'draft' AND ${t.publishedAt} IS NOT NULL AND ${t.publishedBy} IS NOT NULL)`),
+    check("knowledge_source_versions_sha", sql`${t.contentSha256} IS NULL OR ${t.contentSha256} ~ '^[0-9a-f]{64}$'`),
+    check("knowledge_source_versions_size", sql`${t.byteSize} IS NULL OR ${t.byteSize} >= 0`),
+  ],
+);
+
+/** Agent yang diizinkan memakai knowledge `shared` (sisi sumber dari akses dua arah). */
+export const knowledgeSourceAgents = pgTable(
+  "knowledge_source_agents",
+  {
+    sourceId: uuid("source_id").notNull().references(() => knowledgeSources.id),
+    agentId: uuid("agent_id").notNull().references(() => aiAgents.id),
+    createdBy: uuid("created_by"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.sourceId, t.agentId] })],
+);
+
+/** Sumber yang DIPILIH sebuah versi agent (sisi agent dari akses dua arah). Hanya boleh berubah selama versi masih draft (trigger `te_agent_sources_guard`). */
+export const aiAgentVersionSources = pgTable(
+  "ai_agent_version_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    versionId: uuid("version_id").notNull().references(() => aiAgentVersions.id),
+    programCardId: uuid("program_card_id").references(() => programCards.id),
+    knowledgeSourceId: uuid("knowledge_source_id").references(() => knowledgeSources.id),
+  },
+  (t) => [
+    uniqueIndex("ai_agent_version_sources_card_unique").on(t.versionId, t.programCardId).where(sql`${t.programCardId} IS NOT NULL`),
+    uniqueIndex("ai_agent_version_sources_knowledge_unique").on(t.versionId, t.knowledgeSourceId).where(sql`${t.knowledgeSourceId} IS NOT NULL`),
+    check("ai_agent_version_sources_one", sql`(${t.programCardId} IS NOT NULL AND ${t.knowledgeSourceId} IS NULL) OR (${t.programCardId} IS NULL AND ${t.knowledgeSourceId} IS NOT NULL)`),
+  ],
 );
