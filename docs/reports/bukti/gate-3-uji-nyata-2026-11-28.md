@@ -29,6 +29,36 @@
 | P8 ponsel …186319 satu operator, tanpa chat pelanggan | |
 
 ## 2. Kueri bukti — SEBELUM
+
+### 2a. Baseline awal (sebelum prasyarat dilengkapi) — 2026-11-28 02:03 UTC
+Image berjalan `teone-app:staging-1d63982` / `teone-tools:staging-1d63982`, label revision `1d63982a…` = checkout build `~/teone-build-1d63982` (commit `1d63982`, = `main`). `GET https://staging-chat.trilogikaedutama.id/api/health` → `{"status":"ok"}`. Catatan: `~/chat-TEOne` di host adalah clone lama (`9c297d3`), **bukan** sumber deploy.
+```
+jam|2026-11-28 02:03:00.999552+00
+flag whatsapp_connector|true
+test_mode|true
+penerima_uji_aktif|1
+percakapan|1
+pesan keluar te_one|4
+pesan keluar whatsapp_business_app|1
+pesan masuk pelanggan|5
+pesan_keluar_status diterima|3
+pesan_keluar_status gagal|2
+unread_eligible|5
+akses_alih|0
+ai_event|1
+automation_jobs|0
+inbound echo processed -|1
+inbound echo quarantined pengirim_di_luar_daftar_uji|1
+inbound message processed -|5
+inbound message quarantined channel_tidak_dikenal|1
+inbound message quarantined pengirim_di_luar_daftar_uji|2
+inbound status processed -|8
+audit auth.login success|1
+audit auth.totp_verified success|1
+```
+Pembacaan: flag `inbox` **tanpa override = mati** (fail-closed) → P2 belum terpenuhi; `ai_simulation` tanpa override = mati (sesuai). `penerima_uji_aktif=1` → pelanggan B belum terdaftar (P4 belum lengkap). Tidak ada kill switch menyala.
+
+### 2b. Baseline final (setelah prasyarat lengkap, tepat sebelum S1)
 ```
 (tempel keluaran q3.sql di sini)
 ```
