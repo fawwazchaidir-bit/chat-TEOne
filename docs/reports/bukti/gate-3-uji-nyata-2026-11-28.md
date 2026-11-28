@@ -20,13 +20,25 @@
 | # | Hasil (ok / tidak + catatan) |
 |---|---|
 | P1 Gate 2 LANJUT TERBATAS + tag | ok (26 Nov) |
-| P2 flag `inbox`=on, `ai_simulation`=off, `whatsapp_connector`=on | |
-| P3 `test_mode` = true | |
-| P4 penerima uji: …4062 + pelanggan B; tanpa …196319/…246319 | |
-| P5 channel "Uji B" tanpa koneksi Meta | |
-| P6 pengguna uji Admin Kemitraan / Admin Admisi / Super Admin, semua 2FA | |
+| P2 flag `inbox`=on, `ai_simulation`=off, `whatsapp_connector`=on | **ok** — `inbox` dinyalakan Super Admin 28 Nov (audit `feature_flag.changed` +1); `ai_simulation` tanpa override = mati |
+| P3 `test_mode` = true | **ok** (`bool_and(test_mode)=true`) |
+| P4 penerima uji: …4062 + pelanggan B; tanpa …196319/…246319 | **ok** — `penerima_uji_aktif=2` (…4062 + pelanggan B …____) |
+| P5 channel "Uji B" tanpa koneksi Meta | **ok** — `Uji B koneksi=false operasional=false`; `Kemitraan Uji koneksi=true operasional=false` |
+| P6 pengguna uji | **ok dengan deviasi** — lihat 1a |
 | P7 backup `backup-rotate.sh` kode 0, `offsite=ok` | |
 | P8 ponsel …186319 satu operator, tanpa chat pelanggan | |
+
+### 1a. Peta pengguna, tim, dan izin (ID dipotong 8 karakter)
+| Akun | Super Admin | 2FA | Tim | Peran | `chat.view` |
+|---|---|---|---|---|---|
+| `3c4cf057` (Super Admin) | ya | ya | Kemitraan, Admisi | – | (Super Admin) |
+| `2770cb9c` (Admin Kemitraan) | tidak | **tidak** | Kemitraan | Admin Kemitraan | Kemitraan Uji |
+| `25dcd908` (Admin Admisi) | tidak | **tidak** | Admisi | Admin Admisi | Uji B |
+
+Tim: `Kemitraan → Kemitraan Uji`, `Admisi → Uji B`. Seluruh 7 izin peran (`channel.view, chat.view, chat.reply, chat.note, ai.toggle, chat.transfer, chat.assign`) bercakupan **satu channel**; tidak ada `scope_all`.
+
+**Deviasi P6:** 2FA dua admin uji tidak diaktifkan. Aturan produk (AGENTS §9; `docs/keamanan-dan-izin.md` §2) mewajibkan 2FA hanya untuk Super Admin; admin biasa opsional. Tidak memengaruhi skenario izin channel. Penilaian keberterimaan deviasi = auditor.
+**Catatan pelaksanaan:** Admin Kemitraan dan Admin Admisi dioperasikan satu penguji dengan dua akun terpisah di browser terpisah. Selama penyiapan ditemukan & diperbaiki sebelum uji: pemetaan tim–channel sempat tertukar; peran bawaan "Admin Admisi" tanpa cakupan channel (cakupan "fungsi" tidak cocok dengan channel uji); peran "Admin Kemitraan" sempat bercakupan SEMUA.
 
 ## 2. Kueri bukti — SEBELUM
 
