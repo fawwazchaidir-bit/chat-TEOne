@@ -107,7 +107,7 @@ Catatan: `percakapan=1` adalah percakapan …4062 dari uji Tahap 2; pesan S1 aka
 | ID | CCP | Hasil (LULUS / GAGAL / BELUM DAPAT DIUJI) | Pengamatan (angka/teks, tersamar) | Jam (WIB) |
 |---|---|---|---|---|
 | S1 | 3.1 | **LULUS** (pengamatan pelaksana; penilaian akhir = auditor) | Pesan uji dari …4062 → …186319: `provider_ts` 08:43:05 UTC, diterima +4 dtk, diproses +57 ms (attempts=1); `pesan_masuk_sejak_baseline=1`, `unread_eligible` 5→6. **Admin Kemitraan:** percakapan …4062 teratas di inbox, tampil di Semua & filter channel Kemitraan Uji, belum dibaca **1**. **Admin Admisi:** tidak tampil di daftar, pencarian "4062", maupun jumlah; `GET /api/v1/conversations/{id}` → `{"error":{"code":"NOT_FOUND","message":"Percakapan tidak ditemukan."}}` (404, keberadaan tidak dibocorkan). Catatan: jam kirim awal 14.58 yang dilaporkan keliru (belum dikirim); uji "URL langsung" diganti uji API karena inbox tidak punya URL per percakapan. | 15.43 |
-| S2 | 3.5 | | | |
+| S2 | 3.5 | **LULUS** (pengamatan pelaksana; penilaian akhir = auditor) | Admin Kemitraan mengetik balasan uji lalu klik ganda cepat tombol Kirim. HP …4062: **1** pesan. TE One: **1** pesan keluar. Kueri: `keluar_sejak_baseline te_one status=diterima idem=true = 1` (satu baris, berkunci idempotensi); status event dari webhook: `sent=1`, `delivered=1`; `inbound_status_sejak_baseline processed=2`. Status berhenti di **Diterima** karena tanda dibaca (read receipts) di HP penguji dimatikan, sehingga Meta tidak mengirim `read` — sesuai kriteria "Diterima/Dibaca". Jam klik tidak dicatat (antara 08:43 dan 08:49 UTC). | ±15.45 |
 | S3 | 3.2 + D-22 | | | |
 | S4 | 3.1 lintas channel | | | |
 | S5 | 3.7 + D-05 | | | |
