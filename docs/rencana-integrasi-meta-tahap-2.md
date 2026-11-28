@@ -5,7 +5,7 @@
 > Dokumen ini **bukan** klaim tentang perilaku Meta. Pembangun Tahap 1 tidak memiliki akses ke akun Meta TE One dan tidak memverifikasi
 > dokumentasi Meta. Semua butir bertanda **Belum terbukti** dan harus diisi dengan bukti (tautan dokumentasi resmi + tanggal akses,
 > tangkapan layar disamarkan, atau hasil uji nomor uji) pada Tahap 2. AGENTS.md §7 mewajibkan verifikasi terhadap dokumentasi Meta **terbaru**.
-> **Rencana migrasi di bawah belum dijalankan.** Nomor Admisi (…1119) & Hotline (…0124) dan koneksi Halo AI **tidak boleh disentuh** sebelum Tahap 9.
+> **Rencana migrasi di bawah belum dijalankan.** Nomor Admisi (…196319; dulu ditulis "…1119") & Hotline (…246319; dulu ditulis "…0124") dan koneksi Halo AI **tidak boleh disentuh** sebelum Tahap 9.
 
 ## Ringkasan butir
 | # | Hal | Yang harus dibuktikan | Cara membuktikan | PIC / tenggat | Status |

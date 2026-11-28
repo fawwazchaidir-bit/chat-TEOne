@@ -1,7 +1,7 @@
 # Panduan uji dengan nomor uji (Tahap 2)
 
 > Status: **Belum dijalankan.** Tidak ada aplikasi Meta, token, nomor uji, atau staging pada pembangunan Tahap 2. Panduan ini dipakai oleh pemilik/penguji saat akses tersedia.
-> Semua bukti yang disimpan di repository **wajib disamarkan** (nomor, nama, isi chat, token). **Jangan** menguji pada Admisi (…1119) atau Hotline (…0124). **Jangan** mengubah aplikasi/webhook Halo AI.
+> Semua bukti yang disimpan di repository **wajib disamarkan** (nomor, nama, isi chat, token). **Jangan** menguji pada Admisi (…196319; dulu ditulis "…1119") atau Hotline (…246319; dulu ditulis "…0124"). **Jangan** mengubah aplikasi/webhook Halo AI.
 > Hasil dicatat terpisah: **nyata Meta** vs **simulasi** vs **belum dapat diuji** (format `docs/reports/tahap-2.md`).
 
 ## A. Persiapan (sekali)

@@ -177,7 +177,7 @@ Simbol pengisian: ✅ lulus · ❌ gagal · ⏳ tertunda (sebutkan alasan) · N/
 | 9.3 Pemeriksaan awal setelah pindah (10 butir Tahap 9 §14) | 10/10 lulus | Checklist | |
 | 9.4 Kriteria penghentian (bagian D) tidak terpicu selama observasi | 0 | Log pemantauan | |
 | 9.5 Nomor berikutnya hanya setelah observasi selesai (D-14) | Ya | Laporan observasi | |
-| 9.6 Hotline khusus: D-01 diputuskan & teknologi 0124 terverifikasi | Ya | Decisions + J0-04 | |
+| 9.6 Hotline khusus: D-01 diputuskan & teknologi nomor Hotline (…246319; dulu ditulis "…0124") terverifikasi | Ya | Decisions + J0-04 | |
 
 ---
 
