@@ -106,7 +106,7 @@ Catatan: `percakapan=1` adalah percakapan …4062 dari uji Tahap 2; pesan S1 aka
 ## 3. Hasil skenario
 | ID | CCP | Hasil (LULUS / GAGAL / BELUM DAPAT DIUJI) | Pengamatan (angka/teks, tersamar) | Jam (WIB) |
 |---|---|---|---|---|
-| S1 | 3.1 | **BELUM DAPAT DIUJI** (percobaan 1) — pesan uji tidak diterima | "Halo S1" dikirim dari …4062 pukul 14.58 WIB; kueri: `pesan_masuk_sejak_baseline=0`, **tidak ada** `inbound_events` sejak 07:53 UTC → webhook tidak sampai/tidak dikirim (diagnosis berjalan). Pengamatan visibilitas atas percakapan **lama** …4062 (channel Kemitraan Uji): Admin Kemitraan melihat (Semua & filter channel); Admin Admisi **tidak** melihat di daftar, pencarian "4062", maupun jumlah. Uji "URL langsung" tidak berlaku di UI (inbox tidak punya URL per percakapan) → diganti uji API. Unread Admin Kemitraan 0 karena percakapan sempat dibuka (`last_read_at` 07:54:32 UTC) | 14.58 |
+| S1 | 3.1 | *sedang diuji* | Pesan uji dikirim dari …4062 ke …186319; cap waktu Meta `provider_ts` **08:43:05 UTC (15:43:05 WIB)**, diterima 08:43:09.89, diproses 08:43:09.95 (attempts=1); `pesan_masuk_sejak_baseline=1`, `unread_eligible` 5→6. (Catatan jujur: jam kirim awal yang dilaporkan, 14.58 WIB, keliru — pelaksana belum mengirim saat itu; bukan kegagalan sistem.) Uji "URL langsung" diganti uji API `GET /api/v1/conversations/{id}` karena inbox tidak punya URL per percakapan. | 15.43 |
 | S2 | 3.5 | | | |
 | S3 | 3.2 + D-22 | | | |
 | S4 | 3.1 lintas channel | | | |
