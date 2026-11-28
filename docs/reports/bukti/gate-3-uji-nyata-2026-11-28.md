@@ -136,4 +136,6 @@ Catatan: `percakapan=1` adalah percakapan …4062 dari uji Tahap 2; pesan S1 aka
 
 ## 6. Batas jujur
 - CCP 3.3, 3.4, 3.6 tetap **terbukti simulasi**; S6/S8 hanya membuktikan bagian yang dapat diamati tanpa kirim otomatis.
-- Penilaian akhir Gate 3 = auditor.
+- Semua hasil di §3 adalah **pengamatan pelaksana** (UI + kueri baca-saja). Pengamatan UI tidak disertai tangkapan layar (aturan bukti: tanpa data chat). Penilaian akhir Gate 3 = **auditor di sesi terpisah**.
+- Deviasi dari rencana: P6 tanpa 2FA admin uji; urutan S3/S4 ditukar; uji "URL langsung" S1 diganti uji API; S5 didahului mengaktifkan AI.
+- Data uji: hanya nomor penerima uji (…4062, …722419) dan teks sintetis; tidak ada data pelanggan asli.
