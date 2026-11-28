@@ -1,6 +1,6 @@
 {
   "@tahap-1": {
-    "vitest": 180,
+    "vitest": 182,
     "playwright": 3
   },
   "@tahap-2": {

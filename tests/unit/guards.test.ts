@@ -50,24 +50,62 @@ describe("@tahap-1 guard nomor operasional (CI)", () => {
     expect(run(GUARD, falseVal).code).toBe(0);
   });
 
-  it("G2: nomor berakhiran 1119 / 0124 (berbagai format) di berkas mana pun → GAGAL; keluaran disamarkan", () => {
-    const dashed = (tail: string) => ["0812", "3456", tail].join("-");
-    for (const [file, content, tail] of [
-      ["config/a.json", `{"phone":"${phone("1119")}"}`, "1119"],
-      ["src/b.ts", `const n = "${["0812", "3456", "0124"].join("")}";`, "0124"],
-      ["docs/c.md", `Hubungi ${dashed("1119")} untuk admisi`, "1119"],
-      ["docs/d.md", `WA: ${["62", "812", "3456", "0124"].join(" ")}`, "0124"], // kode negara + spasi (sebelumnya lolos!)
-      ["docs/e.md", `WA: ${["+62", "812", "3456", "0124"].join(" ")}`, "0124"],
-      ["docs/f.md", `WA: (+62) ${["812", "3456", "1119"].join("-")}`, "1119"],
-      ["docs/g.md", `WA: ${["+62", "812", "3456", "1119"].join("-")}`, "1119"],
-      ["docs/h.md", `WA: ${["0812", "3456", "0124"].join(" ")}`, "0124"],
-    ] as const) {
+  // G2-B08: akhiran operasional = 6 digit terakhir nomor Admisi/Hotline. Nomor sintetis di bawah hanya MENIRU akhirannya
+  // (awalan acak, bukan nomor sungguhan) dan dibangun saat runtime agar berkas test ini tidak memuat nomor lengkap.
+  const ADMISI = ["19", "6319"].join(""); // 6 digit terakhir Admisi
+  const HOTLINE = ["24", "6319"].join(""); // 6 digit terakhir Hotline
+  const KEMITRAAN = ["18", "6319"].join(""); // 6 digit terakhir Kemitraan (nomor uji sah di staging)
+  // Akhiran 6 digit sengaja melintasi batas kelompok empat-digit ("0812-34xx-6319") seperti penulisan nomor sehari-hari.
+  const grouped = (t6: string, sep: string) => ["0812", `34${t6.slice(0, 2)}`, t6.slice(2)].join(sep);
+  const withCountry = (t6: string, sep: string) => ["+62", "812", `34${t6.slice(0, 2)}`, t6.slice(2)].join(sep);
+  const formats = (t6: string): Array<[string, string]> => [
+    ["config/a.json", `{"phone":"${["+62", "81234", t6].join("")}"}`],
+    ["src/b.ts", `const n = "${["081234", t6].join("")}";`],
+    ["docs/c.md", `Hubungi ${grouped(t6, "-")} untuk admisi`],
+    ["docs/d.md", `WA: ${["62", "812", `34${t6.slice(0, 2)}`, t6.slice(2)].join(" ")}`], // kode negara + spasi (sebelumnya lolos!)
+    ["docs/e.md", `WA: ${withCountry(t6, " ")}`],
+    ["docs/f.md", `WA: (+62) ${["812", `34${t6.slice(0, 2)}`, t6.slice(2)].join("-")}`],
+    ["docs/g.md", `WA: ${withCountry(t6, "-")}`],
+    ["docs/h.md", `WA: ${grouped(t6, " ")}`],
+  ];
+
+  it("G2: nomor berakhiran 196319 (Admisi) / 246319 (Hotline) dalam berbagai format di berkas mana pun → GAGAL; keluaran disamarkan", () => {
+    for (const t6 of [ADMISI, HOTLINE]) {
+      for (const [file, content] of formats(t6)) {
+        const r = run(GUARD, tmp({ [file]: content }));
+        expect(r.code, `${file}\n${r.out}`).toBe(1);
+        expect(r.out, `${file}\n${r.out}`).toContain("[G2]");
+        expect(r.out).not.toContain(`81234${t6}`); // nomor utuh tidak tercetak
+        expect(r.out).not.toContain(t6); // akhiran 6 digit pun tidak tercetak (hanya 2 digit terakhir yang tampil)
+        expect(r.out).toContain("•");
+      }
+    }
+  });
+
+  it("G2: Kemitraan …186319 (sah di staging) TIDAK ditandai G2 — dokumen yang menyebut akhirannya lulus penuh; nomor lengkapnya hanya kena G3", () => {
+    // (a) penyebutan akhiran di dokumen (tanpa nomor lengkap) → guard lulus sepenuhnya, termasuk menyebut Admisi/Hotline.
+    const doc = tmp({ "docs/a.md": `Kemitraan (…${KEMITRAAN}) tersambung ke staging. Admisi (…${ADMISI}) dan Hotline (…${HOTLINE}) tidak boleh disentuh.` });
+    const rd = run(GUARD, doc);
+    expect(rd.code, rd.out).toBe(0);
+    // (b) nomor lengkap berakhiran 186319 dalam semua format → TIDAK pernah G2. Nomor lengkap apa pun memang dilarang (G3, AGENTS.md §3.5).
+    for (const [file, content] of formats(KEMITRAAN)) {
       const r = run(GUARD, tmp({ [file]: content }));
-      expect(r.code, `${file}\n${r.out}`).toBe(1);
-      expect(r.out).toContain("[G2]");
-      expect(r.out).not.toContain("81234561119");
-      expect(r.out).not.toContain("81234560124");
-      expect(r.out, tail).toContain("•");
+      expect(r.out, `${file}\n${r.out}`).not.toContain("[G2]");
+      expect(r.out, `${file}\n${r.out}`).toContain("[G3]");
+    }
+    // (c) pembeda yang menjaga agar akhiran tidak diperpendek menjadi 4 digit "6319": hanya 6 digit penuh yang cocok.
+    for (const t6 of ["296319", "196318", "186319", "236319", "246310"]) {
+      const r = run(GUARD, tmp({ "docs/n.md": `WA: ${grouped(t6, "-")}` }));
+      expect(r.out, `${t6}\n${r.out}`).not.toContain("[G2]");
+    }
+  });
+
+  it("G2: pola lama 1119/0124 tidak lagi menjadi syarat G2 (perubahan perilaku G2-B08) — nomor lengkap tetap ditolak sebagai G3", () => {
+    for (const tail of ["1119", "0124"]) {
+      const r = run(GUARD, tmp({ "docs/old.md": `WA: ${["0812", "3456", tail].join("-")}` }));
+      expect(r.code).toBe(1);
+      expect(r.out).not.toContain("[G2]");
+      expect(r.out).toContain("[G3]");
     }
   });
 
@@ -90,7 +128,7 @@ describe("@tahap-1 guard nomor operasional (CI)", () => {
   it("tidak salah-tangkap: UUID, hash, ellipsis di dokumen, dan angka biasa", () => {
     const dir = tmp({
       "drizzle/meta/x.json": `{"id":"6f9619ff-8b86-d011-b42d-081234567890","v":"sha512-0812345678901234567890abcdef"}`,
-      "docs/a.md": "Admisi (…1119) dan Hotline (…0124) tidak boleh disentuh. Rp 3.000.000.000 → 10.000.000.000. Tag 4 Mar 2027, 15 Mar 2027.",
+      "docs/a.md": "Admisi (…196319) dan Hotline (…246319) tidak boleh disentuh. Rp 3.000.000.000 → 10.000.000.000. Tag 4 Mar 2027, 15 Mar 2027.",
       "src/n.ts": "const n = 20261119; const y = 2027;",
     });
     expect(run(GUARD, dir).code, run(GUARD, dir).out).toBe(0);
