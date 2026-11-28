@@ -70,10 +70,38 @@ audit auth.totp_verified success|1
 ```
 Pembacaan: flag `inbox` **tanpa override = mati** (fail-closed) → P2 belum terpenuhi; `ai_simulation` tanpa override = mati (sesuai). `penerima_uji_aktif=1` → pelanggan B belum terdaftar (P4 belum lengkap). Tidak ada kill switch menyala.
 
-### 2b. Baseline final (setelah prasyarat lengkap, tepat sebelum S1)
+### 2b. Baseline final (setelah prasyarat lengkap, tepat sebelum S1) — 2026-11-28 07:53 UTC
 ```
-(tempel keluaran q3.sql di sini)
+jam|2026-11-28 07:53:03.993756+00
+flag inbox|true
+flag whatsapp_connector|true
+test_mode|true
+penerima_uji_aktif|2
+percakapan|1
+pesan keluar te_one|4
+pesan keluar whatsapp_business_app|1
+pesan masuk pelanggan|5
+pesan_keluar_status diterima|3
+pesan_keluar_status gagal|2
+unread_eligible|5
+akses_alih|0
+ai_event|1
+automation_jobs|0
+inbound echo processed -|1
+inbound echo quarantined pengirim_di_luar_daftar_uji|1
+inbound message processed -|5
+inbound message quarantined channel_tidak_dikenal|1
+inbound message quarantined pengirim_di_luar_daftar_uji|2
+inbound status processed -|8
+audit auth.login success|2
+audit auth.totp_verified success|2
+audit integration.recipient_added success|1
+audit role.grants_changed success|4
+audit team.channels_changed success|2
+audit team.members_changed success|2
+audit user.roles_changed success|1
 ```
+Catatan: `percakapan=1` adalah percakapan …4062 dari uji Tahap 2; pesan S1 akan masuk ke percakapan yang sama (satu per pasangan kontak–channel, kontrak §6.2). Audit dibatasi jendela 3 jam.
 
 ## 3. Hasil skenario
 | ID | CCP | Hasil (LULUS / GAGAL / BELUM DAPAT DIUJI) | Pengamatan (angka/teks, tersamar) | Jam (WIB) |
