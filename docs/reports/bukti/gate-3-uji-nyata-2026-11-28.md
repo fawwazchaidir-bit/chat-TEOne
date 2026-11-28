@@ -106,7 +106,7 @@ Catatan: `percakapan=1` adalah percakapan …4062 dari uji Tahap 2; pesan S1 aka
 ## 3. Hasil skenario
 | ID | CCP | Hasil (LULUS / GAGAL / BELUM DAPAT DIUJI) | Pengamatan (angka/teks, tersamar) | Jam (WIB) |
 |---|---|---|---|---|
-| S1 | 3.1 | *sedang diuji* | Pesan uji dikirim dari …4062 ke …186319; cap waktu Meta `provider_ts` **08:43:05 UTC (15:43:05 WIB)**, diterima 08:43:09.89, diproses 08:43:09.95 (attempts=1); `pesan_masuk_sejak_baseline=1`, `unread_eligible` 5→6. (Catatan jujur: jam kirim awal yang dilaporkan, 14.58 WIB, keliru — pelaksana belum mengirim saat itu; bukan kegagalan sistem.) Uji "URL langsung" diganti uji API `GET /api/v1/conversations/{id}` karena inbox tidak punya URL per percakapan. | 15.43 |
+| S1 | 3.1 | **LULUS** (pengamatan pelaksana; penilaian akhir = auditor) | Pesan uji dari …4062 → …186319: `provider_ts` 08:43:05 UTC, diterima +4 dtk, diproses +57 ms (attempts=1); `pesan_masuk_sejak_baseline=1`, `unread_eligible` 5→6. **Admin Kemitraan:** percakapan …4062 teratas di inbox, tampil di Semua & filter channel Kemitraan Uji, belum dibaca **1**. **Admin Admisi:** tidak tampil di daftar, pencarian "4062", maupun jumlah; `GET /api/v1/conversations/{id}` → `{"error":{"code":"NOT_FOUND","message":"Percakapan tidak ditemukan."}}` (404, keberadaan tidak dibocorkan). Catatan: jam kirim awal 14.58 yang dilaporkan keliru (belum dikirim); uji "URL langsung" diganti uji API karena inbox tidak punya URL per percakapan. | 15.43 |
 | S2 | 3.5 | | | |
 | S3 | 3.2 + D-22 | | | |
 | S4 | 3.1 lintas channel | | | |
