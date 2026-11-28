@@ -8,3 +8,4 @@ export * from "./client";
 export * from "./inbound-store";
 export * from "./connection";
 export * from "./history-sync";
+export * from "./webhook-log";

@@ -61,6 +61,37 @@ Role DB dibuat dulu dengan `db/init-roles.sql` (sandi dari secret manager). Raha
 - **Keamanan staging dengan Meta asli:** flag `inbox` dan `ai_simulation` harus **mati**. `ai_simulation` kini ditolak server bila `META_GRAPH_BASE_URL` = `graph.facebook.com` (mengirim `[SIMULASI]` nyata dilarang).
 - Variabel `META_*`, `MEDIA_DIR`, `WORKER_INLINE`: lihat `tahap-2/konfigurasi-staging.md`.
 
+## 5c. Observabilitas webhook (G3-T01)
+Sejak perbaikan G3-T01, **setiap** respons `/api/webhooks/whatsapp` menghasilkan satu baris log aplikasi berawalan `[webhook]` (JSON satu baris). Isi yang dicatat **hanya**: metode, kode status, alasan, ukuran body (byte), hitungan simpan, dan label error aman. **Tidak pernah** dicatat: payload, header tanda tangan, verify token/challenge, nomor telepon, ID pesan, isi pesan.
+
+| `reason` | Status | Arti / tindakan |
+|---|---|---|
+| `ok` | 200 | Disimpan. `counts` = `received/stored/duplicates/quarantined` (mis. Test Meta berulang → `duplicates:1`) |
+| `signature_invalid` | 401 | Tanda tangan tidak cocok → **periksa `META_APP_SECRET` vs App Secret aplikasi TE-One** |
+| `signature_missing` | 401 | Request tanpa header tanda tangan (bukan dari Meta) |
+| `flag_off` | 404 | Flag `whatsapp_connector` mati |
+| `secret_missing` | 503 | `META_APP_SECRET` kosong di lingkungan |
+| `too_large` | 413 | Body > 3 MB |
+| `not_json` | 400 | Tanda tangan sah tetapi body bukan JSON |
+| `store_failed` | 500 | DB menolak tulis (`error` = kode SQLSTATE); Meta akan mengirim ulang |
+| `challenge_ok` / `challenge_rejected` | 200 / 403 | Verifikasi langganan (GET) |
+
+```bash
+sudo docker compose -p deploy -f deploy/docker-compose.staging.yml logs --since 1h app | grep '\[webhook\]'
+sudo docker compose -p deploy -f deploy/docker-compose.staging.yml logs --since 24h app | grep '\[webhook\]' | grep -v '"status":200'   # hanya penolakan
+```
+Super Admin juga melihat ringkasan **24 jam terakhir per alasan** di halaman **Integrasi** (penghitung di memori proses `app`; kembali ke nol saat restart; tidak mencakup request yang diblokir sebelum sampai ke aplikasi).
+
+**Log akses Caddy untuk `/api/webhooks/*` (tanpa body).** `deploy/Caddyfile` sudah mendefinisikan log akses untuk seluruh situs ke `/data/log/access.log` (volume `deploy_caddy_data`), tanpa header request/response, dengan `hub.verify_token`/`hub.challenge` disamarkan; Caddy tidak pernah mencatat body. Saat uji S7, log yang diperiksa hanya memuat 308 (pengalihan HTTP→HTTPS) — **penyebabnya belum diverifikasi** di server. Langkah pemeriksaan operator:
+```bash
+sudo docker compose -p deploy -f deploy/docker-compose.staging.yml exec caddy caddy validate --config /etc/caddy/Caddyfile   # konfigurasi yang dimuat valid
+sudo docker compose -p deploy -f deploy/docker-compose.staging.yml exec -T caddy diff /etc/caddy/Caddyfile - < deploy/Caddyfile && echo "Caddyfile di container = repository"   # bind mount berkas: `git pull` membuat inode baru, container lama bisa masih melihat versi lama
+sudo docker compose -p deploy -f deploy/docker-compose.staging.yml exec caddy sh -c 'ls -l /data/log/ && grep "/api/webhooks/" /data/log/access.log | tail -5'
+```
+- Bila `access.log` tidak ada/tidak bertambah: Caddy belum memuat Caddyfile terbaru → bila `diff` berbeda, buat ulang container (`... up -d --no-deps --force-recreate caddy`); bila sama, `... exec caddy caddy reload --config /etc/caddy/Caddyfile`, lalu ulangi satu request (mis. buka `https://<domain-staging>/api/health`) dan periksa lagi. Jangan memeriksa `docker logs caddy` untuk log akses: keluaran itu hanya log runtime (stderr).
+- Log akses khusus `/api/webhooks/*` **tidak perlu** konfigurasi terpisah: blok `log` situs sudah mencakup jalur itu; saring dengan `grep "/api/webhooks/"` seperti di atas. Konfigurasi log per-jalur (named logger) sengaja **belum dibuat** agar tidak ada sintaks Caddy yang belum diuji di server. Perubahan Caddyfile apa pun wajib lewat PR (Caddyfile server = Caddyfile repository, §5).
+- Status langkah pemeriksaan di atas: **dibuat, belum diuji** di server (tugas operator saat mengulang S7).
+
 ## 6. Yang HARUS dibuktikan di server (tertunda) — isi saat verifikasi
 - [ ] Sertifikat HTTPS valid; HTTP → HTTPS; HSTS terbaca
 - [ ] Cookie sesi di browser: `__Host-…`, Secure, HttpOnly, SameSite (screenshot disamarkan)
