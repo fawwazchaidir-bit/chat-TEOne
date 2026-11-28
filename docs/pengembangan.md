@@ -59,7 +59,7 @@ Semua hasil terhadap mock berstatus **SIMULASI**. Webhook lokal: tanda tangani b
 Dokumen: [`tahap-2/`](tahap-2/README.md).
 
 ## 6. Guard & pemindai
-`npm run guard:operational` menolak penanda operasional di seed/fixture/config/test, nomor berakhiran 1119/0124, dan **nomor telepon lengkap apa pun**; env `OPERATIONAL_NUMBER_HASHES` (sha256 digit E.164, rahasia CI) menambah pengecekan nomor terdaftar. `npm run scan:secrets` + gitleaks di CI. Pengecualian per baris hanya dengan komentar `guard-operational:allow` / `secret-scan:allow` **disertai alasan** (ditinjau di PR).
+`npm run guard:operational` menolak penanda operasional di seed/fixture/config/test, nomor berakhiran **6 digit** nomor operasional (Admisi …196319, Hotline …246319; Kemitraan …186319 sah di staging, jadi akhiran tidak boleh dipersingkat menjadi 4 digit), dan **nomor telepon lengkap apa pun**; env `OPERATIONAL_NUMBER_HASHES` (sha256 digit E.164, rahasia CI) menambah pengecekan nomor terdaftar. `npm run scan:secrets` + gitleaks di CI. Pengecualian per baris hanya dengan komentar `guard-operational:allow` / `secret-scan:allow` **disertai alasan** (ditinjau di PR).
 
 ## 7. Lingkungan uji terisolasi setara CI + verifikasi menyeluruh (G1-A02)
 Prasyarat (sama dengan job CI): **Node 22** (`.nvmrc`; Node 24 tidak setara CI), **PostgreSQL 16** yang dapat dijangkau `TEST_ADMIN_DATABASE_URL` (default `localhost:5432`, superuser — untuk DB uji sekali pakai),

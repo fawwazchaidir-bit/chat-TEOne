@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
  * Guard nomor operasional (AGENTS.md §10.1, GATE-CHECKLIST B6).
- * Memastikan identitas channel operasional (Admisi …1119, Hotline …0124) TIDAK muncul di konfigurasi, seed, fixture,
- * kode, atau dokumen non-production.
+ * Memastikan identitas channel operasional (Admisi …196319, Hotline …246319; AGENTS.md §1) TIDAK muncul di konfigurasi, seed,
+ * fixture, kode, atau dokumen non-production.
  *
  * Aturan:
  *  G1  Tidak ada channel yang diberi penanda operasional bernilai benar (flag isOperational) di seed/fixture/config/test.
  *      Pengecualian eksplisit per baris: komentar `guard-operational:allow` (dipakai test yang SENGAJA menguji penolakan).
- *  G2  Tidak ada nomor telepon format Indonesia yang berakhiran 1119 atau 0124 di berkas mana pun.
+ *  G2  Tidak ada nomor telepon format Indonesia yang berakhiran 196319 (Admisi) atau 246319 (Hotline) di berkas mana pun.
+ *      Akhiran HARUS 6 digit: nomor Kemitraan (…186319) sah dipakai di staging, jadi akhiran 4 digit "6319" akan salah-tangkap.
+ *      (G2-B08: sebelumnya memakai 1119/0124 yang bukan akhiran nomor operasional sebenarnya, sehingga G2 tidak pernah menangkapnya.)
  *  G3  Tidak ada nomor telepon lengkap sama sekali di repository (aturan data pelanggan, AGENTS.md §3.5).
  *  G4  Jika env OPERATIONAL_NUMBER_HASHES diisi (sha256 dari digit E.164, dipisah koma), nomor apa pun yang hash-nya
  *      cocok = pelanggaran. Hash disimpan sebagai secret CI, BUKAN di repository.
@@ -29,7 +31,8 @@ const root = path.resolve(process.argv[2] ?? process.cwd());
 // Nomor Indonesia: 08xx…, +628xx…, 628xx…, juga berspasi/bertanda baca: "+62 812 …", "(+62) 812-…". Batas kata mencegah kecocokan pada UUID/hash.
 const PHONE = /(?<![\w-])\(?(?:\+?62\)?[\s.-]*|0)8[\d\s().-]{7,14}\d(?![\w-])/g;
 const MARKER = /["']?(?:isOperational|is_operational)["']?\s*[:=]\s*true\b/;
-const OP_SUFFIX = ["1119", "0124"];
+// 6 digit terakhir nomor operasional: Admisi dan Hotline. JANGAN dipersingkat menjadi 4 digit (lihat catatan G2 di atas).
+const OP_SUFFIX = ["196319", "246319"];
 const parseHashes = (raw) => {
   const all = raw.split(",").map((x) => x.trim()).filter(Boolean);
   const valid = new Set(all.filter((h) => /^[0-9a-f]{64}$/i.test(h)).map((h) => h.toLowerCase()));
@@ -52,7 +55,7 @@ if (warnings.length) {
     console.warn(`  - ${w}`);
     if (inCi) console.log(`::warning title=Guard nomor operasional tidak penuh::${w}`);
   }
-  console.warn("  Yang berjalan: G1–G3 (penanda operasional, akhiran 1119/0124, nomor lengkap). Isi secret repository agar G4/G5 aktif (daftar-tindakan-pemilik.md).");
+  console.warn("  Yang berjalan: G1–G3 (penanda operasional, akhiran 6 digit nomor Admisi/Hotline, nomor lengkap). Isi secret repository agar G4/G5 aktif (daftar-tindakan-pemilik.md).");
   if (process.env.GUARD_REQUIRE_HASHES === "1") {
     console.error("GUARD NOMOR OPERASIONAL GAGAL — GUARD_REQUIRE_HASHES=1 tetapi daftar hash tidak lengkap.");
     process.exit(1);
